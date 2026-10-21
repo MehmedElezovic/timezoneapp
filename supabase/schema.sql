@@ -271,6 +271,95 @@ alter publication supabase_realtime add table
   public.members, public.events, public.attendees, public.threads, public.comments, public.reactions,
   public.profiles, public.teams;
 
+-- ---------------------------------------------------------------- account settings
+
+alter table public.profiles
+  add column if not exists notify jsonb not null default '{"invites":true,"mentions":true,"replies":true,"missed":true,"weekly":false}',
+  add column if not exists prefs  jsonb not null default '{}';
+
+-- profile photos: a public bucket, each person writes only inside their own folder
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 2097152, array['image/png','image/jpeg','image/webp','image/gif'])
+on conflict (id) do nothing;
+create policy "avatars: read own" on storage.objects for select to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars: upload own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars: replace own" on storage.objects for update to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+create policy "avatars: remove own" on storage.objects for delete to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- delete my account: teams I created pass to a teammate, or go if nobody else is in them
+create or replace function public.delete_account() returns void
+language plpgsql security definer set search_path = public as $$
+declare me uuid := auth.uid(); t record; heir uuid;
+begin
+  if me is null then raise exception 'Sign in first'; end if;
+  for t in select id from public.teams where created_by = me loop
+    select user_id into heir from public.members where team_id = t.id and user_id is not null and user_id <> me order by created_at limit 1;
+    if heir is null then delete from public.teams where id = t.id;
+    else update public.teams set created_by = heir where id = t.id; end if;
+  end loop;
+  update public.members set added_by = null where added_by = me;
+  delete from auth.users where id = me;
+end $$;
+revoke execute on function public.delete_account() from public, anon;
+grant execute on function public.delete_account() to authenticated;
+
+-- ---------------------------------------------------------------- tasks
+
+-- for anyone on the team, with an optional deadline, kept until done or deleted
+create table public.tasks (
+  id         uuid primary key default gen_random_uuid(),
+  team_id    uuid not null references public.teams(id) on delete cascade,
+  title      text not null check (length(title) <= 120),
+  note       text,
+  due_day    date,                 -- "by the end of this day"
+  due_time   text,                 -- optional "HH:MM" on that day, read in due_tz
+  due_tz     text,
+  done_at    timestamptz,
+  cleared    boolean not null default false,   -- finished and cleared from the open list
+  created_by uuid references public.members(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index tasks_team_idx on public.tasks(team_id);
+
+create table public.task_assignees (
+  task_id   uuid not null references public.tasks(id) on delete cascade,
+  member_id uuid not null references public.members(id) on delete cascade,
+  primary key (task_id, member_id)
+);
+
+alter table public.tasks enable row level security;
+alter table public.task_assignees enable row level security;
+
+-- teammates see and add tasks; the person who made one, or anyone it is assigned to, changes or removes it
+create policy "tasks: teammates" on public.tasks for select using (public.is_member(team_id));
+create policy "tasks: add"       on public.tasks for insert with check (public.is_member(team_id));
+create policy "tasks: edit" on public.tasks for update using (
+  created_by = public.my_member_id(team_id)
+  or exists (select 1 from public.task_assignees ta join public.members m on m.id = ta.member_id where ta.task_id = tasks.id and m.user_id = auth.uid()));
+create policy "tasks: remove" on public.tasks for delete using (
+  created_by = public.my_member_id(team_id)
+  or exists (select 1 from public.task_assignees ta join public.members m on m.id = ta.member_id where ta.task_id = tasks.id and m.user_id = auth.uid()));
+
+create policy "task_assignees: teammates" on public.task_assignees for select using (
+  exists (select 1 from public.tasks t where t.id = task_id and public.is_member(t.team_id)));
+create policy "task_assignees: add" on public.task_assignees for insert with check (
+  exists (select 1 from public.tasks t where t.id = task_id and public.is_member(t.team_id)));
+create policy "task_assignees: remove" on public.task_assignees for delete using (
+  exists (select 1 from public.tasks t where t.id = task_id and public.is_member(t.team_id)));
+
+alter publication supabase_realtime add table public.tasks, public.task_assignees;
+
+-- a thread can hang off a task, the same way it hangs off a block of time or a meeting
+alter table public.threads add column if not exists task_id uuid references public.tasks(id) on delete cascade;
+alter table public.threads drop constraint if exists threads_check;
+alter table public.threads add constraint threads_target check (
+  (member_id is not null and starts_at is not null and ends_at is not null) or event_id is not null or task_id is not null);
+create unique index if not exists threads_task_uq on public.threads(task_id) where task_id is not null;
+
 -- ---------------------------------------------------------------- who may call what
 
 -- The trigger needs no callers at all; the two RPCs are for signed-in users only.

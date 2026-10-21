@@ -6,6 +6,7 @@
 <title>Noon</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M3 17h18' stroke='%2317191c' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M6 17a6 6 0 0 1 12 0z' fill='%23ffc83a' stroke='%23f6a623' stroke-width='1.4'/%3E%3C/svg%3E">
 <meta name="description" content="Find the hour your whole team shares. Timezones, calendars and scheduling under one sun.">
+<script>try{var t=localStorage.getItem('noon.theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t;if(localStorage.getItem('noon.sky')==='off')document.documentElement.dataset.sky='off'}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400..600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;1,8..60,400&display=swap" rel="stylesheet">
@@ -21,10 +22,23 @@
   --modal:0 0 0 1px rgba(0,0,0,.05),0 8px 40px rgba(0,0,0,.1);
   --pop:0 0 0 1px rgba(0,0,0,.05),0 4px 24px rgba(0,0,0,.08);
   --info:288px; --gap:16px;
+  --on-ink:#ffffff; --on-sienna:#ffffff; --chip:#e6e7ea; --chip-2:#efeff2; --line:#ececef; --track:#d3d5da; --page:#ffffff;
+  color-scheme:light;
+}
+/* dark: the same layout, lit from below. The sky keeps its own colours. */
+:root[data-theme=dark]{
+  --ink:#ecedef; --paper:#1d1f23; --mist:#16171a; --fog:#191a1d;
+  --slate:#a9adb5; --ash:#9b9fa8; --smoke:#80848d; --hair:#2f3237;
+  --peach:#3a2820; --sienna:#f0b393;
+  --on-ink:#17191c; --on-sienna:#2a1309; --chip:#2a2c31; --chip-2:#24262a; --line:#2a2d32; --track:#3b3e44; --page:#0f1012;
+  --float:0 0 0 1px rgba(255,255,255,.06),0 20px 25px -5px rgba(0,0,0,.5),0 8px 10px -6px rgba(0,0,0,.4);
+  --modal:0 0 0 1px rgba(255,255,255,.08),0 12px 48px rgba(0,0,0,.6);
+  --pop:0 0 0 1px rgba(255,255,255,.07),0 6px 28px rgba(0,0,0,.5);
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--paper);color:var(--ink);font:400 17px/1.35 var(--sans);font-feature-settings:'cv11','ss01'}
+body{margin:0;background:var(--page);transition:background .2s;color:var(--ink);font:400 17px/1.35 var(--sans);font-feature-settings:'cv11','ss01'}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:inherit}
@@ -35,7 +49,7 @@ a{color:inherit}
 /* buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 20px;border-radius:9999px;border:1px solid var(--ink);background:transparent;color:var(--ink);font-size:16px;font-weight:400;text-decoration:none;white-space:nowrap}
 .btn:hover{background:var(--fog)}
-.btn.fill{background:var(--ink);color:#fff;border-color:var(--ink)}
+.btn.fill{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
 .btn.fill:hover{background:#2c2f34}
 .btn.sm{height:34px;padding:0 14px;font-size:15px}
 .btn.quiet{border-color:var(--hair)}
@@ -73,9 +87,6 @@ h1{margin:0;font:400 64px/1.1 var(--serif);letter-spacing:-.015em}
 .top .logo{margin:0;font-size:30px;color:var(--ink);text-decoration:none}
 .top .logo svg{width:26px;height:26px;flex:none}
 .top-acts{display:flex;align-items:center;gap:8px}
-.acct-nm{font-size:15px;color:var(--ink);margin-left:8px}
-.acct{gap:0;border-radius:9999px;padding:2px 10px 2px 2px;background:var(--paper);box-shadow:0 0 0 1px rgba(23,25,28,.12)}
-.acct:hover{background:var(--fog)}
 #skyTime{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;font-size:15px;font-weight:450;color:var(--ink);padding-top:6px;transition:color .3s;pointer-events:auto;cursor:default}
 #skyTime b{font-weight:600;font-variant-numeric:tabular-nums}
 #skyTime .sky-back{margin-left:8px;background:#fff;border-color:transparent;color:var(--ink);font-weight:500;box-shadow:0 4px 12px rgba(11,31,77,.28)}
@@ -159,7 +170,7 @@ h1{margin:0;font:400 64px/1.1 var(--serif);letter-spacing:-.015em}
 .lbl.up{bottom:calc(100% + 8px)} .lbl.dn{top:calc(100% + 8px)}
 
 .bub{--t:#E4EEDF;width:40px;height:40px;border-radius:50%;background:var(--t);color:var(--ink);display:grid;place-items:center;font:500 14px/1 var(--sans);flex:none;border:2px solid var(--paper);position:relative}
-.bub.me{background:var(--ink);color:#fff}
+.bub.me{background:var(--ink);color:var(--on-ink)}
 .grp .bub.me{border-color:#ffc83a;box-shadow:0 0 0 2px rgba(23,25,28,.55),0 5px 10px rgba(11,31,77,.28)}
 .lbl.me{background:#ffc83a;color:var(--ink);box-shadow:0 0 0 1.5px rgba(23,25,28,.55),0 4px 12px rgba(11,31,77,.22)}
 .lbl.me em{color:#4a3800}
@@ -168,6 +179,33 @@ h1{margin:0;font:400 64px/1.1 var(--serif);letter-spacing:-.015em}
 
 /* layout */
 .board{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start;margin:24px auto 80px}
+.board>.col{display:contents}
+.blk[hidden],.col[hidden]{display:none}
+:root.no-legend .legend{display:none}
+/* arrange mode */
+.arr-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:24px 0 -8px;padding:12px 16px;border-radius:18px;background:var(--paper);box-shadow:var(--float);font-size:14px;color:var(--slate)}
+.arr-top b{color:var(--ink);font-weight:500}
+.arr-top>div{flex:1 1 320px}
+.arr-chips{display:flex;gap:6px;flex-wrap:wrap}
+.arr-chips .btn{height:30px;padding:0 12px;font-size:13px}
+.arr-end{margin-left:auto;display:flex;gap:6px}
+.arr-bar{display:none;align-items:center;justify-content:space-between;gap:8px;margin:-6px -6px 14px;padding:4px 6px 4px 4px;border-radius:14px;background:var(--paper);box-shadow:0 0 0 1px rgba(23,25,28,.14)}
+.blk[data-block=inbox] .arr-bar{margin:0 0 12px}
+:root[data-arrange=on] .arr-bar{display:flex}
+:root[data-arrange=on] .blk{outline:2px dashed rgba(23,25,28,.28);outline-offset:3px;user-select:none}
+:root[data-arrange=on] .blk.dragging{opacity:.6}
+.arr-grip{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:4px 10px 4px 6px;border-radius:9999px;cursor:grab;font-size:14px;color:var(--ink);touch-action:none;min-width:0}
+.arr-grip:hover{background:var(--mist)}
+.arr-grip:active{cursor:grabbing}
+.arr-grip svg{width:16px;height:16px;color:var(--slate);flex:none}
+.arr-grip b{font-weight:500;white-space:nowrap}
+.arr-acts{display:flex;gap:4px;flex:none}
+.ib.arr-col{display:none}
+.ib.arr-eye{display:none;margin-left:auto}
+:root[data-arrange=on] .ib.arr-eye{display:grid}
+@media (min-width:1280px){.ib.arr-col{display:grid}}
+:root[data-theme=dark] .arr-bar{box-shadow:0 0 0 1px rgba(255,255,255,.14)}
+:root[data-theme=dark] :root[data-arrange=on] .blk{outline-color:rgba(255,255,255,.3)}
 
 .card{background:var(--mist);border-radius:24px;padding:20px}
 [hidden]{display:none!important}
@@ -189,15 +227,15 @@ h1{margin:0;font:400 64px/1.1 var(--serif);letter-spacing:-.015em}
 .kd svg{width:11px;height:11px;display:block}
 .nm .inv.by{color:var(--ash)}
 /* add-someone row */
-.addrow{display:grid;grid-template-columns:var(--info) 1fr;gap:var(--gap);align-items:center;margin-top:16px}
-.add-who{display:flex;align-items:center;gap:12px;min-width:0}
-.bub.add{background:transparent;border:1.5px dashed var(--ash);color:var(--slate);font-size:20px;font-weight:400;padding:0;cursor:pointer;font-family:inherit}
-button.bub.add:hover{border-style:solid;color:var(--ink)}
-.addrow input{height:40px;min-width:0;border:1px solid var(--hair);border-radius:9999px;background:var(--paper);padding:0 16px;font-size:15px}
-.addrow input::placeholder{color:var(--smoke)}
-.add-who input{flex:1}
-.add-rest{display:flex;align-items:center;gap:8px;min-height:56px;border:1.5px dashed #c5c7ce;border-radius:16px;padding:0 8px}
-.add-rest input{flex:1}
+/* add rows: one dashed box around everything, the button at the end */
+.addrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px;padding:8px;border:1.5px dashed #c5c7ce;border-radius:18px}
+.bub.add{background:transparent;border:1.5px dashed var(--ash);color:var(--slate);font-size:20px;font-weight:400}
+.addrow input,.addrow textarea{height:40px;min-width:0;border:1px solid var(--hair);border-radius:9999px;background:var(--paper);padding:0 16px;font-size:15px;color:var(--ink);font-family:inherit}
+.addrow input::placeholder,.addrow textarea::placeholder{color:var(--smoke)}
+.addrow input[name=name]{flex:2 1 170px}
+.addrow input[name=tz]{flex:2 1 170px}
+.addrow input[name=email]{flex:2 1 190px}
+.addrow .btn{flex:none}
 /* settings panel slides over from the right */
 dialog.drawer{margin:0 0 0 auto;width:min(460px,100vw);height:100dvh;max-height:100dvh;border-radius:24px 0 0 24px;overflow:auto}
 .drawer .dlg{padding:28px}
@@ -219,7 +257,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .daynav{display:inline-flex;align-items:center;gap:4px}
 .daynav .nav{width:34px;height:36px;border-radius:9999px;border:1px solid var(--hair);background:var(--paper);color:var(--ink);font-size:20px;line-height:1;padding:0 0 2px;display:grid;place-items:center;cursor:pointer}
 .daynav .nav:hover{background:var(--fog)}
-.tl-ctl .seg{background:#e6e7ea}
+.tl-ctl .seg{background:var(--chip)}
 .tl-ctl .seg button{height:30px;padding:0 13px;font-size:14px}
 .tl-ctl .btn{background:var(--paper)}
 .weekbar{display:flex;align-items:center;justify-content:center;gap:10px 16px;margin:0 4px 18px;flex-wrap:wrap}
@@ -229,7 +267,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .wk b{font-weight:480}
 .wk i{font-style:normal;font-size:12px;color:var(--slate)}
 .wk.full i{color:var(--sienna);font-weight:500}
-.wk[aria-pressed=true]{background:var(--ink);color:#fff;box-shadow:none}
+.wk[aria-pressed=true]{background:var(--ink);color:var(--on-ink);box-shadow:none}
 .wk[aria-pressed=true] i{color:#d9dade}
 .wk.today b::after{content:"";display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--sienna);margin-left:5px;vertical-align:middle}
 .wk[aria-pressed=true].today b::after{background:var(--peach)}
@@ -239,13 +277,13 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .sample{margin:14px auto 0;font-size:14px;color:var(--slate)}
 .sample .tlink{padding:0;font-size:14px;margin-left:10px;text-decoration:underline;text-underline-offset:3px;color:var(--ink)}
 .who{position:relative}
-.qn{position:absolute;left:32px;top:1px;min-width:17px;height:17px;padding:0 4px;border-radius:9999px;background:var(--sienna);color:#fff;font:600 11px/17px var(--sans);font-style:normal;text-align:center;box-shadow:0 0 0 2px var(--mist)}
+.qn{position:absolute;left:32px;top:1px;min-width:17px;height:17px;padding:0 4px;border-radius:9999px;background:var(--sienna);color:var(--on-sienna);font:600 11px/17px var(--sans);font-style:normal;text-align:center;box-shadow:0 0 0 2px var(--mist)}
 .when-row{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap;margin:0 0 14px;font-size:14px;color:var(--slate);line-height:1.4}
 .when-row input[type=time]{height:40px;border-radius:9999px;border:1px solid var(--hair);background:var(--paper);padding:0 14px;font-size:15px;width:auto}
 .ag-q{margin-top:18px}
 .ag-q h4{font-size:15px;font-weight:480;margin:0 0 4px;display:flex;align-items:center;gap:8px}
-.ag-q h4 i{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9999px;background:var(--sienna);color:#fff;font-size:11px;line-height:18px;text-align:center;font-weight:600}
-.q-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;border-top:1px solid #e2e3e6;font-size:15px}
+.ag-q h4 i{font-style:normal;min-width:18px;height:18px;padding:0 5px;border-radius:9999px;background:var(--sienna);color:var(--on-sienna);font-size:11px;line-height:18px;text-align:center;font-weight:600}
+.q-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;border-top:1px solid var(--line);font-size:15px}
 .q-item .t{font-variant-numeric:tabular-nums;color:var(--slate);font-size:14px;white-space:nowrap}
 .q-item .x{background:none;border:0;color:var(--slate);font-size:14px;padding:4px 0}
 .q-item .x:hover{color:var(--ink);text-decoration:underline}
@@ -296,7 +334,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .band:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 /* offline is a block too: blank until you hover it */
 .band .off{position:absolute;top:0;bottom:0;border-radius:10px;transition:background .12s,box-shadow .12s}
-.band .off.has{box-shadow:inset 0 0 0 1px #e2e3e6}
+.band .off.has{box-shadow:inset 0 0 0 1px var(--line)}
 .band .off.hot{background:#f3f3f5;box-shadow:inset 0 0 0 1.5px #b9bcc4}
 .who{cursor:default}
 /* a row you were sent to stays lit until you move over it */
@@ -306,12 +344,12 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 @keyframes spot{50%{box-shadow:0 0 0 6px rgba(251,225,209,.7),0 0 0 12px rgba(93,42,26,.35)}}
 @media (prefers-reduced-motion:reduce){.row.spot{animation:none}}
 /* tabbed panel under the timeline */
-.tabs{display:inline-flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:9999px;background:#e6e7ea}
+.tabs{display:inline-flex;flex-wrap:wrap;gap:4px;padding:4px;border-radius:9999px;background:var(--chip)}
 .tabs button{border:0;background:none;height:38px;padding:0 18px;border-radius:9999px;font-size:15px;color:var(--slate);display:inline-flex;align-items:center;gap:8px}
 .tabs button:hover{color:var(--ink)}
 .tabs button[aria-selected=true]{background:var(--paper);color:var(--ink);font-weight:480;box-shadow:var(--pop)}
-.tabs i{font-style:normal;min-width:20px;height:20px;padding:0 6px;border-radius:9999px;background:var(--sienna);color:#fff;font-size:12px;line-height:20px;font-weight:600}
-.tabs i.z{background:#cfd1d6;color:var(--ink)}
+.tabs i{font-style:normal;min-width:20px;height:20px;padding:0 6px;border-radius:9999px;background:var(--sienna);color:var(--on-sienna);font-size:12px;line-height:20px;font-weight:600}
+.tabs i.z{background:var(--track);color:var(--ink)}
 .tab-note{margin:16px 2px 0;font-size:15px;color:var(--slate);line-height:1.5;max-width:70ch}
 .li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;background:var(--paper);border-radius:16px;padding:12px 16px;margin-top:8px}
 .li .bub{width:36px;height:36px;font-size:13px;border:0}
@@ -337,7 +375,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .band .sleep.hot .bl{display:block}
 .band .badge{position:absolute;top:0;height:16px;padding:0 5px;border-radius:9999px;background:var(--paper);box-shadow:0 0 0 1px rgba(23,25,28,.14);font-size:10px;line-height:16px;white-space:nowrap;z-index:2;pointer-events:none;color:var(--ink)}
 .band .buf{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(135deg,rgba(47,92,184,.22) 0 2px,transparent 2px 7px)}
-.band .note{position:absolute;top:2px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--sienna);color:#fff;font:600 12px/18px var(--sans);text-align:center;box-shadow:0 0 0 2px var(--paper);z-index:2}
+.band .note{position:absolute;top:2px;width:18px;height:18px;margin-left:-9px;border-radius:50%;background:var(--sienna);color:var(--on-sienna);font:600 12px/18px var(--sans);text-align:center;box-shadow:0 0 0 2px var(--paper);z-index:2}
 .ghost{position:absolute;display:none;align-items:center;justify-content:center;border-radius:10px;border:1.5px dashed var(--ink);background:rgba(255,255,255,.55);box-shadow:0 4px 14px rgba(23,25,28,.14);pointer-events:none;font-size:12px;font-weight:500;color:var(--ink);white-space:nowrap;overflow:hidden;transition:left .09s ease-out,top .09s ease-out,width .09s ease-out}
 .ghost.bad{border-color:var(--sienna);background:rgba(251,225,209,.7)}
 .band .sleep svg{position:absolute;left:9px;top:50%;margin-top:-6px;width:12px;height:12px}
@@ -369,7 +407,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .pop-req .btn{margin:8px 6px 0 0;background:var(--paper);border-color:rgba(93,42,26,.35);color:var(--sienna)}
 .nowline{position:absolute;top:0;bottom:0;border-left:1.5px dashed var(--sienna);pointer-events:none}
 .nowline em{position:absolute;bottom:-24px;left:0;transform:translateX(-50%);font-style:normal;font-size:12px;color:var(--sienna);white-space:nowrap}
-#tip{position:fixed;z-index:50;display:none;background:var(--ink);color:#fff;border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;pointer-events:none;width:max-content;min-width:120px;max-width:min(310px,calc(100vw - 16px));white-space:pre-line;box-shadow:0 8px 24px rgba(0,0,0,.18)}
+#tip{position:fixed;z-index:50;display:none;background:var(--ink);color:var(--on-ink);border-radius:12px;padding:10px 14px;font-size:14px;line-height:1.5;pointer-events:none;width:max-content;min-width:120px;max-width:min(310px,calc(100vw - 16px));white-space:pre-line;box-shadow:0 8px 24px rgba(0,0,0,.18)}
 #tip::first-line{font-weight:500}
 .agenda{background:var(--mist);border-radius:24px;padding:24px}
 .ag-head{display:flex;align-items:center;gap:12px}
@@ -379,7 +417,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .ag-head .tools{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 .ag-head .btn{background:var(--paper)}
 .ag-list{margin:16px 0 0;padding:0;list-style:none}
-.ag-item{display:grid;grid-template-columns:16px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:4px 0;border-top:1px solid #e2e3e6;font-size:15px}
+.ag-item{display:grid;grid-template-columns:16px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:4px 0;border-top:1px solid var(--line);font-size:15px}
 .ag-item.cur{font-weight:480}
 .ag-jump{background:none;border:0;padding:8px 0;text-align:left;font-size:15px;font-weight:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ag-jump:hover{text-decoration:underline;text-underline-offset:3px}
@@ -406,7 +444,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .invc .ico{background:#fff;border-radius:50%;padding:2px;margin-right:-4px}
 .invc.no{color:var(--slate)}
 .invc.all{padding:0 16px}
-.invc[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.invc[aria-pressed=true]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
 .ag-warn{margin:12px 0 0;font-size:14px;line-height:1.45;color:var(--sienna)}
 .ag-warn.ok{color:var(--slate)}
 .ag-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
@@ -422,7 +460,7 @@ fieldset:disabled input{background:var(--fog);color:var(--slate)}
 .scrub{position:absolute;z-index:2;top:-30px;bottom:-4px;width:2px;margin-left:-1px;background:var(--ink);box-shadow:0 0 0 1px rgba(255,255,255,.8)}
 .scrub b.reset{cursor:pointer;transition:background .14s}
 .scrub b.reset:hover{background:var(--sienna)}
-.scrub b{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:4px 12px;border-radius:9999px;font-size:14px;font-weight:450;white-space:nowrap;font-variant-numeric:tabular-nums}
+.scrub b{position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--on-ink);padding:4px 12px;border-radius:9999px;font-size:14px;font-weight:450;white-space:nowrap;font-variant-numeric:tabular-nums}
 .scrub::after{content:"";position:absolute;bottom:-6px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--ink);border:3px solid var(--mist)}
 .legend{display:flex;gap:8px 20px;flex-wrap:wrap;margin:34px 0 2px;color:var(--ash);font-size:14px}
 .legend span{display:inline-flex;align-items:center;gap:8px}
@@ -476,7 +514,7 @@ button.hu:hover{text-decoration:underline;text-underline-offset:3px}
 .tp-list{position:absolute;z-index:8;left:0;min-width:100%;top:calc(100% + 6px);max-height:216px;overflow:auto;background:var(--paper);border-radius:14px;box-shadow:var(--pop);padding:6px}
 .tp-o{display:flex;justify-content:space-between;gap:14px;width:100%;border:0;background:none;border-radius:9px;padding:8px 10px;font-size:15px;font-variant-numeric:tabular-nums;text-align:left;white-space:nowrap}
 .tp-o:hover{background:var(--mist)}
-.tp-o.on{background:var(--ink);color:#fff}
+.tp-o.on{background:var(--ink);color:var(--on-ink)}
 .tp-o i{font-style:normal;color:var(--slate);font-size:13px}
 .tp-o.on i{color:#d6d7db}
 .durs.sug{margin-top:10px;align-items:center}
@@ -490,26 +528,28 @@ button.hu:hover{text-decoration:underline;text-underline-offset:3px}
 .th-r b{font-weight:600;font-size:14px;margin-right:6px}
 .th-r time{font-size:12px;color:var(--slate)}
 .th-r p{margin:1px 0 0;font-size:15px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
-.th-x{position:absolute;right:0;top:0;border:0;background:var(--paper);color:var(--slate);font-size:12px;padding:2px 8px;border-radius:9999px;box-shadow:0 0 0 1px var(--hair);opacity:0}
+.th-x{position:absolute;right:0;top:0;width:22px;height:22px;padding:0;border:0;background:var(--paper);color:var(--slate);font-size:15px;line-height:1;border-radius:50%;box-shadow:0 0 0 1px var(--hair);display:grid;place-items:center;opacity:0;cursor:pointer}
+.th-x:hover{color:var(--ink);box-shadow:0 0 0 1px rgba(23,25,28,.4)}
+.th-r p{padding-right:22px}
 .th-r:hover .th-x,.th-x:focus-visible{opacity:1}
 .th-x:hover{color:var(--ink)}
 .th-empty{margin:0;font-size:14px;color:var(--slate)}
 /* each comment can be reacted to: chips under it, and a react button that shows on hover */
-.th-act{position:absolute;right:0;top:-5px;display:flex;gap:4px;opacity:0;transition:opacity .1s}
-.th-r:hover .th-act,.th-r:focus-within .th-act,.th-r.picking .th-act{opacity:1}
-@media (hover:none){.th-act{opacity:1}}
-.th-act button{height:26px;border:0;background:var(--paper);color:var(--slate);font-size:12px;padding:0 8px;border-radius:9999px;box-shadow:0 0 0 1px rgba(23,25,28,.16);display:inline-flex;align-items:center}
-.th-act button:hover{color:var(--ink);box-shadow:0 0 0 1px rgba(23,25,28,.4)}
-.th-act svg{width:15px;height:15px;display:block}
-.th-act .th-x{position:static;opacity:1}
-.cres{display:flex;gap:4px;flex-wrap:wrap;margin-top:6px}
+.cres{display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-top:6px}
+.re.sm{height:26px;min-width:34px;padding:0 7px;font-size:14px;gap:3px}
+.re.sm i{font-size:12px}
+.re.sm.add{min-width:28px;padding:0 5px;opacity:.45;transition:opacity .12s,transform .12s}
+.re.sm.add svg{width:15px;height:15px}
+.th-r:hover .re.sm.add,.th-r.picking .re.sm.add,.re.sm.add:focus-visible{opacity:1}
+.th-b{min-width:0}
+
 #pop .cres .re{height:26px;min-width:0;padding:0 8px;font-size:13px;gap:3px}
 #pop .cres .re i{font-size:12px}
 .th-r .re-pick{grid-column:1/-1;margin-top:2px}
 .th-box{display:flex;align-items:flex-end;gap:6px;margin-top:12px;border:1px solid var(--hair);border-radius:18px;padding:4px 4px 4px 14px;background:var(--paper)}
 .th-box:focus-within{outline:2px solid var(--ink)}
 #pop .th-box textarea{flex:1;border:0;outline:0;padding:8px 0;margin:0;min-height:0;height:36px;max-height:110px;resize:none;font-size:15px;line-height:1.35;background:none;border-radius:0}
-.th-send{width:36px;height:36px;border-radius:50%;border:0;background:var(--ink);color:#fff;display:grid;place-items:center;flex:none;padding:0}
+.th-send{width:36px;height:36px;border-radius:50%;border:0;background:var(--ink);color:var(--on-ink);display:grid;place-items:center;flex:none;padding:0}
 .th-send:hover{background:#2c2f34}
 .th-send svg{width:16px;height:16px;display:block}
 .re.add svg{width:18px;height:18px;display:block}
@@ -518,6 +558,17 @@ button.hu:hover{text-decoration:underline;text-underline-offset:3px}
 .pop-meta input[type=time]{height:34px;border:1px solid var(--hair);border-radius:9999px;padding:0 12px;font-size:15px;width:auto}
 #pop .pop-meta .durs{margin:0}
 .pop-hint{margin:10px 0 0;font-size:13px;line-height:1.45;color:var(--slate)}
+.best-row{display:flex;align-items:center;gap:10px;margin-top:12px;min-width:0}
+.btn.best{gap:6px;border-color:var(--hair);background:var(--paper)}
+.btn.best svg{width:15px;height:15px;color:#e0a21b}
+.btn.best:hover{border-color:var(--ink)}
+.best-for{font-size:13px;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.best-note{margin:8px 0 0;padding:9px 12px;border-radius:12px;background:#e3f2ea;color:#136b45;font-size:13px;line-height:1.45}
+.best-note b{font-weight:600}
+.best-note .tlink{font-size:13px;color:inherit;margin-left:4px}
+.best-note.none,.best-note.part{background:var(--peach);color:var(--sienna)}
+:root[data-theme=dark] .best-note{background:#163326;color:#8fd8b4}
+:root[data-theme=dark] .best-note.none,:root[data-theme=dark] .best-note.part{background:var(--peach);color:var(--sienna)}
 .pop-cm .cm-a{display:block;margin-top:2px}
 .pop-cm .cm-a .tlink{padding:0;margin-right:12px;font-size:13px;color:var(--slate);text-decoration:underline;text-underline-offset:3px}
 .band .note.re{width:auto;min-width:20px;height:20px;padding:0 3px;margin-left:-10px;border-radius:9999px;background:var(--paper);color:var(--ink);font-size:12px;line-height:20px;font-weight:400;box-shadow:0 0 0 1px rgba(23,25,28,.2)}
@@ -535,7 +586,7 @@ button.hu:hover{text-decoration:underline;text-underline-offset:3px}
 .win small{font-size:14px;color:var(--ash)}
 .durs{display:flex;gap:6px;flex-wrap:wrap}
 .durs button{height:34px;padding:0 14px;border-radius:9999px;border:1px solid var(--hair);background:var(--paper);font-size:15px}
-.durs button[aria-pressed=true]{background:var(--ink);color:#fff;border-color:var(--ink)}
+.durs button[aria-pressed=true]{background:var(--ink);color:var(--on-ink);border-color:var(--ink)}
 .field{display:block;margin-top:14px}
 .field>span{display:block;font-size:14px;color:var(--slate);margin-bottom:6px}
 .field input,.field textarea{width:100%;border:1px solid var(--hair);background:var(--paper);border-radius:16px;padding:12px 16px;font-size:16px}
@@ -546,7 +597,9 @@ button.hu:hover{text-decoration:underline;text-underline-offset:3px}
 .muted{color:var(--slate);font-size:15px;line-height:1.5}
 
 /* guest mode, account, welcome tour */
-.acct{border:0;background:none;padding:0;display:inline-flex;align-items:center;cursor:pointer}
+.acct{border:0;display:inline-flex;align-items:center;gap:9px;height:38px;padding:0 16px 0 3px;border-radius:9999px;background:var(--paper);box-shadow:0 0 0 1px rgba(23,25,28,.12);cursor:pointer;transition:background .12s}
+.acct:hover{background:var(--fog)}
+.acct-nm{font-size:15px;color:var(--ink);line-height:1}
 .acct .bub{width:32px;height:32px;font-size:12px;box-shadow:none;border-width:0}
 .acct .bub.me{border-color:#ffc83a}
 .acct-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
@@ -580,6 +633,234 @@ button.hu:hover{text-decoration:underline;text-underline-offset:3px}
 .onb-step[hidden]{display:none}
 .onb-step{animation:rise .2s ease-out}
 @media (max-width:640px){.onb h3,.auth h3{font-size:30px}.onb-row{grid-template-columns:1fr}.onb .dlg{padding:24px}}
+/* dark mode: what sits on the sky keeps sky colours; status fills get their dark pairs */
+:root[data-theme=dark] #skyTime,:root[data-theme=dark] .sky-hint,:root[data-theme=dark] #skyTime .sky-back{color:#17191c}
+:root[data-theme=dark] .who:hover{background:rgba(255,255,255,.04)}
+:root[data-theme=dark] dialog::backdrop{background:rgba(0,0,0,.55)}
+:root[data-theme=dark] .acc-msg,:root[data-theme=dark] .auth-note{background:#163326;color:#8fd8b4}
+:root[data-theme=dark] .acc-msg.err{background:#3a1d1b;color:#f2a49d}
+:root[data-theme=dark] .auth-err{color:#f2a49d}
+:root[data-theme=dark] .btn.danger{border-color:#6b3430;color:#f2a49d}
+:root[data-theme=dark] .btn.danger:hover{background:#3a1d1b}
+:root[data-theme=dark] .st.avail{color:#7ccfa6}
+:root[data-theme=dark] .band .work{background:#2b4a3c;box-shadow:inset 0 0 0 1px rgba(124,207,166,.35)}
+:root[data-theme=dark] .band .work.hot{background:#356150;box-shadow:inset 0 0 0 2px #7ccfa6}
+:root[data-theme=dark] .band .sleep{background:repeating-linear-gradient(135deg,#2a3557 0 6px,#232b45 6px 12px);box-shadow:inset 0 0 0 1px rgba(122,153,230,.35)}
+:root[data-theme=dark] .band .off.hot{background:#24262a;box-shadow:inset 0 0 0 1.5px #4a4e55}
+:root[data-theme=dark] .band .buf{opacity:.55}
+:root[data-theme=dark] .ovl.full{background:rgba(240,179,147,.08)}
+:root[data-theme=dark] .scrub{box-shadow:0 0 0 1px rgba(0,0,0,.6)}
+:root[data-theme=dark] img{color-scheme:light}
+
+/* account menu and settings window */
+.top{position:relative}
+.acct-menu{position:absolute;right:4px;top:calc(100% - 8px);width:264px;padding:6px;border-radius:18px;background:var(--paper);box-shadow:var(--modal);z-index:60;animation:rise .14s ease-out}
+.acct-menu[hidden]{display:none}
+.am-head{display:flex;align-items:center;gap:10px;padding:8px 10px 10px;margin-bottom:4px;border-bottom:1px solid var(--line)}
+.am-head .bub{width:36px;height:36px;font-size:13px;border:0}
+.am-head b{display:block;font-weight:500;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-head span{display:block;font-size:13px;color:var(--slate);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.am-head>div{min-width:0}
+.acct-menu button{display:flex;align-items:center;gap:11px;width:100%;height:38px;padding:0 10px;border:0;background:none;border-radius:11px;font-size:15px;color:var(--ink);text-align:left;cursor:pointer}
+.acct-menu button:hover,.acct-menu button:focus-visible{background:var(--mist);outline:0}
+.acct-menu svg,.set-nav svg{width:18px;height:18px;flex:none;color:var(--slate)}
+.acct-menu hr{border:0;border-top:1px solid var(--line);margin:4px 6px}
+.acct-menu .am-theme{justify-content:space-between}
+.acct-menu .am-theme>span{display:flex;align-items:center;gap:11px}
+.am-sw{flex:none;width:36px;height:22px;border-radius:9999px;background:var(--track);position:relative;transition:background .15s}
+.am-sw::after{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s}
+.am-theme[aria-checked=true] .am-sw{background:#2f6fde}
+.am-theme[aria-checked=true] .am-sw::after{transform:translateX(14px)}
+dialog.settings:focus{outline:0}
+dialog.settings{width:min(940px,calc(100vw - 32px));height:min(680px,calc(100dvh - 32px));max-height:none;padding:0;overflow:hidden}
+.set-wrap{display:grid;grid-template-columns:232px minmax(0,1fr);height:100%}
+.set-nav{background:var(--fog);border-right:1px solid var(--line);padding:22px 12px;overflow:auto;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:2px}
+.set-nav h2{font:500 13px/1 var(--sans);color:var(--slate);margin:4px 10px 12px;letter-spacing:.01em}
+.set-nav button{display:flex;align-items:center;gap:11px;width:100%;height:38px;padding:0 10px;border:0;background:none;border-radius:10px;font-size:15px;color:var(--ink);text-align:left;cursor:pointer;flex:none}
+.set-nav button:hover{background:var(--chip-2)}
+.set-nav button[aria-current=page]{background:var(--chip);font-weight:500}
+.set-nav button[aria-current=page] svg{color:var(--ink)}
+.set-nav button:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.set-main{position:relative;overflow:auto;padding:30px 40px 40px}
+.set-main>.pop-x{position:absolute;right:18px;top:18px}
+.set-page[hidden]{display:none}
+.set-page{animation:rise .16s ease-out;max-width:620px}
+.set-page h3{font:400 34px/1.15 var(--serif);letter-spacing:-.01em;margin:0 0 6px}
+.set-sub{margin:0;color:var(--slate);font-size:15px;line-height:1.5}
+.acc-sec{border-top:1px solid var(--line);padding:18px 0 6px;margin-top:18px}
+.acc-sec h4{font-size:15px;font-weight:500;margin:0 0 4px}
+.acc-row{display:flex;align-items:flex-end;gap:8px}
+.acc-row .field{flex:1;min-width:0}
+.acc-row .btn{height:46px;margin-bottom:1px}
+.acc-foot{display:flex;justify-content:flex-end;margin-top:12px}
+.acc-photo{display:flex;align-items:center;gap:16px;margin:10px 0 2px}
+.acc-photo .bub{width:72px;height:72px;font-size:22px;border:0}
+.acc-photo-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.acc-photo-acts label.btn{cursor:pointer}
+.acc-msg{margin:10px 0 0;padding:10px 14px;border-radius:14px;background:#e3f2ea;color:#136b45;font-size:14px;line-height:1.45}
+.acc-msg.err{background:#fbe4e2;color:#b4231f}
+.acc-line,.acc-tog{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line)}
+.acc-line:last-child,.acc-tog:last-child{border-bottom:0}
+.acc-line>div:first-child,.acc-tog>div{min-width:0}
+.acc-line b,.acc-tog b{display:block;font-weight:500;font-size:15px}
+.acc-line span,.acc-tog span{display:block;font-size:14px;color:var(--slate);line-height:1.4;margin-top:2px}
+.acc-line .seg button{height:32px;padding:0 14px;font-size:14px}
+.acc-line select.pill{height:36px;font-size:15px;flex:none}
+.acc-tog{cursor:pointer}
+.acc-tog input{appearance:none;-webkit-appearance:none;flex:none;width:40px;height:24px;border-radius:9999px;background:var(--track);position:relative;cursor:pointer;transition:background .15s;margin:0}
+.acc-tog input::after{content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:transform .15s}
+.acc-tog input:checked{background:#2f6fde}
+.acc-tog input:checked::after{transform:translateX(16px)}
+.btn.danger{border-color:#e7b6b2;color:#b4231f}
+.btn.danger:hover{background:#fbe4e2}
+#acIntegList .integ{border-bottom:1px solid var(--line);padding:12px 0}
+@media (max-width:720px){
+  dialog.settings{width:100vw;height:100dvh;max-width:100vw;border-radius:0}
+  .set-wrap{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .set-nav{flex-direction:row;flex-wrap:nowrap;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);padding:12px 56px 12px 12px;gap:4px;scrollbar-width:none}
+  .set-nav::-webkit-scrollbar{display:none}
+  .set-nav h2{display:none}
+  .set-nav button{width:auto;white-space:nowrap}
+  .set-main{padding:22px 18px 32px}
+  .set-main>.pop-x{position:fixed;right:12px;top:12px;z-index:2}
+  .set-page h3{font-size:28px}
+  .acc-line{flex-wrap:wrap}
+}
+/* tasks */
+.tasks{margin-top:0}
+.tk-tabs{gap:3px}
+.tk-tabs button{padding:0 9px;height:34px;font-size:14px;gap:5px}
+.tk-tabs i{min-width:18px;height:18px;line-height:18px;font-size:11px;padding:0 5px}
+.tasks .card-head h2 .tk-sum{font:400 14px/1 var(--sans);color:var(--slate);margin-left:10px;letter-spacing:0}
+.tk-add{margin:2px 0 14px;gap:6px}
+.tk-add textarea{flex:1 1 120px;height:auto;min-height:40px;max-height:140px;padding:9px 16px;line-height:1.35;resize:none;overflow-y:auto;border-radius:20px}
+.tk-open{flex:none;box-shadow:none;background:none;width:30px;height:30px;color:var(--slate)}
+.tk-open:hover{background:var(--paper);box-shadow:0 0 0 1px rgba(23,25,28,.16);color:var(--ink)}
+.tk-open svg{width:15px;height:15px}
+.tk-rx{background:var(--paper);border-radius:9999px;padding:1px 8px;box-shadow:0 0 0 1px var(--line);font-size:12px}
+dialog.tk-pop{width:min(400px,calc(100vw - 16px));border-radius:20px}
+.tk-popin{padding:16px;font-size:15px}
+.tk-h{display:block;width:100%;border:0;background:none;padding:0;margin:0;font:480 16px/1.3 var(--sans);color:var(--ink);resize:none;overflow:hidden;max-height:160px;border-radius:4px}
+.tk-h:focus{outline:0;box-shadow:0 2px 0 var(--ink)}
+.tk-h::placeholder{color:var(--smoke);font-weight:400}
+.tk-popin .pop-h>div>span{display:block}
+.tk-sub-due.overdue{color:#b4231f;font-weight:500}
+.tk-sub-due.today{color:var(--sienna);font-weight:500}
+.tk-sub-due.done{color:#1a7f54;font-weight:500}
+.tk-popin .re{min-width:38px;padding:0 6px}
+.tk-ctl{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.tk-ctl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:relative}
+.tk-ctl-row .tk-lab{min-width:28px;font-size:13px;color:var(--slate)}
+.tk-ctl-row input{height:34px;border:1px solid var(--hair);border-radius:9999px;background:var(--paper);padding:0 12px;font-size:14px;color:var(--ink)}
+.tk-wholist{display:contents}
+.tk-who1{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 9px 0 3px;border-radius:9999px;border:0;background:var(--mist);font-size:13px;color:var(--ink)}
+.tk-who1 .bub{width:24px;height:24px;font-size:9px;border:0}
+.tk-who1 i{font-style:normal;color:var(--slate);font-size:15px;line-height:1}
+.tk-who1:hover i{color:var(--ink)}
+.tk-popin .tk-dd{position:static}
+.tk-popin .tk-dd .inv-dd{left:0;right:0;width:auto;max-width:none;top:calc(100% + 4px)}
+.tk-popin .inv-dd input{width:100%;height:38px;border:1px solid var(--hair);border-radius:9999px;padding:0 14px;font-size:14px;background:var(--paper);color:var(--ink)}
+.tk-popin .pop-b{margin-top:14px}
+.tk-popin .th-list{max-height:260px}
+.tk-popin .th-box textarea{flex:1;border:0;outline:0;padding:8px 0;margin:0;min-height:0;height:36px;max-height:110px;resize:none;font-size:15px;line-height:1.35;background:none;border-radius:0}
+:root[data-theme=dark] .tk-sub-due.overdue{color:#f2a49d}
+:root[data-theme=dark] .tk-sub-due.done{color:#8fd8b4}
+@media (max-width:640px){.tk-add textarea{flex-basis:100%}}
+.tk-dd{position:relative;flex:none}
+.tk-dd .inv-dd{left:0;right:auto}
+.inv-add.tk-for,.inv-add.tk-due{height:34px;white-space:nowrap}
+.tk-due svg{width:16px;height:16px;color:var(--slate)}
+.tk-due.on{border-style:solid;border-color:var(--ink)}
+.tk-duebox{width:260px}
+.tk-duebox .field{margin-top:8px}
+.tk-duebox .field:first-child{margin-top:4px}
+.tk-duefoot{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+#tkForQ{width:100%;height:36px;border:1px solid var(--hair);border-radius:9999px;background:var(--paper);padding:0 14px;font-size:14px;color:var(--ink)}
+.tk-grp{display:flex;align-items:center;justify-content:space-between;margin:16px 2px 6px}
+.tk-grp h4{margin:0;font-size:13px;font-weight:500;color:var(--slate);letter-spacing:.01em}
+.tk-grp h4 i{font-style:normal;color:var(--ash);margin-left:4px;font-weight:400}
+.tk-grp .tlink{font-size:13px}
+.tk{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:12px;align-items:center;background:var(--paper);border-radius:14px;padding:10px 12px;margin-top:6px;cursor:pointer;transition:box-shadow .12s,background .12s}
+.tk:hover{box-shadow:0 0 0 1px #cfd1d6}
+.tk:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.tk.done{background:#e6f4ec}
+.tk.done:hover{box-shadow:0 0 0 1px #9fd4b8}
+.tk.done .tk-due{color:#1a7f54;font-weight:500}
+.tk.done .tk-meta{color:#3f7a5c}
+.tk-ck{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--ash);background:var(--paper);display:grid;place-items:center;padding:0;cursor:pointer;color:#fff;transition:background .12s,border-color .12s}
+.tk-ck svg{width:12px;height:12px}
+.tk-ck:hover{border-color:var(--ink)}
+.tk.done .tk-ck{background:#1a7f54;border-color:#1a7f54}
+.tk-title{font-size:15px;color:var(--ink);line-height:1.3}
+.tk.done .tk-title{text-decoration:line-through;text-decoration-thickness:1.5px;color:#136b45}
+.tk-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:13px;color:var(--slate);margin-top:2px}
+.tk.overdue .tk-due{color:#b4231f;font-weight:500}
+.tk.today .tk-due{color:var(--sienna);font-weight:500}
+.tk-ppl{display:flex}
+.tk-ppl .bub{width:26px;height:26px;font-size:10px;border-width:2px}
+.tk-ppl .bub+.bub{margin-left:-8px}
+.tk-x{opacity:0;transition:opacity .12s}
+.tk-mk{width:22px;height:22px;display:grid;place-items:center;color:var(--slate)}
+.tk-mk svg{width:17px;height:17px}
+.tk.mt.today .tk-mk{color:var(--sienna)}
+.tk.mt.overdue .tk-mk{color:#b4231f}
+.tk-acts{display:flex;gap:6px;flex:none}
+.tk-acts .btn{height:28px;padding:0 11px;font-size:13px;background:var(--paper)}
+.tk-wait{color:var(--sienna)}
+.tk.mt.sent .tk-mk{color:var(--smoke)}
+.tk .tg{margin-left:0;white-space:nowrap}
+.pop-mv{display:flex;align-items:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.pop-mv .pop-s{margin:0 2px 0 0}
+.pop-mv input{height:34px;border:1px solid var(--hair);border-radius:9999px;padding:0 10px;font-size:14px;background:var(--paper);color:var(--ink);min-width:0}
+.pop-mv input[type=date]{width:134px}
+.pop-mv input[type=time]{width:98px}
+.pop-mv .btn{margin-left:auto}
+:root[data-theme=dark] .tk.mt.overdue .tk-mk{color:#f2a49d}
+.tk:hover .tk-x,.tk-x:focus-visible{opacity:1}
+/* the sky toggle and the folded sky */
+.top-r{display:flex;align-items:center;gap:10px}
+.sky-tog{width:36px;height:36px;color:var(--slate)}
+.sky-tog svg{width:19px;height:19px}
+.sky-tog:hover{color:var(--ink)}
+.sky-tog-in{display:grid;position:absolute;left:12px;top:12px;z-index:4;background:rgba(255,255,255,.9);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.sky-tog-in:hover{background:#fff}
+.arr-tog[aria-pressed=true]{background:var(--ink);color:var(--on-ink);box-shadow:none}
+.sky-tog[aria-pressed=false]{background:var(--ink);color:var(--on-ink);box-shadow:none}
+.skymini{display:none;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 18px;border-radius:18px;background:var(--paper);box-shadow:var(--float);font-size:15px}
+.skymini .btn{margin-left:auto}
+.skymini .live{margin-right:2px}
+:root[data-sky=off] .sun{display:none}
+:root[data-sky=off] .skymini{display:flex}
+/* wide screens: tasks sit beside the planner and stay in view */
+@media (min-width:1280px){
+  .board{grid-template-columns:minmax(0,1fr) clamp(436px,30vw,500px)}
+  .board.one{grid-template-columns:minmax(0,1fr)}
+  .board>.col{display:grid;gap:24px;align-content:start;min-width:0}
+  .board>.col.side{position:sticky;top:16px;max-height:calc(100dvh - 32px);overflow:auto}
+  .board.one>.col.side{position:static;max-height:none;overflow:visible}
+  .tasks .card-head h2{font-size:24px}
+  .tasks .tabs button{padding:0 9px;font-size:14px;height:34px;gap:5px}
+  .tk-dd .inv-dd{right:0;left:auto}
+  .tk-for #tkForLbl{display:none}
+  .tk-for{padding-right:9px}
+  .tk-due:not(.on) #tkDueLbl{display:none}
+  .tk-due:not(.on){padding-right:9px}
+}
+/* a deadline on the planner: a small pennant at the top of the row */
+.tflag{position:absolute;top:0;width:14px;height:17px;margin-left:-7px;z-index:3;cursor:pointer;background:var(--sienna);clip-path:polygon(0 0,100% 0,100% 68%,50% 100%,0 68%);transition:transform .12s}
+.tflag.overdue{background:#b4231f}
+.tflag.today{background:#e0a21b}
+.tflag:hover{transform:scaleY(1.15)}
+@media (max-width:640px){.tk{grid-template-columns:auto minmax(0,1fr) auto}.tk-ppl{display:none}.tk-x{opacity:1}.tk.mt{grid-template-columns:auto minmax(0,1fr)}.tk.mt .tk-acts{grid-column:2;margin-top:-2px}.skymini{padding:10px 14px;font-size:14px}}
+:root[data-theme=dark] .tk.overdue .tk-due{color:#f2a49d}
+:root[data-theme=dark] .tflag.overdue{background:#d64a44}
+:root[data-theme=dark] .tk.done .tk-ck{background:#2b7a52;border-color:#2b7a52}
+:root[data-theme=dark] .tk:hover{box-shadow:0 0 0 1px #3b3e44}
+:root[data-theme=dark] .tk.done{background:#163326}
+:root[data-theme=dark] .tk.done:hover{box-shadow:0 0 0 1px #2b7a52}
+:root[data-theme=dark] .tk.done .tk-title,:root[data-theme=dark] .tk.done .tk-due{color:#8fd8b4}
+:root[data-theme=dark] .tk.done .tk-meta{color:#7fb89b}
+
 /* dialogs */
 dialog{border:0;border-radius:24px;padding:0;background:var(--paper);color:var(--ink);width:min(580px,calc(100vw - 24px));max-height:calc(100vh - 24px);box-shadow:var(--modal)}
 dialog::backdrop{background:rgba(23,25,28,.28)}
@@ -602,14 +883,14 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
 #dConfirm{width:min(440px,calc(100vw - 24px))}
 #dConfirm h3{font-size:30px;line-height:1.15}
 /* inbox: missed things, tags, inline threads */
-.miss{background:var(--peach)!important;border-color:rgba(93,42,26,.4)!important;color:var(--sienna)!important;font-weight:500}
+.miss{background:var(--peach)!important;border-color:rgba(93,42,26,.4)!important;color:var(--sienna)!important;font-weight:500;max-width:100%;height:auto;min-height:34px;padding:6px 14px;white-space:normal;text-align:left;line-height:1.3}
 .banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--peach);color:var(--sienna);border-radius:16px;padding:12px 16px;margin-top:16px;font-size:15px;line-height:1.45}
 .banner b{font-weight:600}
 .banner .btn{background:var(--paper);border-color:rgba(93,42,26,.35);color:var(--sienna)}
 .tg{display:inline-block;font-style:normal;font-size:12px;font-weight:600;border-radius:9999px;padding:1px 8px;margin-left:8px;vertical-align:1px;background:var(--mist);color:var(--ink)}
-.tg.m{background:var(--sienna);color:#fff}
+.tg.m{background:var(--sienna);color:var(--on-sienna)}
 .tg.at{background:var(--peach);color:var(--sienna)}
-.tg.sent{background:#e6e7ea;color:var(--slate);font-weight:500}
+.tg.sent{background:var(--chip);color:var(--slate);font-weight:500}
 .li.past .bub{filter:grayscale(.5)}
 .li.open{border-radius:16px 16px 0 0;box-shadow:none}
 .inl{background:var(--paper);border-radius:0 0 16px 16px;border-top:1px solid var(--hair);padding:14px 16px 16px 66px}
@@ -622,7 +903,7 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
 .sep{margin:22px 2px 2px;font-size:14px;color:var(--slate)}
 /* @mentions */
 .men{background:var(--peach);color:var(--sienna);border-radius:5px;padding:0 4px;font-weight:500}
-.men.me{background:var(--sienna);color:#fff}
+.men.me{background:var(--sienna);color:var(--on-sienna)}
 #men{position:absolute;z-index:70;display:none;background:var(--paper);border-radius:14px;box-shadow:var(--pop);padding:6px;min-width:220px}
 .men-o{display:grid;grid-template-columns:28px minmax(0,1fr) auto;gap:8px;align-items:center;width:100%;border:0;background:none;border-radius:9px;padding:6px 8px;text-align:left;font-size:14px}
 .men-o .bub{width:28px;height:28px;font-size:11px;border:0}
@@ -673,7 +954,7 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
 .rcpt p{margin:10px 0 12px;color:var(--ink);font-size:15px;line-height:1.5;white-space:pre-wrap}
 .rcpt .btns{display:flex;gap:6px;flex-wrap:wrap}
 .rcpt .btn{background:var(--paper);border-color:var(--hair)}
-.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);background:var(--ink);color:#fff;padding:12px 22px;border-radius:9999px;font-size:15px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,16px);background:var(--ink);color:var(--on-ink);padding:12px 22px;border-radius:9999px;font-size:15px;opacity:0;pointer-events:none;transition:.25s;z-index:99}
 .toast.on{opacity:1;transform:translate(-50%,0)}
 
 @media (max-width:1000px){
@@ -691,9 +972,7 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
   .tm b{font-size:18px}
   .tm .inv.busy{display:none}
   .tm .st span{display:none}
-  .addrow{grid-template-columns:1fr}
-  .add-rest{flex-wrap:wrap;padding:8px}
-  .add-rest input{flex:1 1 46%}
+  .addrow input[name=name],.addrow input[name=tz],.addrow input[name=email]{flex:1 1 44%}
 }
 @media (max-width:640px){
   :root{--info:118px;--gap:10px}
@@ -730,9 +1009,8 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
   .sky-hint{top:50px;right:16px;font-size:12px}
   .row.sel .who{background:var(--paper)}
   .qn,.kd,.rowacts{display:none}
-  .addrow{grid-template-columns:1fr;gap:8px}
-  .add-rest{flex-wrap:wrap;padding:8px}
-  .add-rest input{flex:1 1 100%}
+  .addrow input,.addrow textarea{flex:1 1 100%}
+  .addrow .btn{flex:1 1 auto}
   dialog.drawer{border-radius:0}
   .scroller{overflow-x:auto;overscroll-behavior-x:contain;padding:0 0 30px;-webkit-overflow-scrolling:touch}
   .stage{width:calc(var(--info) + var(--gap) + 760px)}
@@ -745,6 +1023,8 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
   .li{grid-template-columns:auto minmax(0,1fr);row-gap:8px}
   .li-side{grid-column:1/-1;justify-content:flex-start}
   .tabs button{padding:0 13px;font-size:14px}
+  .tk-tabs button{padding:0 7px;font-size:13px;gap:4px}
+  .tk-tabs i{min-width:16px;height:16px;line-height:16px;font-size:10px;padding:0 4px}
   .inl{padding-left:16px}
   .q-item .x[data-copy]{display:none}
   .who .bub,.nm small,.nm .inv,.tm .st span,.tm .dd{display:none}
@@ -766,9 +1046,16 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
 <body>
 
 <div class="wrap">
-  <header class="top"><a class="logo" href="#" id="topLogo" aria-label="Noon, back to the top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 16a6 6 0 0 1 12 0" fill="#ffc83a" stroke="#f6a623" stroke-width="1.5"/></svg>Noon</a><nav class="top-acts" id="topAcct" aria-label="Account"></nav></header>
+  <header class="top"><a class="logo" href="#" id="topLogo" aria-label="Noon, back to the top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 16a6 6 0 0 1 12 0" fill="#ffc83a" stroke="#f6a623" stroke-width="1.5"/></svg>Noon</a><div class="top-r"><button type="button" class="ib arr-tog" id="arrTog" aria-pressed="false" aria-label="Arrange the page" data-tip="Arrange the page&#10;Move blocks around, hide what you don't need."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg></button><nav class="top-acts" id="topAcct" aria-label="Account"></nav></div>
+    <div class="acct-menu" id="acctMenu" role="menu" hidden>
+      <div class="am-head" id="amHead"></div>
+      <button type="button" role="menuitemcheckbox" class="am-theme" id="amTheme" aria-checked="false"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Dark mode</span><i class="am-sw" aria-hidden="true"></i></button>
+      <button type="button" role="menuitem" data-acpage="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Settings</button>
+      <hr>
+      <button type="button" role="menuitem" data-logout><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h4.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H14"/><path d="M10 16l-4-4 4-4M6 12h9"/></svg>Log out</button>
+    </div></header>
   <section class="sun" aria-label="Daylight across your team">
-    <div class="sky" id="sky"><svg id="svg" aria-hidden="true"></svg><div id="skyLayers" aria-hidden="true"></div><div id="pins"></div>
+    <div class="sky" id="sky"><button type="button" class="ib sky-tog sky-tog-in" id="skyTogIn" aria-pressed="true" aria-label="Hide the sky" data-tip="Hide the sky&#10;The clock stays; the picture folds away."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.8"/></svg></button><svg id="svg" aria-hidden="true"></svg><div id="skyLayers" aria-hidden="true"></div><div id="pins"></div>
       <div class="sky-hint" id="skyHint" hidden aria-hidden="true">Drag the sky to look ahead or back</div>
       <div class="sky-top">
         <span id="skyTime"></span>
@@ -776,8 +1063,12 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
     </div>
   </section>
 
-  <div class="board">
-  <section class="card wide" aria-label="Team timeline">
+  <div class="skymini" id="skyMini" aria-label="Current time"><span id="skyTimeMini"></span><button type="button" class="btn sm quiet" data-skyshow>Show the sky</button></div>
+
+  <div class="arr-top" id="arrTop" hidden></div>
+  <div class="board" id="board">
+  <div class="col main" id="colMain">
+  <section class="card wide blk" data-block="planner" aria-label="Team timeline">
       <div class="card-head"><h2 id="teamTitle" contenteditable="plaintext-only" spellcheck="false" role="textbox" aria-label="Team name" data-tip="Team name&#10;Click to rename your team.">Everyone's day</h2>
         <div class="tl-ctl">
           <button class="btn sm miss" id="missChip" hidden></button>
@@ -800,12 +1091,10 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
         </div>
       </div></div>
       <form class="addrow" id="fAdd" autocomplete="off" aria-label="Add someone to the team">
-        <div class="add-who"><button type="button" class="bub add" id="addPlus" aria-label="Add someone" data-tip="Add someone&#10;Type a name and a timezone, or an email to invite them.">+</button><input name="name" placeholder="Add someone by name" required maxlength="40" aria-label="Name"></div>
-        <div class="add-rest">
-          <input name="tz" list="tzlist" placeholder="Timezone, like Europe/Berlin" required aria-label="Timezone">
-          <input name="email" type="email" placeholder="Email, to invite them (optional)" aria-label="Email">
-          <button class="btn fill sm" id="addBtn">Add</button>
-        </div>
+        <input name="name" placeholder="Add someone by name" required maxlength="40" aria-label="Name">
+        <input name="tz" list="tzlist" placeholder="Timezone, like Europe/Berlin" required aria-label="Timezone">
+        <input name="email" type="email" placeholder="Email, to invite them (optional)" aria-label="Email">
+        <button class="btn fill sm" id="addBtn">Add</button>
       </form>
       <div class="legend">
         <span data-tip="Sleep&#10;The hours each person set as asleep. Noon never suggests a meeting here."><i style="background:repeating-linear-gradient(135deg,#c9d5f1 0 4px,#e4eaf8 4px 8px);box-shadow:inset 0 0 0 1px rgba(47,92,184,.3)"></i>Sleep</span>
@@ -815,9 +1104,25 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
         <span data-tip="Planning&#10;Sprint, roadmap and other planning sessions."><i style="background:#5aa9e6"></i>Planning</span>
         <span data-tip="Review&#10;Design reviews, code reviews, retros and demos."><i style="background:#2f5cb8"></i>Review</span>
         <span data-tip="Date change&#10;A dashed line with a weekday is midnight for that person. Their calendar turns to the next day there."><i class="lg-mid">Tue</i>Their date changes</span>
+        <button type="button" class="ib arr-eye" data-arr="hide:legend" aria-label="Hide the legend" data-tip="Hide the legend"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 6.3A9.7 9.7 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-3.2 3.7M6.6 6.6A16.5 16.5 0 0 0 2.5 12s3.5 6 9.5 6a9.3 9.3 0 0 0 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg></button>
       </div>
   </section>
-  <section id="agenda" aria-label="Requests, threads and your day"></section>
+  <div class="blk" data-block="inbox"><section id="agenda" aria-label="Threads and your day"></section></div>
+  </div>
+  <div class="col side" id="colSide">
+  <section class="card wide tasks blk" id="tasks" data-block="tasks" aria-label="Tasks">
+    <div class="card-head"><h2>Tasks<span class="tk-sum" id="tkSum"></span></h2>
+      <div class="tabs tk-tabs" role="tablist" aria-label="Task lists"><button role="tab" data-tkf="open" aria-selected="true">Open<i></i></button><button role="tab" data-tkf="mine" aria-selected="false">Mine<i></i></button><button role="tab" data-tkf="mt" aria-selected="false">Meetings<i></i></button><button role="tab" data-tkf="done" aria-selected="false">Done<i></i></button></div></div>
+    <form class="addrow tk-add" id="fTask" autocomplete="off" aria-label="Add a task">
+      <textarea name="title" rows="1" placeholder="Add a task" maxlength="200" required aria-label="Task"></textarea>
+      <button type="button" class="ib tk-open" id="tkExpand" aria-label="Open in a window" data-tip="Open in a window&#10;Room for a longer task, details and a thread."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7"/></svg></button>
+      <div class="tk-dd"><button type="button" class="inv-add tk-for" id="tkForBtn" aria-expanded="false" aria-haspopup="listbox" data-tip="Who it is for"><span class="tk-stack" id="tkWho"></span><span id="tkForLbl">For me</span></button><div class="inv-dd" id="tkForDd" hidden><input type="text" id="tkForQ" placeholder="Search by name" autocomplete="off" aria-label="Search people"><div class="inv-list" id="tkForList"></div></div></div>
+      <div class="tk-dd"><button type="button" class="inv-add tk-due" id="tkDueBtn" aria-expanded="false" data-tip="When it is due"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span id="tkDueLbl">Due</span></button><div class="inv-dd tk-duebox" id="tkDueDd" hidden><label class="field"><span>Date</span><input type="date" name="day" aria-label="Due date"></label><label class="field"><span>Time, optional</span><input type="time" name="time" aria-label="Due time"></label><div class="tk-duefoot"><button type="button" class="tlink" id="tkDueClear">No deadline</button><button type="button" class="btn sm fill" id="tkDueOk">Done</button></div></div></div>
+      <button class="btn fill sm" id="tkAddBtn">Add</button>
+    </form>
+    <div id="tkList"></div>
+  </section>
+  </div>
   </div>
 </div>
 
@@ -826,11 +1131,11 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
   <div class="dr-head"><div id="mAvatar"></div><div><h3 id="mTitle">Add a teammate</h3><p id="mKind"></p></div><button type="button" class="pop-x" data-close aria-label="Close">×</button></div>
   <div id="mConn"></div>
   <fieldset id="mFields">
-  <div class="two">
+  <div class="two" id="mIdRow">
     <label class="field"><span>Name</span><input name="name" required maxlength="40" autocomplete="off"></label>
     <label class="field"><span>Email, optional</span><input name="email" type="email" autocomplete="off"></label>
   </div>
-  <label class="field"><span>Photo link, optional</span><input name="photo" type="url" placeholder="https://" autocomplete="off"></label>
+  <label class="field" id="mPhotoRow"><span>Photo link, optional</span><input name="photo" type="url" placeholder="https://" autocomplete="off"></label>
   <label class="field"><span>Timezone</span><input name="tz" list="tzlist" required placeholder="Start typing a city, like Europe/Berlin" autocomplete="off"></label>
   <datalist id="tzlist"></datalist>
   <div class="two">
@@ -850,8 +1155,6 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
   <label class="check" id="mailRow"><input type="checkbox" name="mail" checked>Open an invite email with the team link</label>
   </fieldset>
   <div id="mTeam" hidden>
-    <div class="ag-lab">Account</div>
-    <div id="mAcct"></div>
     <div class="ag-lab">Team</div>
     <div class="team-row"><label class="sr" for="teamSel">Team</label><select class="pill" id="teamSel"></select><button type="button" class="btn sm quiet" id="newTeam">New team</button></div>
     <div class="team-row"><button type="button" class="btn sm quiet" id="btnDemo">Load a demo team</button><button type="button" class="btn sm quiet" id="btnTour">Welcome tour</button></div>
@@ -938,6 +1241,115 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
     <p class="muted" style="margin-top:16px">Everything about timezones works without an account. Booking, comments and invites need one, so they carry your name.</p>
     <div class="foot"><button type="button" class="btn" data-onb="guest">Continue as a guest</button><button type="button" class="btn fill" data-onb="account">Create a free account</button></div>
   </section>
+</div></dialog>
+
+<!-- Settings: centered window, menu on the left, one page at a time on the right -->
+<dialog id="dAccount" class="settings" aria-label="Settings" autofocus tabindex="-1"><div class="set-wrap">
+  <nav class="set-nav" aria-label="Settings sections">
+    <h2>Settings</h2>
+    <button type="button" data-setnav="account"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.8 20a7.2 7.2 0 0 1 14.4 0"/></svg><span>Account</span></button>
+    <button type="button" data-setnav="notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2.2 2.2 0 0 0 4 0"/></svg><span>Notifications</span></button>
+    <button type="button" data-setnav="preferences"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>Preferences</span></button>
+    <button type="button" data-setnav="schedule"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg><span>Schedule</span></button>
+    <button type="button" data-setnav="teams"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8.5" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9.5" r="2.4"/><path d="M15.5 14.2A4.6 4.6 0 0 1 21 19"/></svg><span>Teams</span></button>
+    <button type="button" data-setnav="apps"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3v4M15 3v4M6.5 7h11v4a5.5 5.5 0 0 1-11 0z"/><path d="M12 16.5V21"/></svg><span>Connected apps</span></button>
+  </nav>
+  <div class="set-main">
+    <button type="button" class="pop-x" data-close aria-label="Close">×</button>
+
+    <section class="set-page" data-page="account">
+      <h3>Account</h3>
+      <div class="acc-sec">
+        <h4>Profile</h4>
+        <div class="acc-photo"><div id="acPhoto"></div><div class="acc-photo-acts">
+          <label class="btn sm" for="acFile">Upload photo</label><input type="file" id="acFile" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+          <button type="button" class="btn sm quiet" id="acPhotoRm">Remove</button>
+          <span class="muted small" style="margin:0;flex-basis:100%">PNG, JPG, WebP or GIF, up to 2 MB.</span></div></div>
+        <form id="fAcName" class="acc-row"><label class="field"><span>Name</span><input name="name" required maxlength="40" autocomplete="name"></label><button class="btn sm fill">Save</button></form>
+      </div>
+      <div class="acc-sec">
+        <h4>Sign-in</h4>
+        <form id="fAcEmail" class="acc-row"><label class="field"><span>Email</span><input name="email" type="email" required autocomplete="email"></label><button class="btn sm">Change</button></form>
+        <p class="acc-msg" id="acEmailMsg" hidden></p>
+        <form id="fAcPass" autocomplete="off">
+          <div class="two"><label class="field"><span>New password</span><input name="pass" type="password" minlength="8" required autocomplete="new-password" placeholder="At least 8 characters"></label>
+          <label class="field"><span>Repeat it</span><input name="pass2" type="password" minlength="8" required autocomplete="new-password"></label></div>
+          <div class="acc-foot"><button class="btn sm">Update password</button></div>
+        </form>
+        <p class="acc-msg" id="acPassMsg" hidden></p>
+      </div>
+      <div class="acc-sec">
+        <h4>Session</h4>
+        <div class="acc-line"><div><b>Log out</b><span>Your teams stay saved to your account.</span></div><button type="button" class="btn sm" id="btnLogout">Log out</button></div>
+        <div class="acc-line"><div><b>Delete account</b><span>Removes your profile and everything you posted, for good.</span></div><button type="button" class="btn sm danger" id="acDelete">Delete</button></div>
+      </div>
+    </section>
+
+    <section class="set-page" data-page="notifications" hidden>
+      <h3>Notifications</h3>
+      <p class="set-sub" id="acNotifyTo"></p>
+      <div class="acc-sec">
+        <label class="acc-tog"><div><b>Meeting invites</b><span>Someone invites you to a meeting.</span></div><input type="checkbox" data-notify="invites"></label>
+        <label class="acc-tog"><div><b>Mentions</b><span>Someone @mentions you in a thread.</span></div><input type="checkbox" data-notify="mentions"></label>
+        <label class="acc-tog"><div><b>Replies</b><span>New replies in threads you are in.</span></div><input type="checkbox" data-notify="replies"></label>
+        <label class="acc-tog"><div><b>Missed requests</b><span>A reminder when a request passes without an answer.</span></div><input type="checkbox" data-notify="missed"></label>
+        <label class="acc-tog"><div><b>Weekly summary</b><span>Your team's time, meetings and overlap, every Monday.</span></div><input type="checkbox" data-notify="weekly"></label>
+      </div>
+    </section>
+
+    <section class="set-page" data-page="preferences" hidden>
+      <h3>Preferences</h3>
+      <div class="acc-sec">
+        <div class="acc-line"><div><b>Clock</b><span>How times show across the sky and the planner.</span></div><div class="seg" role="group" aria-label="Clock format"><button type="button" data-clock="12">12h</button><button type="button" data-clock="24">24h</button></div></div>
+        <div class="acc-line"><div><b>Sky illustration</b><span>The day and night picture above the planner.</span></div><div class="seg" role="group" aria-label="Sky"><button type="button" data-skyset="on">Show</button><button type="button" data-skyset="off">Hide</button></div></div>
+        <div class="acc-line"><div><b>Default meeting length</b><span>What a new booking starts at.</span></div><select class="pill" id="acDur"><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">1 hour</option><option value="90">1.5 hours</option></select></div>
+      </div>
+    </section>
+
+    <section class="set-page" data-page="schedule" hidden>
+      <h3>Schedule</h3>
+      <p class="set-sub">Where you are and when you are around. Teammates see this on your row.</p>
+      <form id="fAcSched" class="acc-sec" autocomplete="off">
+        <label class="field"><span>Timezone</span><input name="tz" list="tzlist" required></label>
+        <div class="two"><label class="field"><span>Online from</span><input name="start" type="time" required></label><label class="field"><span>Online until</span><input name="end" type="time" required></label></div>
+        <div class="two"><label class="field"><span>Second online block, optional</span><input name="start2" type="time"></label><label class="field"><span>Until</span><input name="end2" type="time"></label></div>
+        <label class="check"><input type="checkbox" name="weekends">Also online on weekends</label>
+        <div class="two"><label class="field"><span>Goes to sleep</span><input name="sleepStart" type="time" required></label><label class="field"><span>Wakes up</span><input name="sleepEnd" type="time" required></label></div>
+        <div class="acc-foot"><button class="btn sm fill">Save schedule</button></div>
+      </form>
+    </section>
+
+    <section class="set-page" data-page="teams" hidden>
+      <h3>Teams</h3>
+      <div class="acc-sec">
+        <div class="acc-line"><div><b>Current team</b><span>The team on the planner.</span></div><select class="pill" id="acTeamSel"></select></div>
+        <div class="acc-line"><div><b>Invite people</b><span>A link anyone can open to take a seat.</span></div><button type="button" class="btn sm" id="acInvite">Invite link</button></div>
+        <div class="acc-line"><div><b>New team</b><span>Start another team with just you in it.</span></div><button type="button" class="btn sm" id="acNewTeam">New team</button></div>
+        <div class="acc-line"><div><b>Demo team</b><span>A full example crew, kept on this device.</span></div><button type="button" class="btn sm quiet" id="acDemo">Load demo</button></div>
+        <div class="acc-line"><div><b>Welcome tour</b><span>The four-step intro from your first visit.</span></div><button type="button" class="btn sm quiet" id="acTour">Show tour</button></div>
+      </div>
+    </section>
+
+    <section class="set-page" data-page="apps" hidden>
+      <h3>Connected apps</h3>
+      <p class="set-sub">Bring your meetings in, so teammates see when you are busy and not just when you are online.</p>
+      <div class="acc-sec" id="acIntegList"></div>
+    </section>
+  </div>
+</div></dialog>
+
+<!-- Task -->
+<dialog id="dTask" class="tk-pop"><div class="tk-popin">
+  <form id="fTaskEd" autocomplete="off">
+    <div class="pop-h"><span id="tkdAv"></span><div><textarea name="title" class="tk-h" rows="1" maxlength="200" required placeholder="What needs doing" aria-label="Task"></textarea><span id="tkdBy"></span></div><button type="button" class="pop-x" data-close aria-label="Close">×</button></div>
+    <div id="tkRe"></div>
+    <div class="tk-ctl">
+      <div class="tk-ctl-row"><span class="tk-lab">For</span><span class="tk-wholist" id="tkdWhoList"></span><div class="tk-dd"><button type="button" class="inv-add" id="tkdAddBtn" aria-expanded="false" aria-haspopup="listbox"><span class="plus">+</span><span>Add people</span></button><div class="inv-dd" id="tkdDd" hidden><input type="text" id="tkdQ" placeholder="Search by name" autocomplete="off" aria-label="Search people"><div class="inv-list" id="tkdWho"></div></div></div></div>
+      <div class="tk-ctl-row"><span class="tk-lab">Due</span><input name="day" type="date" aria-label="Due date"><input name="time" type="time" aria-label="Due time"><span class="muted small" id="tkdTz" style="margin:0"></span></div>
+    </div>
+    <div class="pop-b"><button type="button" class="btn sm" id="tkdDone">Mark done</button><button type="button" class="btn sm quiet" id="tkdDel">Delete</button><button type="submit" class="btn sm fill" id="tkdSave">Add task</button></div>
+  </form>
+  <div id="tkThread" hidden></div>
 </div></dialog>
 
 <!-- Invite dialog -->
@@ -1334,6 +1746,7 @@ function render(){
     // a thread on a stretch with no block of its own (offline) still shows where it starts
     const notes=ths.filter(x=>!used.has(x.id)).map(x=>{const t=rxOf(x);return t?`<div class="rx" style="left:calc((100% + 14px)*${((Math.max(x.s,a)-a)/(b-a)).toFixed(5)} - 3px)">${t}</div>`:''}).join('');
     const badges='';
+    const flags=tasksOf(T).filter(t=>!t.done&&t.to.includes(m.id)&&t.day).map(t=>{const at=taskFlagAt(t,m,c,a,b);if(at==null||at<a||at>=b) return '';const d=taskDue(t);return `<div class="tflag ${d.state}" data-task="${t.id}" data-tip="${esc('Task: '+t.title+'\n'+d.label+(t.by!==m.id?'\nFrom '+tkName(T,t.by):''))}" style="left:${pct(at,a,b)}%"></div>`}).join('');
     let mids='';
     for(const D of localDates(m.tz,a,b)){const ms=zonedToUtc(m.tz,D.y,D.m,D.d,0,0);if(ms>a&&ms<b)mids+=`<div class="mid" style="left:${pct(ms,a,b)}%"><em>${fmtWd(ms+HR,m.tz)}</em></div>`}
     const [k,lab]=statusAt(m,UI.t,c);
@@ -1342,7 +1755,7 @@ function render(){
       <div class="nm">${esc(m.name)}${kindOf(m)==='invited'?'<span class="inv" title="Invited, not joined yet">Invited</span>':kindOf(m)==='manual'?'<span class="inv by" title="Added by you">Added</span>':''}<small>${esc(tzLabel(m.tz))}</small></div>
       <div class="tm">${rowTime(m,c)}</div>
       <span class="rowacts"><button class="ib" data-edit="${m.id}" data-tip="${m.isMe?'Your settings':kindOf(m)==='joined'?'Details':'Settings'}" aria-label="Settings for ${esc(m.name)}">${IB.set}</button>${m.isMe?'':`<button class="ib rm" data-rm="${m.id}" data-tip="Remove from team" aria-label="Remove ${esc(m.name)}">${IB.rm}</button>`}</span>
-    </div><div class="band" data-row="${m.id}" tabindex="0" role="button" aria-label="${esc(m.name)} at ${fmtT(UI.t,m.tz)}, ${lab}. Press Enter for options"><div class="in">${sleep}${off}${work}${buf}${busy}${notes}</div>${mids}</div></div>`;
+    </div><div class="band" data-row="${m.id}" tabindex="0" role="button" aria-label="${esc(m.name)} at ${fmtT(UI.t,m.tz)}, ${lab}. Press Enter for options"><div class="in">${sleep}${off}${work}${buf}${busy}${notes}</div>${mids}${flags}</div></div>`;
   }).join('')||'<div class="empty">Add a teammate to start comparing.</div>';
 
   renderOvl(W,a,b);
@@ -1351,19 +1764,21 @@ function render(){
   renderAuth();
   updateScrub();
   drawSky();
+  renderTasks();
   renderAgenda(c,a,b);
   if(UI.center){UI.center=false;const sc=$('#scroller');if(sc.scrollWidth>sc.clientWidth+4){const x=$('#scrub').getBoundingClientRect().left,r=sc.getBoundingClientRect(),info=$('.who')?$('.who').getBoundingClientRect().width+16:0;sc.scrollLeft+=x-(r.left+info+(r.width-info)/2)}}
 }
 function renderOvl(W=windows(),a,b){
   if(a==null) [a,b]=dayRange();
   const now=Date.now();
-  $('#ovl').innerHTML=(W.max>0&&W.max===W.total?W.list.map(w=>`<div class="ovl full" style="left:${pct(w.start,a,b)}%;width:${pct(w.end,a,b)-pct(w.start,a,b)}%"><span class="ovl-tag">${w===W.best?'Best time':'Also free'}</span></div>`).join(''):'')+
+  $('#ovl').innerHTML=
     (!UI.live&&now>=a&&now<b?`<div class="nowline" style="left:${pct(now,a,b)}%"><em>Now</em></div>`:'');
 }
 function renderSkyTime(){
   const H=home();
   $('#skyTime').innerHTML=UI.live?`<i class="live"></i>Now, <b>${fmtT(UI.t,H)}</b> in ${esc(tzLabel(H))}`:
     `Showing <b>${fmtT(UI.t,H)}</b> on ${fmtDate(UI.t,H)}<button class="btn sm sky-back" data-now>Back to current time</button>`;
+  $('#skyTimeMini').innerHTML=$('#skyTime').innerHTML;
   $('#skyTime').dataset.tip=UI.live?`Live\nThe sky and the timeline follow the clock, minute by minute.\nDrag the sky or the timeline to look at another time.`:`Not live\nYou are looking at ${fmtT(UI.t,H)} on ${fmtDate(UI.t,H)}.\nBack to current time returns to the present, here and on the timeline.`;
   $('#skyHint').hidden=!UI.live||hintSeen();
 }
@@ -1449,13 +1864,13 @@ const mentionHtml=text=>esc(text).replace(/@([\p{L}]+)/gu,(all,n)=>{const z=team
 function threadParts(M,A,o){
   const T=team(),my=me().id,H=home(),have=Object.entries(M.re||{}).filter(x=>x[1].length);
   const reBar=`<div class="res" role="group" aria-label="Reactions">${have.map(([e,l])=>`<button class="re" ${A('react',`data-e="${e}"`)} aria-pressed="${l.includes(my)}" aria-label="${e}, ${l.length}">${e}<i>${l.length}</i></button>`).join('')}<button class="re add" ${A('pick','')} aria-expanded="${!!o.pickB}" aria-label="Add a reaction">${ADD_RE}${have.length?'':'<span>React</span>'}</button></div>${o.pickB?`<div class="re-pick">${PICK.map(e=>`<button ${A('react',`data-e="${e}"`)} aria-label="React with ${e}">${e}</button>`).join('')}</div>`:''}`;
-  const thread=`<div class="thread"><div class="th-list">${(M.cm||[]).length?M.cm.map((x,i)=>{
+  const thread=`<div class="thread"><div class="th-list">${o.parent||''}${(M.cm||[]).length?M.cm.map((x,i)=>{
       const z=(x.byId&&T.members.find(q=>q.id===x.byId))||me(),own=!x.byId||x.byId===my,cr=Object.entries(x.re||{}).filter(q=>q[1].length),picking=o.pickC===i;
-      return `<div class="th-r ${picking?'picking':''}">${bubble(z,false)}<div><b>${esc(own?'You':first(z.name))}</b><time>${x.at?whenLabel(x.at):''}</time><p>${mentionHtml(x.text)}</p>${cr.length?`<div class="cres">${cr.map(([e,l])=>`<button class="re" ${A('creact',`data-i="${i}" data-e="${e}"`)} aria-pressed="${l.includes(my)}" aria-label="${e}, ${l.length}">${e}<i>${l.length}</i></button>`).join('')}</div>`:''}</div>
-        <div class="th-act"><button ${A('cpick',`data-i="${i}"`)} aria-expanded="${picking}" aria-label="React to this comment">${ADD_RE}</button>${own?`<button class="th-x" ${A('delcm',`data-i="${i}"`)}>Remove</button>`:''}</div>
-        ${picking?`<div class="re-pick">${['👍','❤️','😂','🎉','👀','🙏','✅','🔥'].map(e=>`<button ${A('creact',`data-i="${i}" data-e="${e}"`)} aria-label="React with ${e}">${e}</button>`).join('')}</div>`:''}</div>`}).join(''):`<p class="th-empty">${o.empty}</p>`}</div>
-    <div class="th-box"><textarea id="${o.inputId}" class="cbox" rows="1" maxlength="500" placeholder="Comment, or @ to mention someone" aria-label="Comment">${esc(o.draft||'')}</textarea><button class="th-send" ${A('comment','')} aria-label="Send comment">${SEND}</button></div></div>`;
-  return {reBar,thread};
+      return `<div class="th-r ${picking?'picking':''}">${bubble(z,false)}<div class="th-b"><b>${esc(own?'You':first(z.name))}</b><time>${x.at?whenLabel(x.at):''}</time><p>${mentionHtml(x.text)}</p><div class="cres">${cr.map(([e,l])=>`<button class="re sm" ${A('creact',`data-i="${i}" data-e="${e}"`)} aria-pressed="${l.includes(my)}" aria-label="${e}, ${l.length}">${e}<i>${l.length}</i></button>`).join('')}<button class="re sm add" ${A('cpick',`data-i="${i}"`)} aria-expanded="${picking}" aria-label="Add a reaction">${ADD_RE}</button></div>
+        ${picking?`<div class="re-pick">${PICK.slice(0,16).map(e=>`<button ${A('creact',`data-i="${i}" data-e="${e}"`)} aria-label="React with ${e}">${e}</button>`).join('')}</div>`:''}</div>
+        ${own?`<button class="th-x" ${A('delcm',`data-i="${i}"`)} aria-label="Remove" title="Remove">×</button>`:''}</div>`}).join(''):(o.empty?`<p class="th-empty">${o.empty}</p>`:'')}</div>
+    <div class="th-box"><textarea id="${o.inputId}" class="cbox" rows="1" maxlength="500" placeholder="${esc(o.placeholder||'Comment, or @ to mention someone')}" aria-label="Comment">${esc(o.draft||'')}</textarea><button class="th-send" ${A('comment','')} aria-label="Send">${SEND}</button></div></div>`;
+  return {reBar,thread};  return {reBar,thread};
 }
 // everything waiting on you, on any day: meeting requests and threads
 function inbox(){
@@ -1463,9 +1878,10 @@ function inbox(){
   const live=o=>(o.cm||[]).length||Object.values(o.re||{}).some(l=>l.length);
   for(const x of m.events||[]){
     const from=x.req&&find(x.req),past=x.e<now;
-    if(x.pend) rq.push({s:x.s,who:from||m,tom:x.e-dayRange(dayOf(x.s))[0]+dayRange(today())[0]<now,t:`${from?gname(from):'Someone who left the team'} invited you to ${x.title}`,sub:`${whenLabel(x.s)} to ${fmtT(x.e,H)}. ${past?'It passed without an answer from you.':'Waiting for your answer.'}`,id:x.id,act:true,missed:past,loc:[my,x.s,x.s]});
-    else if(!past){const wait=(x.who||[]).map(find).filter(z=>z&&!z.isMe&&(z.events||[]).some(q=>q.id===x.id&&q.pend));if(wait.length) rq.push({s:x.s,who:wait[0],t:`${x.title}: waiting for ${wait.map(z=>first(z.name)).join(', ')}`,sub:`${whenLabel(x.s)}. They have not accepted yet.`,loc:[my,x.s,x.s]})}
+    if(x.pend) rq.push({kind:'inv',ev:x,s:x.s,who:from||m,tom:x.e-dayRange(dayOf(x.s))[0]+dayRange(today())[0]<now,t:`${from?gname(from):'Someone who left the team'} invited you to ${x.title}`,sub:`${whenLabel(x.s)} to ${fmtT(x.e,H)}. ${past?'It passed without an answer from you.':'Waiting for your answer.'}`,id:x.id,act:true,missed:past,loc:[my,x.s,x.s]});
+    else if(!past){const wait=(x.who||[]).map(find).filter(z=>z&&!z.isMe&&(z.events||[]).some(q=>q.id===x.id&&q.pend));if(wait.length) rq.push({kind:'wait',ev:x,s:x.s,who:wait[0],t:`${x.title}: waiting for ${wait.map(z=>first(z.name)).join(', ')}`,sub:`${whenLabel(x.s)}. They have not accepted yet.`,loc:[my,x.s,x.s]})}
   }
+  for(const t of T.tasks||[]) if(!t.done&&t.to.includes(my)&&t.by!==my){const d=taskDue(t),from=find(t.by);rq.push({kind:'task',s:d.ms===Infinity?now+365*86400000:d.ms,who:from||m,t:`${from?gname(from):'Someone'} assigned you a task: ${t.title}`,sub:`${d.label}.`,act:true,late:d.state==='overdue',task:t.id})}
   const evOf=key=>{ // which meeting a stored key points at
     if(key.includes(':')){const [mid,st]=key.split(':'),z=find(mid);if(!z) return null;const ev=busyList(z,+st-HR,+st+HR).find(q=>q[0]===+st&&!q[3]);return ev?{z,ev}:null}
     for(const z of T.members){const e=(z.events||[]).find(x=>x.id===key);if(e) return {z,ev:[e.s,e.e,e.title,e.id,e.who,!!e.pend,e.req]}}
@@ -1474,14 +1890,15 @@ function inbox(){
   for(const [key,mt] of Object.entries(S.meta||{})){
     const r=evOf(key);if(!r) continue;const {z,ev}=r,mineEv=(ev[4]||[z.id]).includes(my);
     if(ev[1]>=now){
-      if((mt.join||[]).includes(my)) rq.push({s:ev[0],who:z,t:`You asked to join ${ev[3]?'':first(z.name)+"'s "}${ev[2]||'meeting'}`,sub:`${whenLabel(ev[0])}. No answer yet.`,loc:[z.id,ev[0],ev[0]]});
-      if(mt.post&&mineEv) rq.push({s:ev[0],who:m,t:`You asked to move ${ev[2]||'a meeting'} ${mt.post}`,sub:`${whenLabel(ev[0])}. No answer yet.`,loc:[my,ev[0],ev[0]]});
+      if((mt.join||[]).includes(my)) rq.push({kind:'join',title:ev[2]||'Meeting',e:ev[1],s:ev[0],who:z,t:`You asked to join ${ev[3]?'':first(z.name)+"'s "}${ev[2]||'meeting'}`,sub:`${whenLabel(ev[0])}. No answer yet.`,loc:[z.id,ev[0],ev[0]]});
+      if(mt.post&&mineEv) rq.push({kind:'post',title:ev[2]||'Meeting',e:ev[1],s:ev[0],who:m,t:`You asked to move ${ev[2]||'a meeting'} ${mt.post}`,sub:`${whenLabel(ev[0])}. No answer yet.`,loc:[my,ev[0],ev[0]]});
     }
     if(live(mt)) th.push({z,o:mt,s:ev[0],e:ev[1],key:`ev|${z.id}|${ev[0]}`,t:ev[2]||'Meeting',loc:[z.id,ev[0],ev[0]],mineBlock:mineEv});
   }
   const kind={avail:'free time',sleep:'sleep',off:'offline time',meet:'time'};
   for(const z of T.members) for(const x of z.threads||[]) if(live(x))
     th.push({z,o:x,s:x.s,e:x.e,key:`th|${z.id}|${x.id}`,t:`${z.isMe?'Your':first(z.name)+"'s"} ${kind[statusAt(z,x.s+MIN,ctx(dayOf(x.s+MIN)))[0]]}`,loc:[z.id,x.s+5*MIN,''],mineBlock:z.isMe});
+  for(const t of T.tasks||[]) if(live(t)){const d=taskDue(t);th.push({z:find(t.by)||m,o:t,s:d.ms===Infinity?t.at:d.ms,e:d.ms===Infinity?Infinity:d.ms,key:`tk|${t.id}`,t:`Task: ${t.title}`,task:t.id,mineBlock:t.to.includes(my)||t.by===my})}
   for(const n of th){ // does this one need you? a mention since you last spoke, or a reply after yours, or a comment on your own block
     const cm=n.o.cm||[],mine=q=>!q.byId||q.byId===my,lastMine=cm.map(mine).lastIndexOf(true);
     n.mention=cm.some((q,i)=>i>lastMine&&!mine(q)&&mentionsMe(q.text));
@@ -1490,32 +1907,32 @@ function inbox(){
   }
   const rank=n=>n.missed?0:n.mention?1:n.waiting?2:3;
   th.sort((x,y)=>rank(x)-rank(y)||y.last-x.last||x.s-y.s);
-  rq.sort((x,y)=>(y.missed?1:0)-(x.missed?1:0)||(y.act?1:0)-(x.act?1:0)||x.s-y.s);
-  return {rq,th,needRq:rq.filter(n=>n.act).length,needTh:th.filter(n=>n.mention||n.waiting).length,missRq:rq.filter(n=>n.missed).length,missTh:th.filter(n=>n.missed).length};
+  rq.sort((x,y)=>(y.missed?1:0)-(x.missed?1:0)||(y.late?1:0)-(x.late?1:0)||(y.act?1:0)-(x.act?1:0)||x.s-y.s);
+  return {rq,th,needRq:rq.filter(n=>n.act).length,needTh:th.filter(n=>n.mention||n.waiting).length,missRq:rq.filter(n=>n.missed).length,missTk:rq.filter(n=>n.late).length,missTh:th.filter(n=>n.missed).length};
 }
 // find the thread behind a key from the Threads tab
 function thResolve(key){
-  const [k,mid,x]=key.split('|'),z=team().members.find(q=>q.id===mid);if(!z) return null;
+  const [k,mid,x]=key.split('|');
+  if(k==='tk'){const t=tasksOf(team()).find(q=>q.id===mid);return t?{z:me(),o:t,task:t}:null}
+  const z=team().members.find(q=>q.id===mid);if(!z) return null;
   if(k==='ev'){const ev=busyList(z,+x-HR,+x+HR).find(q=>q[0]===+x);return ev?{z,ev,o:metaOf(evKey(z,ev))}:null}
   const o=(z.threads||[]).find(q=>q.id===x);return o?{z,o}:null;
 }
 // the panel under the timeline: an inbox of requests and threads, and your own day
 function renderAgenda(c,a,b){
-  const T=team(),m=me(),H=home(),nameOf=x=>x.isMe?'You':first(x.name),tab=UI.tab||'req',IN=inbox(),miss=IN.missRq+IN.missTh;
+  const T=team(),m=me(),H=home(),nameOf=x=>x.isMe?'You':first(x.name),tab=!UI.tab||UI.tab==='req'?'th':UI.tab,IN=inbox(),miss=IN.missRq+IN.missTh+IN.missTk;
   const act=document.activeElement,focusId=act&&act.id&&$('#agenda').contains(act)?act.id:null,caret=focusId&&act.selectionStart,keep=$('#agenda .inl .th-list'),keepTop=keep?keep.scrollTop:null;
-  const chip=$('#missChip');chip.hidden=!miss;chip.textContent=[IN.missRq?`${IN.missRq} missed ${IN.missRq===1?'request':'requests'}`:'',IN.missTh?`${IN.missTh} missed ${IN.missTh===1?'thread':'threads'}`:''].filter(Boolean).join(', ');chip.dataset.tip=`You missed ${miss} ${miss===1?'thing':'things'}\nRequests for a time that has passed, or mentions on a past block. Click to see them.`;
-  const tabs=[['req','Requests',IN.needRq,IN.missRq],['th','Threads',IN.needTh,IN.missTh],['day','Day management',null,0]].map(([k,l,n,ms])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}${n==null?'':`<i class="${n?'':'z'}" title="${n} waiting on you${ms?', '+ms+' missed':''}">${n}</i>`}</button>`).join('');
-  const banner=miss&&tab!=='day'?`<div class="banner"><span><b>You missed ${miss} ${miss===1?'thing':'things'}.</b> ${[IN.missRq?`${IN.missRq} ${IN.missRq===1?'request':'requests'} for a time that has passed`:'',IN.missTh?`${IN.missTh} ${IN.missTh===1?'thread':'threads'} on a past block still waiting on you`:''].filter(Boolean).join(' and ')}. They are at the top of each list.</span>${tab==='req'&&!IN.missRq&&IN.missTh?'<button class="btn sm" data-tab="th">Go to Threads</button>':tab==='th'&&!IN.missTh&&IN.missRq?'<button class="btn sm" data-tab="req">Go to Requests</button>':''}</div>`:'';
+  const chip=$('#missChip');chip.hidden=!miss;chip.textContent=[IN.missRq?`${IN.missRq} missed ${IN.missRq===1?'request':'requests'}`:'',IN.missTh?`${IN.missTh} missed ${IN.missTh===1?'thread':'threads'}`:'',IN.missTk?`${IN.missTk} overdue ${IN.missTk===1?'task':'tasks'}`:''].filter(Boolean).join(', ');chip.dataset.tip=`You missed ${miss} ${miss===1?'thing':'things'}\nRequests for a time that has passed, or mentions on a past block. Click to see them.`;
+  const tabs=[['th','Threads',IN.needTh,IN.missTh],['day','Day management',null,0]].map(([k,l,n,ms])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}${n==null?'':`<i class="${n?'':'z'}" title="${n} waiting on you${ms?', '+ms+' missed':''}">${n}</i>`}</button>`).join('');
+  const banner=IN.missTh&&tab==='th'?`<div class="banner"><span><b>You missed ${IN.missTh} ${IN.missTh===1?'thread':'threads'}</b> on a past block still waiting on you. ${IN.missTh===1?'It is':'They are'} at the top of the list.</span></div>`:'';
   let body;
-  if(tab==='req') body=IN.rq.length?IN.rq.map((n,i)=>`<div class="li ${i?'':'tab-first'} ${n.missed?'past':''}">${bubble(n.who,false)}<button class="li-main" data-loc="${n.loc.join('|')}"><b>${esc(n.t)}${n.missed?'<i class="tg m">Missed</i>':n.act?'<i class="tg at">Needs your answer</i>':'<i class="tg sent">Sent by you</i>'}</b><span>${esc(n.sub)}</span></button><div class="li-side">${n.id?(n.missed?`<button class="btn sm fill" data-resched="${n.id}">${n.tom?'Move to tomorrow':'Move to today'}</button><button class="btn sm" data-dec="${n.id}">Dismiss</button>`:`<button class="btn sm fill" data-acc="${n.id}">Accept</button><button class="btn sm" data-dec="${n.id}">Decline</button>`):''}</div></div>`).join('')
-    :'<p class="tab-note">Nothing is waiting on you. Invites you receive, on any day, and the ones you send that are still open, show up here.</p>';
-  else if(tab==='th'){
+  if(tab==='th'){
     let sepDone=false;
     body=IN.th.length?IN.th.map((n,i)=>{
       const l=(n.o.cm||[])[(n.o.cm||[]).length-1],who=l&&((l.byId&&T.members.find(q=>q.id===l.byId))||m),rx=rxLine(n.o),nc=(n.o.cm||[]).length,open=UI.thOpen===n.key,need=n.mention||n.waiting;
       const sep=!need&&!sepDone&&i>0?(sepDone=true,'<p class="sep">Everything else</p>'):(need?'':(sepDone=true,''));
       const P=open?threadParts(n.o,(a2,x)=>`data-tha="${a2}" data-key="${n.key}" ${x}`,{pickB:UI.thPick==='b',pickC:typeof UI.thPick==='number'?UI.thPick:null,draft:UI.thDraft,inputId:'thC',empty:'No comments yet.'}):null;
-      return `${sep}<div class="li ${i||sep?'':'tab-first'} ${open?'open':''} ${n.e<Date.now()?'past':''}">${bubble(n.z,false)}<button class="li-main" data-thopen="${n.key}" aria-expanded="${open}"><b>${esc(n.t)}${n.missed?'<i class="tg m">Missed</i>':''}${n.mention?'<i class="tg at">Mentions you</i>':n.waiting?'<i class="tg at">Waiting for you</i>':''}</b><span>${whenLabel(n.s)}. ${l?`${esc(nameOf(who))}: ${esc(l.text)}`:'Reactions only, no comments yet.'}</span></button><div class="li-side">${rx?`<span class="rxs">${rx}</span>`:''}${nc?`<span class="rxs">${nc} ${nc===1?'comment':'comments'}</span>`:''}<button class="btn sm quiet" data-loc="${n.loc.join('|')}">Show on timeline</button></div></div>
+      return `${sep}<div class="li ${i||sep?'':'tab-first'} ${open?'open':''} ${n.e<Date.now()?'past':''}">${bubble(n.z,false)}<button class="li-main" data-thopen="${n.key}" aria-expanded="${open}"><b>${esc(n.t)}${n.missed?'<i class="tg m">Missed</i>':''}${n.mention?'<i class="tg at">Mentions you</i>':n.waiting?'<i class="tg at">Waiting for you</i>':''}</b><span>${whenLabel(n.s)}. ${l?`${esc(nameOf(who))}: ${esc(l.text)}`:'Reactions only, no comments yet.'}</span></button><div class="li-side">${rx?`<span class="rxs">${rx}</span>`:''}${nc?`<span class="rxs">${nc} ${nc===1?'comment':'comments'}</span>`:''}${n.task?`<button class="btn sm quiet" data-tkopen="${n.task}">Open task</button>`:`<button class="btn sm quiet" data-loc="${n.loc.join('|')}">Show on timeline</button>`}</div></div>
         ${open?`<div class="inl ${UI.thJust?'anim':''}">${P.reBar}${P.thread}</div>`:''}`}).join('')
     :'<p class="tab-note">No threads yet. Click any block on the timeline to comment on it or react to it.</p>';
   }else{
@@ -1575,6 +1992,16 @@ function kbStep(bd,dir){
 document.addEventListener('focusout',e=>{const bd=e.target.closest&&e.target.closest('.band[data-row]');if(bd) bd.querySelectorAll('.in > .kb').forEach(x=>x.classList.remove('kb','hot'))});
 let POP=null;
 const closePop=()=>{POP=null;$('#pop').style.display='none'};
+const hm24=(ms,tz)=>new Intl.DateTimeFormat('en-GB',{timeZone:tz,hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(ms);
+// move a meeting: for everyone on it when it is one of ours. Moving an invite you have not answered makes it your proposal: you are in, the others get the new time to accept
+function moveEv(ev,key,m,mins,label,again){
+  if(!ev[3]){metaOf(key).post=label;POP.mode='';again();toast('Request saved. Copy the message to send it.');return}
+  const T=team(),my=me().id,H=home(),undo=snapshot(),own=(me().events||[]).find(x=>x.id===ev[3]),prop=!!(own&&own.pend),was=ev[0],ns=was+mins*MIN;
+  for(const z of T.members) for(const x of z.events||[]) if(x.id===ev[3]){x.s+=mins*MIN;x.e+=mins*MIN;if(prop){if(z.isMe) x.pend=false;else{x.pend=true;x.req=my}}}
+  if(prop){const mt=metaOf(ev[3]);(mt.cm=mt.cm||[]).push({id:uid(),by:'You',byId:my,text:`Proposed a new time: ${fmtDate(ns,H)}, ${fmtT(ns,H)}. It was ${fmtDate(was,H)}, ${fmtT(was,H)}.`,at:Date.now()})}
+  save();closePop();locate(m.id,ns,ns);
+  toast(prop?`Proposed ${whenLabel(ns)}. The others get it to accept again.`:`Moved ${label}`,undo);
+}
 function nextFree(m,t,c){let cur=t;for(let i=0;i<8;i++){const n=nextChange(m,cur,c);if(!n)return null;if(n[1][0]==='avail')return n[0];cur=n[0]}return null}
 function slotTip(m,t,c,blk){
   const H=home(),same=offsetMin(m.tz,t)===offsetMin(H,t),st=statusAt(m,t,c),ws=warningsFor(m,t,t+UI.dur*MIN,c),W=windows();
@@ -1582,7 +2009,6 @@ function slotTip(m,t,c,blk){
   // the whole free block being hovered, not just the point under the cursor
   if(blk&&blk.dataset.s){const bs=+blk.dataset.s,be=+blk.dataset.e;s=`${m.isMe?'You are':first(m.name)+' is'} ${blk.classList.contains('off')?'offline':'free'} for ${fmtDur(Math.round((be-bs)/MIN))}\n${range(bs,be,m.tz)}${same?'':` in ${tzLabel(m.tz)}\n${range(bs,be,H)} for you`}`}
   if(ws.length) s+='\n'+ws.map(w=>w.text).join('\n');
-  if(W.max>0&&W.max===W.total&&W.list.some(w=>t>=w.start&&t<w.end)) s+='\nInside the best window for everyone.';
   const th=threadAt(m,t);if(th) s+=`\n${th.cm.length?th.cm.length+(th.cm.length===1?' comment':' comments')+' in the thread':'Has reactions'}.`;
   return s+'\nClick to book, react or comment.';
 }
@@ -1673,6 +2099,44 @@ function invList(m){
 const closeInv=()=>{if(!POP||!POP.invOpen) return;POP.invOpen=false;const d=$('#pop .inv-dd');if(d) d.remove();const bt=$('#pop .inv-add');if(bt) bt.setAttribute('aria-expanded','false')};
 // what a booking is called when no title is typed
 const popDefault=m=>m.isMe?'Meeting':`Meeting with ${first(m.name)}`;
+// times in the next week when everyone on a booking is free for its whole length, gentlest first
+function bestTimes(people,dur,from){
+  const now=Date.now(),q=15*MIN,start=Math.ceil(Math.max(from,now)/q)*q,found=[];
+  for(let d=0;d<7;d++){
+    const day=shiftDay(dayOf(start),d),c=ctx(day),[a,b]=dayRange(day);let run=null;
+    for(let t=Math.max(a,start);t+dur<=b;t+=q){
+      if(!people.every(p=>freeFor(p,t,t+dur,c))){run=null;continue}
+      const score=people.reduce((n,p)=>n+warningsFor(p,t,t+dur,c).length,0),o={s:t,e:t+dur,score};
+      // one option per stretch of shared free time: its gentlest start
+      if(run&&t===run.next){run.next=t+q;if(score<run.best.score) Object.assign(run.best,o);continue}
+      run={best:o,next:t+q};found.push(run.best);
+    }
+  }
+  if(found.length) return found.sort((x,y)=>x.score-y.score||x.s-y.s).slice(0,8);
+  const near=[];
+  for(let d=0;d<7;d++){
+    const day=shiftDay(dayOf(start),d),c=ctx(day),[a,b]=dayRange(day);let prev=null;
+    for(let t=Math.max(a,start);t+dur<=b;t+=q){
+      const out=people.filter(p=>!freeFor(p,t,t+dur,c));
+      if(out.length>=people.length-1){prev=null;continue} // at least two people have to make it
+      const key=out.map(p=>p.id).join(',');
+      if(prev&&prev.key===key&&prev.next===t){prev.next=t+q;continue}
+      prev={key,next:t+q};near.push({s:t,e:t+dur,out,score:out.length});
+    }
+  }
+  return near.sort((x,y)=>x.score-y.score||x.s-y.s).slice(0,8).map(o=>({...o,partial:true}));
+}
+const popPeople=m=>{const T=team(),ids=[m.id,...(POP.withMe&&!m.isMe?[me().id]:[]),...POP.inv];return [...new Set(ids)].map(id=>T.members.find(z=>z.id===id)).filter(Boolean)};
+const bestKey=m=>popPeople(m).map(z=>z.id).join(',')+'|'+(POP.e-POP.s);
+function bestRow(m){
+  const B=POP.best,live=B&&B.key===bestKey(m),opt=live&&B.list[B.i],H=home(),ppl=popPeople(m);
+  const names=ppl.map(z=>z.isMe?'you':first(z.name)),who=names.length>1?names.slice(0,-1).join(', ')+' and '+names[names.length-1]:names[0];
+  let note='';
+  if(live&&!B.list.length) note=`<p class="best-note none">No ${fmtDur(Math.round((POP.e-POP.s)/MIN))} stretch in the next 7 days when ${esc(who)} are all free. Try a shorter meeting or fewer people.</p>`;
+  else if(opt&&opt.s===POP.s&&opt.partial) note=`<p class="best-note part">No time suits everyone. Closest: <b>${whenLabel(opt.s)}</b>, ${ppl.length-opt.out.length} of ${ppl.length} free. Can't make it: ${esc(opt.out.map(z=>z.isMe?'you':first(z.name)).join(', '))}.${B.list.length>1?` <button type="button" class="tlink" data-pop="bestnext">Option ${B.i+1} of ${B.list.length}, next</button>`:''}</p>`;
+  else if(opt&&opt.s===POP.s) note=`<p class="best-note"><b>${whenLabel(opt.s)}</b> works for ${esc(who)}${opt.score?', with a small catch below':''}.${B.list.length>1?` <button type="button" class="tlink" data-pop="bestnext">Option ${B.i+1} of ${B.list.length}, next</button>`:''}</p>`;
+  return `<div class="best-row"><button type="button" class="btn sm best" data-pop="best" aria-label="Suggest the best time for everyone on this booking"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" fill="currentColor"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z" fill="currentColor" opacity=".6"/></svg>Best time</button><span class="best-for">for ${esc(who)}</span></div>${note}`;
+}
 function renderPop(){
   if(!POP) return;
   const el=$('#pop'),T=team(),m=T.members.find(z=>z.id===POP.mid);if(!m){closePop();return}
@@ -1687,7 +2151,7 @@ function renderPop(){
     const who=ids.filter(x=>x!==m.id).map(x=>T.members.find(y=>y.id===x)).filter(Boolean).map(x=>x.isMe?'you':first(x.name));
     const hi=m.isMe?'Hi,':`Hi ${first(m.name)},`;
     let ask;
-    if(POP.mode==='post') ask=`<p class="pop-s" style="margin-top:12px">${mine?'Move it':'Ask to move it'}</p><div class="durs">${[['15 min later',15],['30 min later',30],['1 hour later',60],['to tomorrow',1440]].map(([l,n])=>`<button data-pop="shift" data-m="${n}" data-l="${l}">${l}</button>`).join('')}</div><div class="pop-b"><button class="btn sm quiet" data-pop="back">Back</button></div>`;
+    if(POP.mode==='post'){const prop=ev[5]&&m.isMe;ask=`<p class="pop-s" style="margin-top:12px">${prop?'Propose a new time':mine?'Move it':'Ask to move it'}</p><div class="durs">${[['15 min later',15],['30 min later',30],['1 hour later',60],['to tomorrow',1440]].map(([l,n])=>`<button data-pop="shift" data-m="${n}" data-l="${l}">${l}</button>`).join('')}</div><div class="pop-mv"><span class="pop-s">or</span><input type="date" id="popMvDay" value="${dayOf(ev[0])}" aria-label="Day"><input type="time" id="popMvTime" value="${hm24(ev[0],H)}" aria-label="Start time"><button class="btn sm fill" data-pop="shiftto">${prop?'Propose':mine?'Move':'Ask'}</button></div>${prop?'<p class="pop-hint">Everyone on it gets the new time to accept. The old time stays until you do this.</p>':''}<div class="pop-b"><button class="btn sm quiet" data-pop="back">Back</button></div>`}
     else if(withMe) ask=M.post
       ?`<p class="pop-req">You asked to move this ${esc(M.post)}.<button class="tlink" data-copy="${esc(`${hi} could we move ${title} ${M.post}?`)}">Copy message</button><button class="tlink" data-pop="unpost">Withdraw</button></p>`
       :`<div class="pop-b"><button class="btn sm" data-pop="post">${mine?'Move it':'Ask to postpone'}</button>${mine?'<button class="btn sm quiet" data-pop="delev">Remove</button>':''}</div>`;
@@ -1696,7 +2160,7 @@ function renderPop(){
       :`<div class="pop-b"><button class="btn sm" data-pop="join">Request to join</button></div>`;
     head=`<div class="pop-h">${bubble(m,false)}<div><b>${esc(ev[2]||'Busy')}</b><span>${esc(m.isMe?'You':m.name)}, ${TYPES[typeOf(ev[2]||'')][0].toLowerCase()}, ${fmtDur(Math.round((ev[1]-ev[0])/MIN))}</span><span>${range(ev[0],ev[1],m.tz)}${same?'':` in ${esc(tzLabel(m.tz))}, ${range(ev[0],ev[1],H)} for you`}${who.length?`. With ${esc(who.join(', '))}`:''}</span></div><button class="pop-x" data-pop="close" aria-label="Close">×</button></div>`;
     const by=ev[6]&&(T.members.find(q=>q.id===ev[6])||ghost(T,ev[6]));
-    body=`${ev[5]?(m.isMe?`<p class="pop-req" style="margin-top:0">${by?esc(gname(by))+' invited you.':'You have not answered this invite.'}<br><button class="btn sm" data-pop="accept">Accept</button><button class="btn sm" data-pop="decline">Decline</button></p>`:`<p class="pop-req" style="margin-top:0">Invite pending. ${esc(first(m.name))} has not accepted yet.<button class="tlink" data-pop="accept">Mark as accepted</button></p>`):''}${reBar}${ev[5]&&m.isMe?'':ask}${thread}`;
+    body=`${ev[5]?(m.isMe?`<p class="pop-req" style="margin-top:0">${by?esc(gname(by))+' invited you.':'You have not answered this invite.'}<br><button class="btn sm" data-pop="accept">Accept</button><button class="btn sm" data-pop="decline">Decline</button><button class="btn sm" data-pop="post">Propose a new time</button></p>`:`<p class="pop-req" style="margin-top:0">Invite pending. ${esc(first(m.name))} has not accepted yet.<button class="tlink" data-pop="accept">Mark as accepted</button></p>`):''}${reBar}${ev[5]&&m.isMe&&POP.mode!=='post'?'':ask}${thread}`;
   }else{
     const st=statusAt(m,t,c),kind={avail:'Free',sleep:'Sleeping',off:'Offline',meet:'Busy'}[st[0]],can=st[0]==='avail'||st[0]==='off',nf=can?null:nextFree(m,t,c);
     const guests=T.members.filter(z=>POP.inv.has(z.id));
@@ -1710,6 +2174,7 @@ function renderPop(){
         <div class="inv-row">${m.isMe?'<span></span>':`<label class="check"><input type="checkbox" id="popMe" ${POP.withMe?'checked':''}>Put it on my day too</label>`}
           <div class="inv-wrap"><button type="button" class="inv-add" data-pop="invtoggle" aria-expanded="${POP.invOpen}" aria-label="Invite more people"><span class="plus">+</span>${guests.length?guests.slice(0,4).map(z=>bubble(z,false)).join('')+`<span>${guests.length} invited</span>`:'<span>Invite people</span>'}</button>
           ${POP.invOpen?`<div class="inv-dd"><input type="text" id="popInvQ" placeholder="Search by name" autocomplete="off" value="${esc(POP.invQ)}" aria-label="Search people"><div class="inv-list" id="popInvList">${invList(m)}</div></div>`:''}</div></div>
+        ${bestRow(m)}
         ${warnList(ws)}
         <button class="btn fill sm wide" data-pop="add">Schedule</button>
         ${kindOf(m)==='joined'?`<p class="pop-hint">${esc(first(m.name))} gets it as an invite to accept.</p>`:''}
@@ -1768,6 +2233,13 @@ document.addEventListener('click',e=>{
   }
   else if(act==='post'||act==='back'){POP.mode=act==='post'?'post':'';renderPop()}
   else if(act==='jump'){const t=+p.dataset.t;closePop();setT(t)}
+  else if(act==='best'||act==='bestnext'){
+    const k=bestKey(m);
+    if(act==='best'||!POP.best||POP.best.key!==k) POP.best={key:k,list:bestTimes(popPeople(m),POP.e-POP.s,POP.s),i:0};
+    else POP.best.i=(POP.best.i+1)%POP.best.list.length;
+    const o=POP.best.list[POP.best.i];if(o){POP.s=o.s;POP.e=o.e}
+    renderPop();
+  }
   else if(act==='invtoggle'){POP.invOpen=!POP.invOpen;renderPop();const i=$('#popInvQ');if(i) i.focus()}
   else if(act==='invpick'){const id=p.dataset.id;POP.inv.has(id)?POP.inv.delete(id):POP.inv.add(id);renderPop();const i=$('#popInvQ');if(i){i.focus();i.setSelectionRange(i.value.length,i.value.length)}}
   else if(act==='add'){const ids=[m.id];if(POP.withMe&&!m.isMe) ids.push(my);for(const id of POP.inv) if(!ids.includes(id)) ids.push(id);const st=POP.s,du=Math.round((POP.e-POP.s)/MIN),ti=POP.title.trim()||popDefault(m);closePop();addEvent(ids,ti,st,du)}
@@ -1780,14 +2252,12 @@ document.addEventListener('click',e=>{
   else if(act==='unpost'){delete metaOf(key).post;again()}
   else if(act==='accept'){for(const x of m.events||[]) if(x.id===ev[3]) x.pend=false;again();if(m.isMe) toast('Accepted')}
   else if(act==='decline'){const undo=snapshot();m.events=(m.events||[]).filter(x=>x.id!==ev[3]);save();closePop();render();toast('Declined',undo)}
-  else if(act==='shift'){
-    const mins=+p.dataset.m;
-    if(ev[3]){ // something added here: move it for everyone on it
-      const undo=snapshot();
-      for(const z of team().members) for(const x of z.events||[]) if(x.id===ev[3]){x.s+=mins*MIN;x.e+=mins*MIN}
-      save();closePop();if(mins>=1440) gotoDay(shiftDay(UI.day,1)); else setT(ev[0]+mins*MIN);
-      toast(`Moved ${p.dataset.l}`,undo);
-    }else{metaOf(key).post=p.dataset.l;POP.mode='';again();toast('Request saved. Copy the message to send it.')}
+  else if(act==='shift') moveEv(ev,key,m,+p.dataset.m,p.dataset.l,again);
+  else if(act==='shiftto'){
+    const d=$('#popMvDay').value,t=$('#popMvTime').value;if(!d||!t){toast('Pick a day and a time');return}
+    const [y,mo,dd]=d.split('-').map(Number),[h,mi]=t.split(':').map(Number),ns=zonedToUtc(home(),y,mo,dd,h,mi),mins=Math.round((ns-ev[0])/MIN);
+    if(!mins){toast('That is the time it has now');return}
+    moveEv(ev,key,m,mins,'to '+whenLabel(ns),again);
   }
   else if(act==='delev'){if(!ev[3]) return;const undo=snapshot();for(const z of team().members) z.events=(z.events||[]).filter(x=>x.id!==ev[3]);if(S.meta) delete S.meta[key];save();closePop();render();toast('Meeting removed',undo)}
 });
@@ -1994,7 +2464,7 @@ addEventListener('scroll',hideTip,{passive:true});
   const snap=t=>Math.floor(t/(15*MIN))*15*MIN;
   // the layer sits above the tracks, so look through it for what is under the pointer
   const isBlk=n=>n.classList&&n.closest&&n.closest('.in')&&(n.classList.contains('busy')||n.classList.contains('sleep')||n.classList.contains('work')||n.classList.contains('off'));
-  const under=e=>{const els=document.elementsFromPoint(e.clientX,e.clientY);return {ev:els.find(n=>n.dataset&&n.dataset.tip&&n.closest('.band')),row:els.find(n=>n.dataset&&n.dataset.row),blk:els.find(isBlk)}};
+  const under=e=>{const els=document.elementsFromPoint(e.clientX,e.clientY);return {flag:els.find(n=>n.classList&&n.classList.contains('tflag')),ev:els.find(n=>n.dataset&&n.dataset.tip&&n.closest('.band')&&!n.classList.contains('tflag')),row:els.find(n=>n.dataset&&n.dataset.row),blk:els.find(isBlk)}};
   const setHot=el=>{if(hot===el) return;if(hot) hot.classList.remove('hot');hot=el||null;if(hot) hot.classList.add('hot')};
   const hideGhost=()=>{ghost.style.display='none'};
   // hovering a meeting lifts a card with its name, time and reactions. Moving across the card keeps it; it is the meeting.
@@ -2014,7 +2484,7 @@ addEventListener('scroll',hideTip,{passive:true});
   addEventListener('scroll',hideHov,{passive:true});
   layer.addEventListener('pointerdown',e=>{
     const keep=inHov(e),u=under(e),g=geo();
-    down={x:e.clientX,row:keep?hovFor.row:u.row&&u.row.dataset.row,ev:keep?hovFor.ev:u.ev&&u.ev.dataset.ev,t:snap(timeAt(e,g)),moved:false,lbl:!!e.target.closest('#scrubLbl')};
+    down={x:e.clientX,row:keep?hovFor.row:u.row&&u.row.dataset.row,ev:keep?hovFor.ev:u.ev&&u.ev.dataset.ev,t:snap(timeAt(e,g)),moved:false,lbl:!!e.target.closest('#scrubLbl'),flag:u.flag&&u.flag.dataset.task};
     if(SCRUB_HOVER){SCRUB_HOVER=false;updateScrub()} // while dragging the pill shows the time again
     drag=true;hideTip();hideGhost();hideHov();setHot(null);layer.setPointerCapture(e.pointerId);
   });
@@ -2037,6 +2507,7 @@ addEventListener('scroll',hideTip,{passive:true});
     if(meeting) text=null; // the card says it all
     else if(Math.abs(e.clientX-xOf(UI.t))<5) text=teamTip(UI.live?'Right now':'Selected time',UI.t,c);
     else if(!UI.live&&Math.abs(e.clientX-xOf(Date.now()))<5) text=teamTip('Right now',Date.now(),c);
+    else if(u.flag) text=u.flag.dataset.tip+'\nClick to open the task.';
     else if(u.ev) text=u.ev.dataset.tip+'\nClick for options.';
     else if(m) text=slotTip(m,ts,c,u.blk);
     text?showTip(text,e.clientX,e.clientY):hideTip();
@@ -2048,6 +2519,7 @@ addEventListener('scroll',hideTip,{passive:true});
     if(d&&d.lbl&&!d.moved){SCRUB_HOVER=false;if(!UI.live){goNow();render()}return} // a click on the pill returns to now
     if(!d) return;
     if(d.moved){hintDone();render();return} // the drag only redrew the light parts; settle everything now
+    if(d.flag){openTask(d.flag);return}
     const t=d.ev?+d.ev:d.t;
     if(d.row) openPop(d.row,t,e.clientX,e.clientY,{ev:d.ev?+d.ev:null,note:d.note}); // a click opens the block and leaves the line where it is
     else setT(t);
@@ -2127,7 +2599,7 @@ const SB_URL='https://boielhshrswqdqkxiupz.supabase.co',SB_KEY='sb_publishable_B
 const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY):null;
 const AUTH={why:null};
 var SYNC_ON=true; // from here on, saving also syncs
-const CLOUD={user:null,profile:null,last:{},evThread:{},metaKeys:new Set(),busy:false,dirty:false,pushing:false,pushAgain:false,chan:null,pullT:0,pushT:0,ready:false};
+const CLOUD={user:null,profile:null,last:{},evThread:{},tkThread:{},metaKeys:new Set(),busy:false,dirty:false,pushing:false,pushAgain:false,chan:null,pullT:0,pushT:0,ready:false};
 const user=()=>CLOUD.user?{name:(CLOUD.profile&&CLOUD.profile.name)||(CLOUD.user.user_metadata||{}).name||(CLOUD.user.email||'').split('@')[0],email:CLOUD.user.email}:null;
 // why an account is needed, in the words of what the person was about to do
 const GATE={book:['Book a time','Booking sends an invite under your name, so Noon needs to know who you are.'],comment:['Join the thread','Comments and reactions are posted as you.'],invite:['Invite people','Invites go out from your account, and people join your team.'],integ:['Connect a calendar','Calendar connections are tied to an account.'],team:['Another team','Extra teams are saved to your account.'],request:['Answer a request','Answers are sent as you.'],save:['Keep this on every device','Your team, timezones and threads are saved to your account.'],join:['Join the team','Sign in, or create an account, to take your seat in this team.']};
@@ -2171,14 +2643,213 @@ $('#btnMagic').onclick=async()=>{
 $('#dAuth').addEventListener('close',()=>{AUTH.why=null;say('#regNote','');say('#logNote','');say('#regErr','');say('#logErr','')});
 function renderAuth(){
   const u=user();
-  $('#topAcct').innerHTML=u?`<button type="button" class="acct" id="acctBtn" aria-label="Account: ${esc(u.name)}" data-tip="${esc(u.name)}&#10;${esc(u.email)}&#10;Saved to your account. Click for your settings, or to log out.">${bubble(me(),false)}<span class="acct-nm">${esc(first(u.name))}</span></button>`
+  $('#topAcct').innerHTML=u?`<button type="button" class="acct" id="acctBtn" aria-label="Account: ${esc(u.name)}" aria-haspopup="menu" aria-expanded="false">${bubble(me(),false)}<span class="acct-nm">${esc(first(u.name))}</span></button>`
     :'<button type="button" class="btn sm" data-auth-open="login">Log in</button><button type="button" class="btn sm fill" data-auth-open="register">Create account</button>';
 }
-function renderAcct(){
-  const u=user();
-  $('#mAcct').innerHTML=u?`<div class="acct-row">${bubble(me(),false)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div><button type="button" class="btn sm quiet" id="btnLogout">Log out</button></div>`
-    :`<p class="muted" style="margin:0 0 10px">You are a guest. An account keeps this team on every device and lets you book, comment and invite.</p><div class="team-row"><button type="button" class="btn sm fill" data-auth-open="register">Create account</button><button type="button" class="btn sm" data-auth-open="login">Log in</button></div>`;
+// the account drawer: profile, sign-in, notifications, preferences
+const NOTIFY_DEFAULT={invites:true,mentions:true,replies:true,missed:true,weekly:false};
+const myTeams=()=>S.teams.filter(t=>t.cloud).map(t=>t.members.find(m=>m.isMe)).filter(Boolean);
+function acMsg(id,text,err){const el=$(id);el.hidden=!text;el.textContent=text||'';el.classList.toggle('err',!!err)}
+function renderAccount(){
+  const u=user(),p=CLOUD.profile||{},m=me();if(!u) return;
+  $('#acPhoto').innerHTML=bubble(m,false);$('#acPhotoRm').hidden=!m.photo;
+  const fn=$('#fAcName');if(document.activeElement!==fn.name) fn.name.value=u.name;
+  const fe=$('#fAcEmail');if(document.activeElement!==fe.email) fe.email.value=u.email;
+  const nt={...NOTIFY_DEFAULT,...(p.notify||{})};document.querySelectorAll('[data-notify]').forEach(c=>c.checked=!!nt[c.dataset.notify]);
+  $('#acNotifyTo').textContent=`Emails go to ${u.email}.`;
+  document.querySelectorAll('[data-clock]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.clock==='12')===!!S.hour12));
+  $('#acDur').value=String(UI.dur);
+  $('#acTeamSel').innerHTML=S.teams.map(t=>`<option value="${t.id}" ${t.id===team().id?'selected':''}>${esc(t.name)}${t.cloud?'':' · this device only'}</option>`).join('');
+  $('#acIntegList').innerHTML=[['google','Google Calendar','G'],['outlook','Outlook Calendar','O'],['slack','Slack','S']].map(([k,n,l])=>
+    `<div class="integ"><div class="ico">${l}</div><div><b>${n}<span class="tag">${S.integ[k]?'Connected, sample data':'Sample data'}</span></b><small>${S.integ[k]?'Your meetings show on your row.':'Show your meetings, not just when you are online.'}</small></div><button class="btn sm ${S.integ[k]?'':'fill'}" data-integ="${k}">${S.integ[k]?'Disconnect':'Connect'}</button></div>`).join('');
 }
+function fillSched(){
+  const m=me(),f=$('#fAcSched'),[ss,se]=sleepOf(m);
+  f.tz.value=m.tz;f.start.value=hhmm(m.start);f.end.value=hhmm(m.end);f.start2.value=m.start2!=null?hhmm(m.start2):'';f.end2.value=m.end2!=null?hhmm(m.end2):'';f.weekends.checked=!!m.weekends;f.sleepStart.value=hhmm(ss);f.sleepEnd.value=hhmm(se);
+}
+function setPage(p){
+  document.querySelectorAll('#dAccount [data-page]').forEach(x=>x.hidden=x.dataset.page!==p);
+  document.querySelectorAll('[data-setnav]').forEach(b=>b.setAttribute('aria-current',b.dataset.setnav===p?'page':'false'));
+  if(p==='schedule') fillSched();
+  $('#dAccount .set-main').scrollTop=0;
+  const cur=document.querySelector(`[data-setnav="${p}"]`);if(cur) cur.scrollIntoView({block:'nearest',inline:'nearest'});
+}
+// light or dark: remembered on this device, and on the account when signed in
+function setTheme(t,quiet){
+  document.documentElement.dataset.theme=t;try{localStorage.setItem('noon.theme',t)}catch(e){}
+  const b=$('#amTheme');if(b) b.setAttribute('aria-checked',t==='dark');
+  if(!quiet&&CLOUD.user&&sb) saveProfile({prefs:{...((CLOUD.profile||{}).prefs||{}),theme:t}});
+}
+$('#amTheme').onclick=()=>{setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');render()};
+setTheme(document.documentElement.dataset.theme||'light',true);
+// the sky folds away to a one-line clock; remembered on this device and on the account
+function setSky(on,quiet){
+  document.documentElement.dataset.sky=on?'on':'off';try{localStorage.setItem('noon.sky',on?'on':'off')}catch(e){}
+  const b=$('#skyTogIn');b.setAttribute('aria-pressed',on);b.setAttribute('aria-label',on?'Hide the sky':'Show the sky');b.dataset.tip=on?'Hide the sky\nThe clock stays; the picture folds away.':'Show the sky';
+  if(typeof renderArr==='function') renderArr();
+  document.querySelectorAll('[data-skyset]').forEach(x=>x.setAttribute('aria-pressed',(x.dataset.skyset==='on')===on));
+  if(!quiet){render();if(CLOUD.user&&sb) saveProfile({prefs:{...((CLOUD.profile||{}).prefs||{}),sky:on}})}
+}
+$('#skyTogIn').onclick=()=>setSky(document.documentElement.dataset.sky==='off');
+/* ---------- your page: blocks you can move, hide and bring back ----------
+   The three blocks under the sky live in two columns on wide screens and stack on narrow ones.
+   The layout is a small preference: the order of the blocks, which sit in the side column, which are hidden. */
+const BLOCKS={planner:'Planner',tasks:'Tasks',inbox:'Threads & day',legend:'Legend'};
+const LAYOUT0={order:['planner','tasks','inbox'],side:['tasks'],hidden:[]};
+let LAYOUT=null,DRAG=null;
+const AI={grip:'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M6 13l6 6 6-6"/></svg>',
+  col:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"/></svg>',
+  hide:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 6.3A9.7 9.7 0 0 1 12 6c6 0 9.5 6 9.5 6a16 16 0 0 1-3.2 3.7M6.6 6.6A16.5 16.5 0 0 0 2.5 12s3.5 6 9.5 6a9.3 9.3 0 0 0 4.3-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>'};
+function tidyLayout(l){
+  const ids=['planner','tasks','inbox'],o=(l&&Array.isArray(l.order)?l.order:[]).filter(x=>ids.includes(x));
+  for(const id of ids) if(!o.includes(id)) o.push(id);
+  return {order:o,side:(l&&Array.isArray(l.side)?l.side:LAYOUT0.side).filter(x=>ids.includes(x)),hidden:(l&&Array.isArray(l.hidden)?l.hidden:[]).filter(x=>x!=='planner'&&(ids.includes(x)||x==='legend'))};
+}
+function layout(){if(LAYOUT) return LAYOUT;let l=null;try{l=JSON.parse(localStorage.getItem('noon.layout')||'null')}catch(e){}return LAYOUT=tidyLayout(l)}
+function saveLayout(){try{localStorage.setItem('noon.layout',JSON.stringify(LAYOUT))}catch(e){}if(CLOUD.user&&sb) saveProfile({prefs:{...((CLOUD.profile||{}).prefs||{}),layout:LAYOUT}})}
+const blockEl=id=>document.querySelector(`[data-block="${id}"]`);
+function applyLayout(anim){
+  const L=layout(),main=$('#colMain'),side=$('#colSide'),before=anim?flipRects():null;
+  L.order.forEach((id,i)=>{const el=blockEl(id);if(!el) return;el.style.order=i;const want=L.side.includes(id)?side:main;if(el.parentElement!==want) want.append(el);el.hidden=L.hidden.includes(id)});
+  for(const col of [main,side]) [...col.children].sort((a,b)=>+a.style.order-+b.style.order).forEach(c=>col.append(c)); // the DOM follows the picture, so tabbing does too
+  const vis=c=>[...c.children].some(x=>!x.hidden);
+  side.hidden=!vis(side);main.hidden=!vis(main);$('#board').classList.toggle('one',!vis(side)||!vis(main));
+  document.documentElement.classList.toggle('no-legend',L.hidden.includes('legend'));
+  renderArr();if(before) flipPlay(before);
+}
+function flipRects(){const m=new Map();document.querySelectorAll('[data-block]').forEach(el=>{if(!el.hidden) m.set(el,el.getBoundingClientRect())});return m}
+function flipPlay(before){
+  if(matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+  document.querySelectorAll('[data-block]').forEach(el=>{const b=before.get(el);if(!b||el.hidden) return;const a=el.getBoundingClientRect(),dx=b.left-a.left,dy=b.top-a.top;if(Math.abs(dx)<1&&Math.abs(dy)<1) return;el.animate([{transform:`translate(${dx}px,${dy}px)`},{transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.7,.2,1)'})});
+}
+// arrange mode: a bar on each block, and one at the top with the hidden blocks and a way back
+const arrBar=id=>`<div class="arr-bar"><button type="button" class="arr-grip" aria-label="Drag to move ${BLOCKS[id]}">${AI.grip}<b>${BLOCKS[id]}</b></button><span class="arr-acts"><button type="button" class="ib" data-arr="up:${id}" aria-label="Move ${BLOCKS[id]} up" data-tip="Move up">${AI.up}</button><button type="button" class="ib" data-arr="down:${id}" aria-label="Move ${BLOCKS[id]} down" data-tip="Move down">${AI.down}</button><button type="button" class="ib arr-col" data-arr="col:${id}" aria-label="Move ${BLOCKS[id]} to the other column" data-tip="Other column">${AI.col}</button>${id==='planner'?'':`<button type="button" class="ib" data-arr="hide:${id}" aria-label="Hide ${BLOCKS[id]}" data-tip="Hide">${AI.hide}</button>`}</span></div>`;
+function arrMode(on){
+  document.documentElement.dataset.arrange=on?'on':'off';const b=$('#arrTog');b.setAttribute('aria-pressed',on);b.dataset.tip=on?'Done arranging':'Arrange the page\nMove blocks around, hide what you don\'t need.';
+  $('#arrTop').hidden=!on;DRAG=null;
+  if(on){renderArr();$('#arrTop').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'nearest'})}
+}
+function renderArr(){
+  if(document.documentElement.dataset.arrange!=='on') return;
+  const L=layout(),hid=L.hidden.filter(id=>BLOCKS[id]),skyOff=document.documentElement.dataset.sky==='off';
+  $('#arrTop').innerHTML=`<div><b>Arrange your page.</b> Drag a block by its handle or use the arrows. Hide what you don't need; it comes back from here.</div>${hid.length||skyOff?`<span class="arr-chips">${skyOff?'<button type="button" class="btn sm" data-skyshow>+ Sky</button>':''}${hid.map(id=>`<button type="button" class="btn sm" data-arr="show:${id}">+ ${BLOCKS[id]}</button>`).join('')}</span>`:''}<span class="arr-end"><button type="button" class="btn sm quiet" data-arr="reset">Reset</button><button type="button" class="btn sm fill" data-arr="done">Done</button></span>`;
+  for(const id of L.order){const el=blockEl(id);if(el&&!el.querySelector(':scope>.arr-bar')) el.insertAdjacentHTML('afterbegin',arrBar(id))}
+}
+// up and down stay inside the block's own column on wide screens
+function arrMove(id,dir){
+  const L=layout(),wide=matchMedia('(min-width:1280px)').matches,same=x=>!L.hidden.includes(x)&&(!wide||L.side.includes(x)===L.side.includes(id));
+  const i=L.order.indexOf(id);let j=i+dir;while(j>=0&&j<L.order.length&&!same(L.order[j])) j+=dir;if(j<0||j>=L.order.length) return;
+  L.order.splice(i,1);L.order.splice(j,0,id);applyLayout(true);saveLayout();
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest&&e.target.closest('[data-arr]');if(!b) return;const [a,id]=b.dataset.arr.split(':'),L=layout();
+  if(a==='done') return arrMode(false);
+  if(a==='reset'){LAYOUT=tidyLayout(JSON.parse(JSON.stringify(LAYOUT0)));applyLayout(true);saveLayout();if(document.documentElement.dataset.sky==='off') setSky(true);toast('Back to the standard page');return}
+  if(a==='up'||a==='down') return arrMove(id,a==='up'?-1:1);
+  if(a==='col'){L.side=L.side.includes(id)?L.side.filter(x=>x!==id):[...L.side,id]}
+  else if(a==='hide'){if(!L.hidden.includes(id)) L.hidden.push(id)}
+  else if(a==='show'){L.hidden=L.hidden.filter(x=>x!==id)}
+  applyLayout(true);saveLayout();
+});
+$('#arrTog').onclick=()=>arrMode(document.documentElement.dataset.arrange!=='on');
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.documentElement.dataset.arrange==='on'&&!document.querySelector('dialog[open]')&&!$('#pop').style.display.includes('block')) arrMode(false)});
+// dragging by the handle: the block follows the pointer into its new slot, column included
+document.addEventListener('pointerdown',e=>{const g=e.target.closest&&e.target.closest('.arr-grip');if(!g||e.button) return;const el=g.closest('[data-block]');DRAG={id:el.dataset.block,el,t:0};el.classList.add('dragging');e.preventDefault()});
+document.addEventListener('pointermove',e=>{
+  if(!DRAG) return;
+  const L=layout(),wide=matchMedia('(min-width:1280px)').matches,id=DRAG.id;
+  let side=L.side.includes(id);
+  if(wide){const bd=$('#board').getBoundingClientRect(),sc=$('#colSide'),sw=sc.hidden?Math.min(500,Math.max(436,innerWidth*.3)):sc.getBoundingClientRect().width;side=e.clientX>bd.right-sw}
+  const others=L.order.filter(x=>x!==id&&!L.hidden.includes(x)&&(!wide||L.side.includes(x)===side)).map(x=>({x,r:blockEl(x).getBoundingClientRect()}));
+  let beforeId=null;for(const o of others){if(e.clientY<o.r.top+o.r.height/2){beforeId=o.x;break}}
+  const order=L.order.filter(x=>x!==id);let at;
+  if(beforeId!=null) at=order.indexOf(beforeId);else{const last=others.length?others[others.length-1].x:null;at=last?order.indexOf(last)+1:order.length}
+  order.splice(at,0,id);
+  const nside=side?[...new Set([...L.side,id])]:L.side.filter(x=>x!==id);
+  if(order.join()!==L.order.join()||nside.join()!==L.side.join()){L.order=order;L.side=nside;applyLayout(true)}
+});
+const dragEnd=()=>{if(!DRAG) return;DRAG.el.classList.remove('dragging');DRAG=null;saveLayout()};
+document.addEventListener('pointerup',dragEnd);document.addEventListener('pointercancel',dragEnd);
+applyLayout();
+
+document.addEventListener('click',e=>{const c=e.target.closest&&e.target.closest('[data-skyshow],[data-skyset]');if(!c) return;setSky(c.dataset.skyset?c.dataset.skyset==='on':true)});
+setSky(document.documentElement.dataset.sky!=='off',true);
+function openMenu(open){
+  const mnu=$('#acctMenu'),show=open??mnu.hidden;
+  if(show){const u=user();if(!u) return;$('#amHead').innerHTML=`${bubble(me(),false)}<div><b>${esc(u.name)}</b><span>${esc(u.email)}</span></div>`}
+  mnu.hidden=!show;const b=$('#acctBtn');if(b) b.setAttribute('aria-expanded',show);
+  if(show){const f=mnu.querySelector('[data-acpage]');if(f&&matchMedia('(hover:none)').matches===false) f.focus({preventScroll:true})}
+}
+function openAccount(page='account'){if(!user()) return openAuth('login');openMenu(false);acMsg('#acEmailMsg','');acMsg('#acPassMsg','');renderAccount();setPage(page);const d=$('#dAccount');if(!d.open){d.showModal();d.focus()}}
+document.addEventListener('click',e=>{
+  const ap=e.target.closest&&e.target.closest('[data-acpage]');if(ap){openAccount(ap.dataset.acpage);return}
+  const sn=e.target.closest&&e.target.closest('[data-setnav]');if(sn){setPage(sn.dataset.setnav);return}
+  const ig=e.target.closest&&e.target.closest('#acIntegList [data-integ]');if(ig){const k=ig.dataset.integ;S.integ[k]=!S.integ[k];me().cal=S.integ.google||S.integ.outlook;save();render();renderAccount();toast(S.integ[k]?'Connected':'Disconnected')}
+});
+document.addEventListener('pointerdown',e=>{const mnu=$('#acctMenu');if(!mnu.hidden&&!(e.target.closest&&e.target.closest('#acctMenu,#acctBtn'))) openMenu(false)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#acctMenu').hidden){openMenu(false);const b=$('#acctBtn');if(b) b.focus()}});
+$('#fAcSched').addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target,tz=f.tz.value.trim();
+  if(!validTz(tz)){f.tz.setCustomValidity('Pick a timezone from the list, like Europe/Berlin');f.tz.reportValidity();return}
+  const two=f.start2.value&&f.end2.value,d={tz,start:toH(f.start.value),end:toH(f.end.value),start2:two?toH(f.start2.value):null,end2:two?toH(f.end2.value):null,weekends:f.weekends.checked,sleepStart:toH(f.sleepStart.value),sleepEnd:toH(f.sleepEnd.value)};
+  const mine=myTeams();(mine.length?mine:[me()]).forEach(m=>Object.assign(m,d));save();goNow();render();toast('Schedule saved');
+});
+$('#fAcSched').addEventListener('input',e=>{if(e.target.name==='tz') e.target.setCustomValidity('')});
+$('#acTeamSel').onchange=e=>{S.active=e.target.value;save();goNow();render();renderAccount();toast('Showing '+team().name)};
+$('#acInvite').onclick=()=>{$('#dAccount').close();$('#btnInvite').click()};
+$('#acNewTeam').onclick=()=>{$('#dAccount').close();$('#newTeam').click()};
+$('#acDemo').onclick=()=>{$('#dAccount').close();$('#btnDemo').click()};
+$('#acTour').onclick=()=>{$('#dAccount').close();onbShow()};
+async function saveProfile(patch){
+  const {error}=await sb.from('profiles').update(patch).eq('id',CLOUD.user.id);
+  if(error){toast('Could not save: '+error.message);return false}
+  CLOUD.profile={...(CLOUD.profile||{}),...patch};return true;
+}
+const savePrefs=()=>{if(CLOUD.user&&sb) saveProfile({prefs:{...((CLOUD.profile||{}).prefs||{}),hour12:!!S.hour12,dur:UI.dur}})};
+$('#fAcName').addEventListener('submit',e=>{
+  e.preventDefault();const name=e.target.name.value.trim();if(!name) return;
+  for(const m of myTeams()) m.name=name;if(CLOUD.profile) CLOUD.profile.name=name;save();render();renderAccount();toast('Name saved');
+});
+$('#acFile').addEventListener('change',async e=>{
+  const file=e.target.files[0];e.target.value='';if(!file) return;
+  if(file.size>2*1024*1024){toast('That image is over 2 MB. Pick a smaller one.');return}
+  const ext=(file.name.split('.').pop()||'png').toLowerCase().replace(/[^a-z0-9]/g,''),path=`${CLOUD.user.id}/${Date.now()}.${ext}`;
+  toast('Uploading your photo');
+  const {error}=await sb.storage.from('avatars').upload(path,file,{upsert:true,contentType:file.type});
+  if(error){toast('Upload failed: '+error.message);return}
+  const url=sb.storage.from('avatars').getPublicUrl(path).data.publicUrl;
+  for(const m of myTeams()) m.photo=url;save();render();renderAccount();toast('Photo updated');
+});
+$('#acPhotoRm').onclick=()=>{for(const m of myTeams()) m.photo='';save();render();renderAccount();toast('Photo removed')};
+$('#fAcEmail').addEventListener('submit',async e=>{
+  e.preventDefault();const email=e.target.email.value.trim().toLowerCase();acMsg('#acEmailMsg','');
+  if(email===user().email){acMsg('#acEmailMsg','That is already your email.',true);return}
+  const {error}=await sb.auth.updateUser({email},{emailRedirectTo:siteUrl()});
+  if(error){acMsg('#acEmailMsg',authMsg(error),true);return}
+  acMsg('#acEmailMsg',`Check ${email} for a confirmation link. The change happens once you open it, and your old address may get a link to confirm too.`);
+});
+$('#fAcPass').addEventListener('submit',async e=>{
+  e.preventDefault();const f=e.target;acMsg('#acPassMsg','');
+  if(f.pass.value!==f.pass2.value){acMsg('#acPassMsg','The two passwords do not match.',true);f.pass2.focus();return}
+  const {error}=await sb.auth.updateUser({password:f.pass.value});
+  if(error){acMsg('#acPassMsg',authMsg(error),true);return}
+  f.reset();acMsg('#acPassMsg','Password updated. Use it next time you log in.');
+});
+document.addEventListener('change',e=>{const c=e.target.closest&&e.target.closest('[data-notify]');if(!c) return;
+  const nt={...NOTIFY_DEFAULT,...((CLOUD.profile||{}).notify||{}),[c.dataset.notify]:c.checked};saveProfile({notify:nt}).then(ok=>{if(ok) toast('Notifications saved')})});
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('[data-clock]');if(!b) return;S.hour12=b.dataset.clock==='12';save();render();renderAccount();savePrefs()});
+$('#acDur').onchange=e=>{UI.dur=+e.target.value;savePrefs();toast('Default length saved')};
+$('#acDelete').onclick=()=>{
+  $('#cfTitle').textContent='Delete your account?';
+  $('#cfText').textContent='Your profile, your seat in every team and everything you posted are removed for good. Teams you created pass to a teammate, or are deleted if nobody else is in them. This cannot be undone.';
+  $('#cfOk').textContent='Delete account';
+  $('#cfOk').onclick=async()=>{const {error}=await sb.rpc('delete_account');$('#dConfirm').close();$('#cfOk').textContent='Remove';
+    if(error){toast('Could not delete the account: '+error.message);return}
+    $('#dAccount').close();await sb.auth.signOut();toast('Your account is deleted.')};
+  $('#dConfirm').showModal();
+};
 
 /* ---------- sync: signed-in teams mirror to the database; every save pushes the difference, every change there pulls ---------- */
 const msOf=t=>t?new Date(t).getTime():null,isoOf=n=>new Date(n).toISOString(),num=v=>v==null?null:+v;
@@ -2202,11 +2873,13 @@ function buildTeams(R,uidMe){
         if(a.move_request&&m.isMe){metaOf(e.id).post=a.move_request;CLOUD.metaKeys.add(e.id)}
       }
     }
+    T.tasks=(R.tasks||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,title:x.title,note:x.note||'',to:(R.tas||[]).filter(y=>y.task_id===x.id).map(y=>y.member_id),by:x.created_by||null,day:x.due_day||null,time:x.due_time||null,tz:x.due_tz||null,at:msOf(x.created_at),done:msOf(x.done_at),cleared:!!x.cleared,re:{},cm:[]}));
     const cmsBy={};for(const c of R.comments)(cmsBy[c.thread_id]=cmsBy[c.thread_id]||[]).push(c);
     const reTh={},reCm={};for(const r of R.reactions){const o=r.thread_id?(reTh[r.thread_id]=reTh[r.thread_id]||{}):(reCm[r.comment_id]=reCm[r.comment_id]||{});(o[r.emoji]=o[r.emoji]||[]).push(r.member_id)}
     const cmList=th=>(cmsBy[th.id]||[]).sort((a,b)=>msOf(a.created_at)-msOf(b.created_at)).map(c=>({id:c.id,by:nameOf(c.author_id),byId:c.author_id,text:c.body,at:msOf(c.created_at),re:reCm[c.id]||{}}));
     for(const th of R.threads.filter(x=>x.team_id===t.id)){
-      if(th.event_id){CLOUD.evThread[th.event_id]=th.id;const k=metaOf(th.event_id);CLOUD.metaKeys.add(th.event_id);k.re=reTh[th.id]||{};k.cm=cmList(th)}
+      if(th.task_id){const tk=T.tasks.find(x=>x.id===th.task_id);if(tk){CLOUD.tkThread[tk.id]=th.id;tk.re=reTh[th.id]||{};tk.cm=cmList(th)}}
+      else if(th.event_id){CLOUD.evThread[th.event_id]=th.id;const k=metaOf(th.event_id);CLOUD.metaKeys.add(th.event_id);k.re=reTh[th.id]||{};k.cm=cmList(th)}
       else{const m=mem[th.member_id];if(!m) continue;m.threads.push({id:th.id,s:msOf(th.starts_at),e:msOf(th.ends_at),re:reTh[th.id]||{},cm:cmList(th),by:th.created_by||undefined})}
     }
     out.push(T);
@@ -2215,7 +2888,8 @@ function buildTeams(R,uidMe){
 }
 // a flat picture of one team, the shape the database holds, so two pictures can be compared
 function toImage(T){
-  const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{}};
+  const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{}};
+  for(const t of T.tasks||[]){I.tasks[t.id]={id:t.id,title:t.title,note:t.note||'',day:t.day||null,time:t.time||null,tz:t.tz||null,done:t.done||null,cleared:!!t.cleared,by:t.by||null};for(const mid of t.to||[]) I.tkas[t.id+':'+mid]={task_id:t.id,member_id:mid}}
   const addCms=(tid,cms)=>{for(const c of cms||[]){I.comments[c.id]={id:c.id,thread_id:tid,author_id:c.byId||null,body:c.text,at:c.at||Date.now()};addRe(null,c.id,c.re)}};
   const addRe=(tid,cid,re)=>{for(const [e,l] of Object.entries(re||{})) for(const mid of l) I.re[(tid||cid)+'|'+mid+'|'+e]={thread_id:tid,comment_id:cid,member_id:mid,emoji:e}};
   for(const m of T.members){
@@ -2224,6 +2898,7 @@ function toImage(T){
     for(const ev of m.events||[]){I.events[ev.id]=I.events[ev.id]||{id:ev.id,title:ev.title,s:ev.s,e:ev.e,by:ev.by||null};I.att[ev.id+':'+m.id]={event_id:ev.id,member_id:m.id,status:ev.pend?'pending':'accepted',invited_by:ev.req||null,move_request:null}}
     for(const th of m.threads||[]){I.threads[th.id]={id:th.id,member_id:m.id,event_id:null,s:th.s,e:th.e,by:th.by||null};addCms(th.id,th.cm);addRe(th.id,null,th.re)}
   }
+  for(const t of T.tasks||[]){if(!((t.cm||[]).length||Object.values(t.re||{}).some(l=>l.length))) continue;const tid=CLOUD.tkThread[t.id]||(CLOUD.tkThread[t.id]=uid());I.threads[tid]={id:tid,member_id:null,event_id:null,task_id:t.id,s:null,e:null,by:null};addCms(tid,t.cm);addRe(tid,null,t.re)}
   const my=T.members.find(x=>x.isMe);
   for(const ev of Object.values(I.events)){const k=S.meta&&S.meta[ev.id];if(!k) continue;
     const live=(k.cm||[]).length||Object.values(k.re||{}).some(l=>l.length);
@@ -2260,7 +2935,13 @@ async function pushTeam(T){
   if(attUp.length) await run(sb.from('attendees').upsert(attUp,{onConflict:'event_id,member_id'}));
   for(const k in L.att) if(!N.att[k]) await run(sb.from('attendees').delete().match({event_id:L.att[k].event_id,member_id:L.att[k].member_id}));
   const evDel=Object.keys(L.events).filter(id=>!N.events[id]);if(evDel.length) await run(sb.from('events').delete().in('id',evDel));
-  const thIns=[];for(const id in N.threads){const n=N.threads[id];if(!L.threads[id]) thIns.push({id,team_id:T.id,member_id:n.member_id,event_id:n.event_id,starts_at:n.s?isoOf(n.s):null,ends_at:n.e?isoOf(n.e):null,created_by:n.by||myId})}
+  const LT=L.tasks||{},LA=L.tkas||{},tkRow=n=>({title:n.title,note:n.note||null,due_day:n.day,due_time:n.time,due_tz:n.tz,done_at:n.done?isoOf(n.done):null,cleared:!!n.cleared});
+  const tkIns=[];for(const id in N.tasks){const n=N.tasks[id],o=LT[id];if(!o) tkIns.push({id,team_id:T.id,created_by:n.by||myId,...tkRow(n)});else if(!same(n,o)) await run(sb.from('tasks').update(tkRow(n)).eq('id',id))}
+  if(tkIns.length) await run(sb.from('tasks').insert(tkIns));
+  const taIns=[];for(const k in N.tkas) if(!LA[k]) taIns.push(N.tkas[k]);if(taIns.length) await run(sb.from('task_assignees').upsert(taIns,{onConflict:'task_id,member_id'}));
+  for(const k in LA) if(!N.tkas[k]) await run(sb.from('task_assignees').delete().match(LA[k]));
+  const tkDel=Object.keys(LT).filter(id=>!N.tasks[id]);if(tkDel.length) await run(sb.from('tasks').delete().in('id',tkDel));
+  const thIns=[];for(const id in N.threads){const n=N.threads[id];if(!L.threads[id]) thIns.push({id,team_id:T.id,member_id:n.member_id,event_id:n.event_id,task_id:n.task_id||null,starts_at:n.s?isoOf(n.s):null,ends_at:n.e?isoOf(n.e):null,created_by:n.by||myId})}
   if(thIns.length) await run(sb.from('threads').insert(thIns));
   const cmIns=[];for(const id in N.comments){const n=N.comments[id];if(!L.comments[id]) cmIns.push({id,thread_id:n.thread_id,author_id:n.author_id||myId,body:n.body,created_at:isoOf(n.at)})}
   if(cmIns.length) await run(sb.from('comments').insert(cmIns));
@@ -2285,10 +2966,11 @@ async function pull(){
   CLOUD.busy=true;
   try{
     const q=async t=>{const {data,error}=await sb.from(t).select('*');if(error) throw error;return data||[]};
-    const [teams,members,events,attendees,threads,comments,reactions,profiles]=await Promise.all(['teams','v_members','events','attendees','threads','comments','reactions','profiles'].map(q));
+    const [teams,members,events,attendees,threads,comments,reactions,profiles,tasks,tas]=await Promise.all(['teams','v_members','events','attendees','threads','comments','reactions','profiles','tasks','task_assignees'].map(q));
     CLOUD.profile=profiles.find(p=>p.id===CLOUD.user.id)||CLOUD.profile;
-    for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};
-    const built=buildTeams({teams,members,events,attendees,threads,comments,reactions},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
+    {const pf=(CLOUD.profile&&CLOUD.profile.prefs)||{};if(pf.hour12!=null) S.hour12=!!pf.hour12;if(pf.dur) UI.dur=+pf.dur;if(pf.theme&&pf.theme!==document.documentElement.dataset.theme) setTheme(pf.theme,true);if(pf.sky!=null&&!!pf.sky!==(document.documentElement.dataset.sky!=='off')) setSky(!!pf.sky,true);if(pf.layout&&JSON.stringify(tidyLayout(pf.layout))!==JSON.stringify(layout())){LAYOUT=tidyLayout(pf.layout);try{localStorage.setItem('noon.layout',JSON.stringify(LAYOUT))}catch(e){}applyLayout()}}
+    for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.tkThread={};
+    const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
     S.teams=[...built,...local];
     CLOUD.last={};for(const T of built) CLOUD.last[T.id]=toImage(T);
     if(!S.teams.find(t=>t.id===S.active)) S.active=(built[0]||local[0]).id;
@@ -2306,12 +2988,14 @@ function reidTeam(T){
     for(const ev of m.events||[]){if(!em[ev.id]) em[ev.id]=uid();ev.id=em[ev.id];ev.who=(ev.who||[]).map(map);if(ev.req) ev.req=map(ev.req);if(ev.by) ev.by=map(ev.by)}
     for(const th of m.threads||[]){th.id=uid();th.re=remapRe(th.re,map);(th.cm||[]).forEach(fixCm)}}
   for(const [k,v] of Object.entries(S.meta||{})) if(em[k]){delete S.meta[k];S.meta[em[k]]=v;v.re=remapRe(v.re,map);(v.cm||[]).forEach(fixCm);if(v.join) v.join=v.join.map(map)}
+  for(const t of T.tasks||[]){t.id=uid();t.to=(t.to||[]).map(map);if(t.by) t.by=map(t.by)}
   T.gone={};if(UI.spot&&mm[UI.spot]) UI.spot=mm[UI.spot];
 }
 function remapMember(T,from,to){
   const map=id=>id===from?to:id,fixCm=c=>{if(c.byId===from) c.byId=to;c.re=remapRe(c.re,map)};
   for(const m of T.members){for(const ev of m.events||[]){ev.who=(ev.who||[]).map(map);if(ev.req===from) ev.req=to;if(ev.by===from) ev.by=to}for(const th of m.threads||[]){th.re=remapRe(th.re,map);(th.cm||[]).forEach(fixCm)}}
   for(const v of Object.values(S.meta||{})){v.re=remapRe(v.re,map);(v.cm||[]).forEach(fixCm);if(v.join) v.join=v.join.map(map)}
+  for(const t of T.tasks||[]){t.to=(t.to||[]).map(map);if(t.by===from) t.by=to}
 }
 async function uploadTeam(T){
   reidTeam(T);
@@ -2320,7 +3004,7 @@ async function uploadTeam(T){
   const my=T.members.find(m=>m.isMe);
   const {data:seat}=await sb.from('members').select('id').eq('team_id',id).eq('user_id',CLOUD.user.id).maybeSingle();
   if(seat&&my){const was=my.id;my.id=seat.id;my.userId=CLOUD.user.id;remapMember(T,was,seat.id)}
-  CLOUD.last[T.id]={name:T.name,members:my?{[my.id]:{}}:{},events:{},att:{},threads:{},comments:{},re:{}};
+  CLOUD.last[T.id]={name:T.name,members:my?{[my.id]:{}}:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{}};
   await pushTeam(T);
 }
 async function createCloudTeam(name){
@@ -2333,7 +3017,7 @@ async function joinByCode(code){
 }
 function listen(){
   if(CLOUD.chan||!sb) return;CLOUD.chan=sb.channel('noon-'+CLOUD.user.id);
-  for(const t of ['teams','members','profiles','events','attendees','threads','comments','reactions']) CLOUD.chan.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pullSoon());
+  for(const t of ['teams','members','profiles','events','attendees','threads','comments','reactions','tasks','task_assignees']) CLOUD.chan.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pullSoon());
   CLOUD.chan.subscribe();
 }
 async function cloudStart(u){
@@ -2355,7 +3039,7 @@ async function cloudStart(u){
 }
 function cloudStop(){
   if(CLOUD.chan){sb.removeChannel(CLOUD.chan);CLOUD.chan=null}
-  for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.last={};
+  for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.tkThread={};CLOUD.last={};
   CLOUD.user=null;CLOUD.profile=null;CLOUD.ready=false;
   S.teams=S.teams.filter(t=>!t.cloud);
   if(!S.teams.length){const sd=seed();S.teams=sd.teams;S.active=sd.active}else if(!S.teams.find(t=>t.id===S.active)) S.active=S.teams[0].id;
@@ -2370,8 +3054,8 @@ if(sb) sb.auth.onAuthStateChange((ev,session)=>{
 document.addEventListener('click',e=>{
   const ao=e.target.closest('[data-auth-open]');if(ao){openAuth(ao.dataset.authOpen);return}
   const at=e.target.closest('[data-auth]');if(at){authTab(at.dataset.auth);return}
-  if(e.target.closest('#acctBtn')){user()?openMember(me().id):openAuth('login');return}
-  if(e.target.closest('#btnLogout')){$('#dMember').close();if(sb) sb.auth.signOut();return}
+  if(e.target.closest('#acctBtn')){openMenu();return}
+  if(e.target.closest('#btnLogout,[data-logout]')){openMenu(false);$('#dMember').close();$('#dAccount').close();if(sb) sb.auth.signOut();return}
   if(e.target.closest('#btnTour')){$('#dMember').close();onbShow();return}
   const ob=e.target.closest('[data-onb]');if(ob){onbAct(ob.dataset.onb);return}
 });
@@ -2419,6 +3103,200 @@ function onbAct(a){
 $('#onbRows').addEventListener('input',e=>e.target.setCustomValidity(''));
 $('#fOnbMe').addEventListener('input',e=>e.target.setCustomValidity(''));
 $('#dOnboard').addEventListener('close',()=>{try{localStorage.setItem('noon.onboarded','1')}catch(e){}});
+
+/* ---------- tasks: for anyone on the team, with a deadline, carried along until done or deleted ---------- */
+const TK_GROUPS=[['overdue','Overdue'],['today','Today'],['week','This week'],['later','Later'],['none','No deadline']];
+const tkDayDiff=day=>Math.round((dayRange(day)[0]-dayRange(today())[0])/86400000);
+const tkDayLabel=day=>{const d=tkDayDiff(day);return d===0?'Today':d===1?'Tomorrow':d===-1?'Yesterday':fmtDate(dayRange(day)[0]+12*HR,home())};
+function taskInstant(t){if(!t.day||!t.time) return null;const [y,m,d]=t.day.split('-').map(Number),[h,mi]=t.time.split(':').map(Number);return zonedToUtc(t.tz||home(),y,m,d,h,mi)}
+// a deadline, read from where you are: a date is "by the end of that day", a time is a moment everyone sees in their own zone
+function taskDue(t){
+  if(t.done) return {state:'done',label:'Done '+tkDayLabel(dayOf(t.done)).toLowerCase(),ms:t.done};
+  if(!t.day) return {state:'none',label:'No deadline',ms:Infinity};
+  if(t.time){const ms=taskInstant(t),late=ms<Date.now(),d=tkDayDiff(dayOf(ms));return {state:late?'overdue':d===0?'today':d<=7?'week':'later',label:(late?'Overdue, was ':'Due ')+whenLabel(ms),ms}}
+  const d=tkDayDiff(t.day),ms=dayRange(t.day)[1];
+  return {state:d<0?'overdue':d===0?'today':d<=7?'week':'later',label:d<0?`Overdue, ${-d} ${-d===1?'day':'days'}`:'Due '+tkDayLabel(t.day),ms};
+}
+const tasksOf=T=>(T.tasks=T.tasks||[]);
+const tkName=(T,id)=>{const z=T.members.find(m=>m.id===id);return z?(z.isMe?'you':first(z.name)):(T.gone&&T.gone[id]?first(T.gone[id].name):'someone')};
+const tkNames=(T,ids)=>{const n=ids.map(id=>tkName(T,id));return n.length?n.length>1?n.slice(0,-1).join(', ')+' and '+n[n.length-1]:n[0]:'nobody yet'};
+// where a task's flag sits on a row: at its time, or at the end of that person's online day
+function taskFlagAt(t,m,c,a,b){
+  if(t.time) return taskInstant(t);
+  if(t.day!==UI.day) return null;
+  const ends=(c.work[m.id]||[]).map(s=>s[1]).filter(e=>e>a&&e<=b);return ends.length?Math.max(...ends)-5*MIN:b-20*MIN;
+}
+const grow=el=>{if(!el) return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,el.form&&el.form.id==='fTaskEd'?220:140)+'px'};
+const tkRx=t=>{const re=Object.entries(t.re||{}).filter(x=>x[1].length).sort((a,b)=>b[1].length-a[1].length),n=re.reduce((q,x)=>q+x[1].length,0),c=(t.cm||[]).length;return n||c?`<span class="tk-rx">${re.slice(0,2).map(x=>x[0]).join('')}${n?' '+n:''}${c?' 💬 '+c:''}</span>`:''};
+function tkAssignSet(){const T=team(),ids=new Set(T.members.map(m=>m.id));if(!UI.tkAssign) UI.tkAssign=new Set();UI.tkAssign=new Set([...UI.tkAssign].filter(id=>ids.has(id)));if(!UI.tkAssign.size) UI.tkAssign.add(me().id);return UI.tkAssign}
+const CAL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
+// a meeting lands in the same groups as a task: the group its start time puts it in, or Overdue once it has passed
+const mtState=x=>{if(x.e<Date.now()) return 'overdue';const d=tkDayDiff(dayOf(x.s));return d===0?'today':d<=7?'week':'later'};
+document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&e.target.matches&&e.target.matches('.tk[role=button]')){e.preventDefault();e.target.click()}});
+function renderTasks(){
+  const T=team(),m=me(),my=m.id,H=home(),now=Date.now(),tasks=tasksOf(T),f=UI.tkf||'open',AS=tkAssignSet(),cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+  const open=tasks.filter(t=>!t.done),late=open.filter(t=>taskDue(t).state==='overdue').length,mine=open.filter(t=>t.to.includes(my)).length;
+  // meetings come from the same inbox the planner uses: invites waiting on you, and the asks you sent; booked time is read off your own row
+  const IN=inbox(),inv=IN.rq.filter(n=>n.kind==='inv').sort((a,b)=>a.s-b.s),sent=IN.rq.filter(n=>n.kind==='join'||n.kind==='post'),upcoming=(m.events||[]).filter(x=>!x.pend&&x.e>=now&&x.s<now+30*86400000).sort((a,b)=>a.s-b.s);
+  $('#tkSum').textContent=[open.length?`${open.length} open`:'',late?`${late} overdue`:'',inv.length?`${inv.length} ${inv.length===1?'invite':'invites'} to answer`:''].filter(Boolean).join(', ');
+  document.querySelectorAll('[data-tkf]').forEach(b=>{b.setAttribute('aria-selected',b.dataset.tkf===f);const n={open:open.length+inv.length,mine:mine+inv.length,mt:inv.length,done:tasks.length-open.length}[b.dataset.tkf],i=b.querySelector('i');i.textContent=n||'';i.hidden=!n;i.className=b.dataset.tkf==='done'||!n?'z':''});
+  const sel=T.members.filter(m=>AS.has(m.id));
+  $('#tkWho').innerHTML=sel.slice(0,3).map(m=>bubble(m,false)).join('')+(sel.length>3?`<span class="bub more">+${sel.length-3}</span>`:'');
+  $('#tkForLbl').textContent=sel.length===1?(sel[0].isMe?'For me':'For '+first(sel[0].name)):`For ${sel.length}`;
+  tkForList();tkDueLabel();
+  const item=t=>{const d=taskDue(t),who=t.to.map(id=>T.members.find(m=>m.id===id)).filter(Boolean);
+    return `<div class="tk ${d.state}" data-task="${t.id}" data-tkopen="${t.id}" role="button" tabindex="0" aria-label="${esc(t.title)}. ${esc(d.label)}"><button type="button" class="tk-ck" data-tkdone="${t.id}" aria-label="${t.done?'Mark not done':'Mark done'}" aria-pressed="${!!t.done}">${t.done?ICON.avail:''}</button>
+      <div class="tk-main"><div class="tk-title">${esc(t.title)}</div><div class="tk-meta"><span class="tk-due">${esc(d.label)}</span><span>${t.to.length?`for ${esc(tkNames(T,t.to))}`:'unassigned'}</span>${t.by&&t.by!==my?`<span>from ${esc(tkName(T,t.by))}</span>`:''}${tkRx(t)}${t.note?'<span title="Has details">has details</span>':''}</div></div>
+      <div class="tk-ppl">${who.slice(0,4).map(m=>bubble(m,false)).join('')}${who.length>4?`<span class="bub more">+${who.length-4}</span>`:''}</div>
+      <button type="button" class="ib tk-x" data-tkdel="${t.id}" aria-label="Delete task" data-tip="Delete">${IB.rm}</button></div>`};
+  const ppl=x=>(x.who||[]).filter(id=>id!==my).map(id=>T.members.find(z=>z.id===id)).filter(Boolean);
+  // an invite: Accept and Decline while it is still ahead; once it has passed, bring it forward or dismiss it, as the inbox did
+  const invItem=n=>{const x=n.ev,st=mtState(x),when=n.missed?'Passed, no answer':`${whenLabel(x.s)} to ${fmtT(x.e,H)}`;
+    return `<div class="tk mt ${st}" data-loc="${n.loc.join('|')}" role="button" tabindex="0" aria-label="${esc(x.title||'Meeting')}. ${esc(when)}"><span class="tk-mk">${CAL}</span>
+      <div class="tk-main"><div class="tk-title">${esc(x.title||'Meeting')}</div><div class="tk-meta"><span class="tk-due">${esc(when)}</span><span>${esc(cap(tkName(T,x.req)))} invited you</span></div></div>
+      <span class="tk-acts">${n.missed?`<button type="button" class="btn sm" data-resched="${x.id}">${n.tom?'Move to tomorrow':'Move to today'}</button><button type="button" class="btn sm quiet" data-dec="${x.id}">Dismiss</button>`:`<button type="button" class="btn sm" data-acc="${x.id}">Accept</button><button type="button" class="btn sm quiet" data-dec="${x.id}">Decline</button>`}</span></div>`};
+  // a booked meeting: who is on it, and who still has to say yes
+  const bookItem=x=>{const st=mtState(x),p=ppl(x),wait=p.filter(z=>(z.events||[]).some(q=>q.id===x.id&&q.pend)),when=`${whenLabel(x.s)} to ${fmtT(x.e,H)}`;
+    return `<div class="tk mt ${st}" data-loc="${my}|${x.s}|${x.s}" role="button" tabindex="0" aria-label="${esc(x.title||'Meeting')}. ${esc(when)}"><span class="tk-mk">${CAL}</span>
+      <div class="tk-main"><div class="tk-title">${esc(x.title||'Meeting')}</div><div class="tk-meta"><span class="tk-due">${esc(when)}</span>${p.length?`<span>with ${esc(tkNames(T,p.map(z=>z.id)))}</span>`:''}${wait.length?`<span class="tk-wait">waiting for ${esc(wait.map(z=>first(z.name)).join(', '))}</span>`:''}</div></div>
+      <div class="tk-ppl">${p.slice(0,4).map(z=>bubble(z,false)).join('')}${p.length>4?`<span class="bub more">+${p.length-4}</span>`:''}</div></div>`};
+  // something you asked for: to join a meeting, or to move one
+  const sentItem=n=>`<div class="tk mt sent" data-loc="${n.loc.join('|')}" role="button" tabindex="0" aria-label="${esc(n.t)}"><span class="tk-mk">${CAL}</span>
+      <div class="tk-main"><div class="tk-title">${esc(n.title)}</div><div class="tk-meta"><span class="tk-due">${esc(whenLabel(n.s))}</span><span>${esc(n.t)}. No answer yet.</span></div></div><i class="tg sent">Sent by you</i></div>`;
+  let list;
+  if(f==='done'){const done=tasks.filter(t=>t.done).sort((x,y)=>y.done-x.done);
+    list=done.length?`<div class="tk-grp"><h4>Done <i>${done.length}</i></h4><button type="button" class="tlink" data-tkclear>Delete all done</button></div>${done.map(item).join('')}`:'<p class="tab-note">Nothing finished yet. Tick a task when it is done; it turns green in the list and lands here once you clear it.</p>'}
+  else if(f==='mt'){
+    // invites first, then what you asked for, then what is booked, in the same day groups as tasks
+    const need=inv.length?`<div class="tk-grp"><h4>Needs your answer <i>${inv.length}</i></h4></div>${inv.map(invItem).join('')}`:'';
+    const asked=sent.length?`<div class="tk-grp"><h4>Sent by you <i>${sent.length}</i></h4></div>${sent.map(sentItem).join('')}`:'';
+    const booked=[['today','Today'],['week','This week'],['later','Later']].map(([k,l])=>{const g=upcoming.filter(x=>mtState(x)===k);return g.length?`<div class="tk-grp"><h4>${l} <i>${g.length}</i></h4></div>${g.map(bookItem).join('')}`:''}).join('');
+    list=need+asked+booked+(!need&&!asked&&!booked?'<p class="tab-note">No invites to answer and nothing booked for the next 30 days. To book a time, click a free block on someone\'s row in the planner.</p>':!booked?'<p class="tab-note">Nothing else booked for the next 30 days.</p>':'');
+  }
+  else{
+    // open tasks, the ones finished but not yet cleared, and invites waiting on you, each in the group its time puts it in
+    const vis=tasks.filter(t=>!t.cleared&&(f!=='mine'||t.to.includes(my))),resolved=vis.filter(t=>t.done).length;
+    const pool=vis.map(t=>{const dl=taskDue({...t,done:null});return {t,state:dl.state,ms:dl.ms,at:t.at||0}}).concat(inv.map(n=>({inv:n,state:mtState(n.ev),ms:n.ev.s,at:0}))).sort((x,y)=>x.ms-y.ms||x.at-y.at);
+    let first=true;
+    list=pool.length?TK_GROUPS.map(([k,l])=>{const g=pool.filter(x=>x.state===k);if(!g.length) return '';
+      const n=g.filter(x=>x.inv||!x.t.done).length,head=`<div class="tk-grp"><h4>${l} <i>${n||g.length}</i></h4>${first&&resolved?`<button type="button" class="tlink" data-tkresolve>Clear ${resolved} resolved</button>`:''}</div>`;first=false;
+      return head+g.map(x=>x.inv?invItem(x.inv):item(x.t)).join('')}).join('')
+      :`<p class="tab-note">${f==='mine'?'Nothing on your plate. Tasks assigned to you and invites waiting on your answer show up here.':'No open tasks. Add one above, for yourself or for anyone on the team.'}</p>`;
+  }
+  $('#tkList').innerHTML=list;
+}
+function tkForList(){const T=team(),AS=tkAssignSet(),q=($('#tkForQ').value||'').trim().toLowerCase();$('#tkForList').innerHTML=T.members.filter(m=>!q||m.name.toLowerCase().includes(q)).map(m=>`<button type="button" class="inv-o" data-tkav="${m.id}" aria-pressed="${AS.has(m.id)}"><span class="ck"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.4 6.3l2.3 2.3 4.9-5.2" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>${bubble(m,false)}<span class="n">${esc(m.isMe?'Me':m.name)}<small>${esc(tzLabel(m.tz))}</small></span></button>`).join('')||'<p class="tab-note" style="margin:8px">Nobody by that name.</p>'}
+function tkDueLabel(){const f=$('#fTask'),d=f.day.value,t=f.time.value;let l='Due';if(d){l=tkDayLabel(d);if(t){const [y,mo,dd]=d.split('-').map(Number),[h,mi]=t.split(':').map(Number);l+=', '+fmtT(zonedToUtc(home(),y,mo,dd,h,mi),home())}}$('#tkDueLbl').textContent=l;$('#tkDueBtn').classList.toggle('on',!!d)}
+function tkDd(which){for(const [k,b] of [['tkForDd','tkForBtn'],['tkDueDd','tkDueBtn'],['tkdDd','tkdAddBtn']]){const on=which===k;$('#'+k).hidden=!on;$('#'+b).setAttribute('aria-expanded',on)}if(which==='tkForDd'){$('#tkForQ').focus()}if(which==='tkDueDd'){$('#fTask').day.focus()}if(which==='tkdDd'){$('#tkdQ').focus()}}
+$('#tkForBtn').onclick=()=>tkDd($('#tkForDd').hidden?'tkForDd':null);
+$('#tkDueBtn').onclick=()=>tkDd($('#tkDueDd').hidden?'tkDueDd':null);
+$('#tkDueOk').onclick=()=>tkDd(null);
+$('#tkDueClear').onclick=()=>{const f=$('#fTask');f.day.value='';f.time.value='';tkDueLabel();tkDd(null)};
+$('#tkForQ').addEventListener('input',tkForList);
+document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('.tk-dd'))) tkDd(null)});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(!$('#tkForDd').hidden||!$('#tkDueDd').hidden||!$('#tkdDd').hidden)){tkDd(null);e.stopPropagation();e.preventDefault()}},true);
+function addTask(title,to,day,time){const T=team(),t={id:uid(),title,note:'',to:[...to],by:me().id,day:day||null,time:(day&&time)||null,tz:home(),at:Date.now(),done:null};tasksOf(T).push(t);save();render();return t}
+function openTask(id){
+  const T=team(),t=id?tasksOf(T).find(x=>x.id===id):null;if(id&&!t) return;
+  UI.tkEdit=t?t.id:null;UI.tkPick=null;UI.tkDraft='';
+  const f=$('#fTaskEd'),q=$('#fTask');
+  if(t){UI.tkdWho=new Set(t.to);f.title.value=t.title;f.day.value=t.day||'';f.time.value=t.time||''}
+  else{UI.tkdWho=new Set(tkAssignSet());f.title.value=q.title.value.trim();f.day.value=q.day.value||'';f.time.value=q.time.value||''}
+  tkDd(null);
+  const by=t?T.members.find(m=>m.id===t.by):me();
+  $('#tkdAv').innerHTML=bubble(by||{name:t?tkName(T,t.by):'You'},false);
+  $('#tkdDel').hidden=!t;$('#tkdDone').hidden=!t;$('#tkdSave').hidden=!!t;if(t) $('#tkdDone').textContent=t.done?'Mark not done':'Mark done';
+  $('#tkdQ').value='';tkdMeta();tkdWho();tkdTz();renderTaskThread();
+  const d=$('#dTask');if(!d.open) d.showModal();
+  d.append($('#men'),$('#toast')); // floating bits join the window so they show above it
+  grow(f.title);if(!t) f.title.focus();
+}
+// the line under the title: who started it and when, and where the deadline stands
+function tkdMeta(){
+  const T=team(),t=UI.tkEdit&&tasksOf(T).find(x=>x.id===UI.tkEdit),el=$('#tkdBy');
+  if(!t){el.textContent='A new task. Pick who it is for and when it is due.';return}
+  const d=taskDue(t);
+  el.innerHTML=`${esc(t.by===me().id?'You':first(tkName(T,t.by)))} added this ${esc(tkDayLabel(dayOf(t.at)).toLowerCase())} · <span class="tk-sub-due ${d.state}">${esc(d.label)}</span>`;
+}
+// edits save themselves: the title on blur, the people and the deadline as they change
+function tkdSave(){
+  const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit);if(!t) return;
+  const f=$('#fTaskEd'),title=f.title.value.trim();if(title) t.title=title;else f.title.value=t.title;
+  t.to=[...UI.tkdWho];t.day=f.day.value||null;t.time=(t.day&&f.time.value)||null;if(t.time&&!t.tz) t.tz=home();
+  save();render();tkdMeta();tkdTz();
+}
+$('#dTask').addEventListener('close',()=>{document.body.append($('#men'),$('#toast'));UI.tkEdit=null;tkDd(null)});
+// who it is for: the people on it as chips, plus an add button that opens a searchable list
+function tkdWho(){
+  const T=team(),q=($('#tkdQ').value||'').trim().toLowerCase(),on=T.members.filter(m=>UI.tkdWho.has(m.id));
+  $('#tkdWhoList').innerHTML=on.map(m=>`<button type="button" class="tk-who1" data-tkdpick="${m.id}" aria-label="Remove ${esc(m.isMe?'me':m.name)}" data-tip="Remove">${bubble(m,false)}${esc(m.isMe?'Me':first(m.name))}<i>×</i></button>`).join('');
+  $('#tkdWho').innerHTML=T.members.filter(m=>!q||m.name.toLowerCase().includes(q)).map(m=>`<button type="button" class="inv-o" data-tkdpick="${m.id}" aria-pressed="${UI.tkdWho.has(m.id)}"><span class="ck"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.4 6.3l2.3 2.3 4.9-5.2" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>${bubble(m,false)}<span class="n">${esc(m.isMe?'Me':m.name)}<small>${esc(tzLabel(m.tz))}</small></span></button>`).join('')||'<p class="tab-note" style="margin:8px">Nobody by that name.</p>';
+}
+$('#tkdQ').addEventListener('input',tkdWho);
+$('#tkdAddBtn').onclick=()=>tkDd($('#tkdDd').hidden?'tkdDd':null);
+// the thread: the task's own reactions sit under the header, comments follow, the same as on a block of time
+function renderTaskThread(){
+  const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit),box=$('#tkThread');
+  if(!t){box.innerHTML='';box.hidden=true;$('#tkRe').innerHTML='';return}
+  t.re=t.re||{};t.cm=t.cm||[];box.hidden=false;
+  const P=threadParts(t,(a,x)=>`data-tkt="${a}" ${x}`,{pickB:UI.tkPick==='b',pickC:typeof UI.tkPick==='number'?UI.tkPick:null,draft:UI.tkDraft||'',inputId:'tkC',empty:'No comments yet. Ask a question or leave a note for whoever is on it.'});
+  $('#tkRe').innerHTML=P.reBar;
+  box.innerHTML=(t.note?`<p class="pop-s" style="margin-top:12px">${mentionHtml(t.note)}</p>`:'')+P.thread;
+}
+document.addEventListener('click',e=>{
+  const ta=e.target.closest&&e.target.closest('[data-tkt]');if(!ta) return;
+  if(gate('comment')) return;
+  const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit);if(!t) return;t.re=t.re||{};t.cm=t.cm||[];
+  const my=me().id,a=ta.dataset.tkt,tog=(re,em)=>{const l=re[em]=re[em]||[],i=l.indexOf(my);i<0?l.push(my):l.splice(i,1);if(!l.length) delete re[em]};
+  let undo=null,refocus=false;
+  if(a==='pick') UI.tkPick=UI.tkPick==='b'?null:'b';
+  else if(a==='cpick'){const i=+ta.dataset.i;UI.tkPick=UI.tkPick===i?null:i}
+  else if(a==='react'){tog(t.re,ta.dataset.e);UI.tkPick=null}
+  else if(a==='creact'){const x=t.cm[+ta.dataset.i];if(x){x.re=x.re||{};tog(x.re,ta.dataset.e)}UI.tkPick=null}
+  else if(a==='comment'){const text=(UI.tkDraft||'').trim();if(!text){const i=$('#tkC');if(i) i.focus();return}t.cm.push({id:uid(),by:'You',byId:my,text,at:Date.now()});UI.tkDraft='';refocus=true}
+  else if(a==='delcm'){undo=snapshot();t.cm.splice(+ta.dataset.i,1)}
+  save();render();renderTaskThread();
+  if(refocus){const l=$('#tkThread .th-list');if(l) l.scrollTop=l.scrollHeight;const i=$('#tkC');if(i) i.focus()}
+  if(undo) toast('Comment removed',undo);
+});
+document.addEventListener('input',e=>{if(e.target.id==='tkC'){UI.tkDraft=e.target.value;e.target.style.height='36px';e.target.style.height=Math.min(110,e.target.scrollHeight)+'px'}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&e.target.id==='tkC'){e.preventDefault();const b=$('#tkThread [data-tkt=comment]');if(b) b.click()}});
+function tkdTz(){const f=$('#fTaskEd'),t=tasksOf(team()).find(x=>x.id===UI.tkEdit),tz=(t&&t.tz)||home();$('#tkdTz').textContent=!f.time.value?'':tz!==home()?`The time is in ${tzLabel(tz)}, where it was set. Everyone sees it in their own zone.`:`The time is in ${tzLabel(home())}. Everyone sees it in their own zone.`}
+$('#fTask').addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target,title=f.title.value.trim();if(!title) return;
+  const t=addTask(title,tkAssignSet(),f.day.value,f.time.value);f.title.value='';f.day.value='';f.time.value='';tkDueLabel();tkDd(null);grow(f.title);
+  toast(`Task added for ${tkNames(team(),t.to)}${t.day?', '+taskDue(t).label.replace(/^Due/,'due'):''}`);f.title.focus();
+});
+['day','time'].forEach(n=>$('#fTask')[n].addEventListener('input',tkDueLabel));
+$('#fTask').title.addEventListener('input',e=>grow(e.target));
+$('#fTask').title.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('#fTask').requestSubmit()}});
+$('#tkExpand').onclick=()=>openTask(null);
+$('#fTaskEd').addEventListener('submit',e=>{
+  e.preventDefault();const f=e.target,title=f.title.value.trim();
+  if(UI.tkEdit){tkdSave();return}
+  if(!title){f.title.focus();return}
+  const t=addTask(title,UI.tkdWho,f.day.value,f.time.value);
+  const q=$('#fTask');q.title.value='';q.day.value='';q.time.value='';tkDueLabel();grow(q.title);$('#dTask').close();
+  toast(`Task added for ${tkNames(team(),t.to)}${t.day?', '+taskDue(t).label.replace(/^Due/,'due'):''}`);
+});
+$('#fTaskEd').title.addEventListener('input',e=>grow(e.target));
+$('#fTaskEd').title.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(UI.tkEdit) e.target.blur();else $('#fTaskEd').requestSubmit()}});
+$('#fTaskEd').title.addEventListener('change',()=>{if(UI.tkEdit) tkdSave()});
+['day','time'].forEach(n=>$('#fTaskEd')[n].addEventListener('change',()=>{if(UI.tkEdit) tkdSave()}));
+$('#fTaskEd').time.addEventListener('input',tkdTz);
+$('#tkdDone').onclick=()=>{const t=tasksOf(team()).find(x=>x.id===UI.tkEdit);if(!t) return;if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();$('#dTask').close();save();render();toast(t.done?'Done. Nice.':'Back on the list')};
+$('#tkdDel').onclick=()=>{const T=team(),undo=snapshot();T.tasks=tasksOf(T).filter(x=>x.id!==UI.tkEdit);$('#dTask').close();save();render();toast('Task deleted',undo)};
+document.addEventListener('click',e=>{
+  const c=sel=>e.target.closest&&e.target.closest(sel);let b;
+  if(b=c('[data-tkf]')){UI.tkf=b.dataset.tkf;renderTasks();return}
+  if(b=c('[data-tkav]')){const A=tkAssignSet(),id=b.dataset.tkav;A.has(id)?A.delete(id):A.add(id);if(!A.size) A.add(id);renderTasks();if(!$('#tkForDd').hidden) $('#tkForQ').focus();return}
+  if(b=c('[data-tkdpick]')){const id=b.dataset.tkdpick;UI.tkdWho.has(id)?UI.tkdWho.delete(id):UI.tkdWho.add(id);tkdWho();if(UI.tkEdit) tkdSave();return}
+  if(b=c('[data-tkdone]')){const t=tasksOf(team()).find(x=>x.id===b.dataset.tkdone);if(!t) return;const undo=snapshot();if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();save();render();toast(t.done?'Done. Nice.':'Back on the list',undo);return}
+  if(b=c('[data-tkdel]')){const T=team(),undo=snapshot();T.tasks=tasksOf(T).filter(x=>x.id!==b.dataset.tkdel);save();render();toast('Task deleted',undo);return}
+  if(b=c('[data-tkopen]')){openTask(b.dataset.tkopen);return}
+  if(c('[data-tkresolve]')){const T=team(),undo=snapshot(),my2=me().id,f2=UI.tkf||'open';let n=0;for(const t of tasksOf(T)) if(t.done&&!t.cleared&&(f2!=='mine'||t.to.includes(my2))){t.cleared=true;n++}save();render();toast(`${n} resolved ${n===1?'task':'tasks'} cleared. They are in Done.`,undo);return}
+  if(c('[data-tkclear]')){const T=team(),undo=snapshot();T.tasks=tasksOf(T).filter(x=>!x.done);save();render();toast('Done tasks cleared',undo);return}
+});
 
 /* ---------- calendar links & messages ---------- */
 const isoZ=ms=>new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
@@ -2500,8 +3378,8 @@ document.addEventListener('click',e=>{
   if(e.target.closest('[data-undo]')&&toast.undo){const u=toast.undo;toast.undo=null;u();return}
   const dy=e.target.closest('[data-day]');if(dy) gotoDay(dy.dataset.day);
   const wk=e.target.closest('[data-week]');if(wk) gotoDay(shiftDay(UI.day,+wk.dataset.week));
-  const ac=e.target.closest('[data-acc]');if(ac){if(gate('request')) return;for(const x of me().events||[]) if(x.id===ac.dataset.acc) x.pend=false;save();render();toast('Accepted')}
-  const de=e.target.closest('[data-dec]');if(de){if(gate('request')) return;const undo=snapshot(),z=me();z.events=(z.events||[]).filter(x=>x.id!==de.dataset.dec);save();render();toast('Declined',undo)}
+  const ac=e.target.closest('[data-acc]');if(ac){if(gate('request')) return;for(const x of me().events||[]) if(x.id===ac.dataset.acc) x.pend=false;save();render();toast('Accepted');return}
+  const de=e.target.closest('[data-dec]');if(de){if(gate('request')) return;const undo=snapshot(),z=me();z.events=(z.events||[]).filter(x=>x.id!==de.dataset.dec);save();render();toast('Declined',undo);return}
   const dc=e.target.closest('[data-delcm]');if(dc){const undo=snapshot(),z=team().members.find(x=>x.id===dc.dataset.of),[th,id]=dc.dataset.delcm.split(':');if(z){const x=(z.threads||[]).find(q=>q.id===th);if(x){x.cm=x.cm.filter(q=>q.id!==id);tidyThreads(z);save();render();toast('Comment removed',undo)}}}
   const go=e.target.closest('[data-goto]');if(go){locate(go.dataset.goto);return}
   const lc=e.target.closest('[data-loc]');if(lc){const [id,t,ev]=lc.dataset.loc.split('|');locate(id,+t,ev===''?null:+ev);return}
@@ -2517,7 +3395,7 @@ document.addEventListener('click',e=>{
     else if(a2==='creact'){const x=o.cm[+ta.dataset.i];if(x){x.re=x.re||{};tog(x.re,ta.dataset.e)}UI.thPick=null}
     else if(a2==='comment'){const text=(UI.thDraft||'').trim();if(!text){const i=$('#thC');if(i) i.focus();return}(o.cm=o.cm||[]).push({id:uid(),by:'You',byId:my,text,at:Date.now()});UI.thDraft='';refocus=true}
     else if(a2==='delcm'){undo=snapshot();o.cm.splice(+ta.dataset.i,1)}
-    if(!r.ev) tidyThreads(r.z);
+    if(!r.ev&&!r.task) tidyThreads(r.z);
     save();render();
     if(refocus){const i=$('#thC'),l=$('#agenda .inl .th-list');if(l) l.scrollTop=l.scrollHeight;if(i) i.focus()}
     if(undo) toast('Comment removed',undo);
@@ -2571,15 +3449,15 @@ function openMember(id){
   f.reset();
   $('#mAvatar').innerHTML=m?bubble(m,false):'<span class="bub add">+</span>';
   $('#mTitle').textContent=m?(m.isMe?'Your settings':m.name):'Add a teammate';
-  $('#mKind').textContent=!m?'Add a person, or just a place you want to compare times with.':k==='me'?'This is you. Your details and schedule are yours to change.'
+  $('#mKind').textContent=!m?'Add a person, or just a place you want to compare times with.':k==='me'?'Where you are and when you are around. Name, photo and email are in Settings.'
     :locked?`${first(m.name)} joined the team and manages these details. You can see them, and remove ${first(m.name)} from the team.`
     :byOther?'Added by a teammate, who manages these details.':k==='invited'?'Invited, not joined yet. You manage these details until they join.':'Added by you. You manage their details and schedule.';
   const cn=m?connOf(m):[];
-  $('#mConn').innerHTML=m&&(locked||m.isMe)?`<div class="cn-row"><span>Connected</span>${cn.length?cn.map(x=>`<span class="cn">${ICON.avail}${CONN[x]}</span>`).join(''):'<span class="cn off">Nothing yet</span>'}</div>`:'';
+  $('#mIdRow').hidden=$('#mPhotoRow').hidden=!!(m&&m.isMe); // your name, email and photo live in Settings
+  $('#mConn').innerHTML=m&&locked&&!m.isMe?`<div class="cn-row"><span>Connected</span>${cn.length?cn.map(x=>`<span class="cn">${ICON.avail}${CONN[x]}</span>`).join(''):'<span class="cn off">Nothing yet</span>'}</div>`:'';
   $('#mFields').disabled=!!locked;$('#mSave').hidden=!!locked;$('#mCancel').textContent=locked?'Close':'Cancel';
   $('#mSave').textContent=m?'Save changes':'Add teammate';
   $('#mDelete').hidden=!m||!!m.isMe;$('#mailRow').hidden=!!m;$('#mTeam').hidden=!(m&&m.isMe);
-  if(m&&m.isMe) renderAcct();
   if(m){f.name.value=m.name;f.email.value=m.email||'';f.tz.value=m.tz;f.start.value=hhmm(m.start);f.end.value=hhmm(m.end);f.cal.checked=m.cal;f.sleepStart.value=hhmm(sleepOf(m)[0]);f.sleepEnd.value=hhmm(sleepOf(m)[1]);
     f.start2.value=m.start2!=null?hhmm(m.start2):'';f.end2.value=m.end2!=null?hhmm(m.end2):'';f.weekends.checked=!!m.weekends;f.photo.value=m.photo||''}
   $('#dMember').showModal();
@@ -2625,10 +3503,12 @@ function askRemove(id){
   const T=team(),z=T.members.find(x=>x.id===id);if(!z||z.isMe) return;
   $('#cfTitle').textContent=`Remove ${first(z.name)} from the team?`;
   $('#cfText').textContent=`${z.name} will disappear from ${T.name}, along with what is booked on their row and the threads on their time. You can undo this right after.`;
-  $('#cfOk').onclick=()=>{const undo=snapshot();(T.gone=T.gone||{})[z.id]={name:z.name,photo:z.photo||'',tz:z.tz};T.members=T.members.filter(x=>x!==z);save();$('#dConfirm').close();if($('#dMember').open) $('#dMember').close();render();toast(`${first(z.name)} removed from the team`,undo)};
+  $('#cfOk').onclick=()=>{const undo=snapshot();(T.gone=T.gone||{})[z.id]={name:z.name,photo:z.photo||'',tz:z.tz};T.members=T.members.filter(x=>x!==z);for(const t of T.tasks||[]) t.to=t.to.filter(id=>id!==z.id);save();$('#dConfirm').close();if($('#dMember').open) $('#dMember').close();render();toast(`${first(z.name)} removed from the team`,undo)};
   $('#dConfirm').showModal();
 }
-$('#missChip').onclick=()=>{const IN=inbox();UI.tab=IN.missRq?'req':'th';UI.tabJust=true;render();$('#agenda').scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth',block:'start'})};
+$('#missChip').onclick=()=>{const IN=inbox(),sm=matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth';
+  if(IN.missRq||IN.missTk){UI.tkf=IN.missRq?'mt':'open';render();$('.tasks').scrollIntoView({behavior:sm,block:'start'})}
+  else{UI.tab='th';UI.tabJust=true;render();$('#agenda').scrollIntoView({behavior:sm,block:'start'})}};
 // comment box in the Threads tab
 document.addEventListener('input',e=>{if(e.target.id==='thC'){UI.thDraft=e.target.value;e.target.style.height='36px';e.target.style.height=Math.min(110,e.target.scrollHeight)+'px'}});
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&e.target.id==='thC'){e.preventDefault();const b=$('#agenda .inl [data-tha=comment]');if(b) b.click()}});
@@ -2670,12 +3550,11 @@ $('#fTeam').addEventListener('submit',e=>{
 });
 $('#teamSel').onchange=e=>{S.active=e.target.value;save();$('#dMember').close();goNow();render()};
 $('#dayIn').onchange=e=>{if(e.target.value) gotoDay(e.target.value)};
-$('#addPlus').onclick=()=>$('#fAdd').name.focus();
 $('#dayPrev').onclick=()=>gotoDay(shiftDay(UI.day,-1));
 $('#dayNext').onclick=()=>gotoDay(shiftDay(UI.day,1));
 $('#dayToday').onclick=()=>{goNow();render()};
-$('#f12').onclick=()=>{S.hour12=true;save();render()};
-$('#f24').onclick=()=>{S.hour12=false;save();render()};
+$('#f12').onclick=()=>{S.hour12=true;save();render();savePrefs()};
+$('#f24').onclick=()=>{S.hour12=false;save();render();savePrefs()};
 $('#askMsg').oninput=renderAsk;
 $('#askAll').onclick=emailAll;
 
@@ -2740,6 +3619,9 @@ function buildDemo(){
   // something on a calendar meeting that is not yours: a reaction, a comment, and a request to join
   const cal=ctx().busy[Me.id].find(x=>!x[3]&&x[0]>=a);
   if(cal) S.meta[Me.id+':'+cal[0]]={re:{'🔥':[A.id],'👍':[my]},cm:[cm(Me,'Recording this one for the EU folks.',240)],join:[my]};
+  // tasks: some for you, some you handed out, one overdue, one done
+  const dayPlus=n=>shiftDay(today(),n),tk=(title,to,by,day,time,o={})=>({id:uid(),title,note:o.note||'',to:to.map(z=>z.id),by:by.id,day,time:time||null,tz:by.tz,at:Date.now()-(o.ago||120)*MIN,done:o.done||null,re:o.re||{},cm:o.cm||[]});
+  t.tasks=[tk('Send the launch deck to Priya',[I],A,today(),'17:00',{ago:200,note:'The v3 file, with the pricing slide updated.',re:{'👀':[A.id],'🙏':[Pr.id]},cm:[cm(A,'Priya needs it before her Thursday review.',150),cm(I,'On it, the v3 goes out today.',60,{'👍':[A.id]}),cm(A,'@You can you confirm once it is sent?',20)]}),tk('Reply to the APAC handover notes',[I],Me,dayPlus(-1),null,{ago:1800}),tk('Book a room for the onboarding review',[So],I,dayPlus(1),null,{ago:60}),tk('Draft the Q4 roadmap outline',[I,J],I,dayPlus(3),null,{ago:30}),tk('Confirm the demo recording works',[D],I,null,null,{ago:15}),tk('Update the timezone list',[I],I,dayPlus(-2),null,{ago:3000,done:Date.now()-26*HR})];
   save();render();
 }
 $('#btnDemo').onclick=()=>{buildDemo();$('#dMember').close();scrollTo(0,0);toast('Demo team loaded. Your other team is still in My settings.')};
@@ -2758,6 +3640,8 @@ let rz;const redraw=()=>{cancelAnimationFrame(rz);rz=requestAnimationFrame(rende
 window.addEventListener('resize',redraw);
 if(window.ResizeObserver){let lw=$('#sky').clientWidth;new ResizeObserver(()=>{const w=$('#sky').clientWidth;if(w!==lw){lw=w;redraw()}}).observe($('#sky'))}
 document.fonts&&document.fonts.ready.then(drawSky);
+// a sign-in link that failed comes back with the reason in the address; say it plainly and offer the way in
+{const h=new URLSearchParams(location.hash.slice(1));if(h.get('error')||h.get('error_code')){const c=h.get('error_code')||'',msg=/expired/.test(c)?'That link has expired or was already used. Log in with your password, or ask for a new link.':(h.get('error_description')||'That sign-in link did not work.');history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>{if(!CLOUD.user){openAuth('login');say('#logErr',msg)}},700)}}
 const J=readJoin();
 if(J&&J.code){ // an invite link: take the seat once signed in
   try{sessionStorage.setItem('noon.join',J.code)}catch(e){}
