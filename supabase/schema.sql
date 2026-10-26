@@ -367,3 +367,14 @@ create unique index if not exists threads_task_uq on public.threads(task_id) whe
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 revoke execute on function public.create_team(text) from public, anon;
 revoke execute on function public.join_team(text) from public, anon;
+
+-- ---------------------------------------------------------------- files on tasks
+-- the list lives on the task, the bytes in a private bucket only teammates can read; path <team_id>/<task_id>/<file>
+alter table public.tasks add column if not exists files jsonb not null default '[]'::jsonb;
+insert into storage.buckets (id, name, public, file_size_limit) values ('task-files', 'task-files', false, 10485760) on conflict (id) do nothing;
+create policy "task-files: teammates read" on storage.objects for select to authenticated
+  using (bucket_id = 'task-files' and public.is_member(((storage.foldername(name))[1])::uuid));
+create policy "task-files: teammates upload" on storage.objects for insert to authenticated
+  with check (bucket_id = 'task-files' and public.is_member(((storage.foldername(name))[1])::uuid));
+create policy "task-files: teammates remove" on storage.objects for delete to authenticated
+  using (bucket_id = 'task-files' and public.is_member(((storage.foldername(name))[1])::uuid));

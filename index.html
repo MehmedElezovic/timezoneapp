@@ -174,6 +174,11 @@ h1{margin:0;font:400 64px/1.1 var(--serif);letter-spacing:-.015em}
 .grp .bub.me{border-color:#ffc83a;box-shadow:0 0 0 2px rgba(23,25,28,.55),0 5px 10px rgba(11,31,77,.28)}
 .lbl.me{background:#ffc83a;color:var(--ink);box-shadow:0 0 0 1.5px rgba(23,25,28,.55),0 4px 12px rgba(11,31,77,.22)}
 .lbl.me em{color:#4a3800}
+.lbl .rel{display:block;font-style:normal;font-size:12px;font-weight:500;margin-top:2px;padding:1px 8px;border-radius:9999px}
+.lbl .rel.behind{background:#e9eefb;color:#2f4fa0}
+.lbl .rel.ahead{background:#fff1d6;color:#8a5a00}
+:root[data-theme=dark] .lbl .rel.behind{background:rgba(120,150,230,.22);color:#c9d6ff}
+:root[data-theme=dark] .lbl .rel.ahead{background:rgba(255,200,58,.2);color:#ffe2a0}
 .bub img{position:absolute;inset:0;width:100%;height:100%;border-radius:50%;object-fit:cover}
 .bub .cur{position:absolute;right:-9px;bottom:-7px;width:14px;height:14px}
 
@@ -182,6 +187,8 @@ h1{margin:0;font:400 64px/1.1 var(--serif);letter-spacing:-.015em}
 .board>.col{display:contents}
 .blk[hidden],.col[hidden]{display:none}
 :root.no-legend .legend{display:none}
+button,[role=button],[role=tab],[role=option],[role=menuitem],[role=menuitemcheckbox],.tk,.li,.li-main,.who,.row,.band,.legend,.tabs,.tk-grp,.tg,.lbl,.grp,.ruler,#ruler,.sky,.skymini,.arr-bar,.arr-top,.card-head,.tk-meta,.bub,.chip,.seg,.inv-o,.tzo,.tk-file,.th-r b,.th-r time,.cres,.res,.re-pick,.pop-h,.am-head,.set-nav,.acc-line>div:first-child,.durs,.banner,.top{-webkit-user-select:none;user-select:none}
+input,textarea,[contenteditable]{-webkit-user-select:text;user-select:text}
 /* arrange mode */
 .arr-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:24px 0 -8px;padding:12px 16px;border-radius:24px;background:var(--paper);box-shadow:var(--float);font-size:14px;color:var(--slate)}
 .arr-top b{color:var(--ink);font-weight:500}
@@ -749,17 +756,53 @@ dialog.settings{width:min(940px,calc(100vw - 32px));height:min(680px,calc(100dvh
 .tk-open:hover{background:var(--paper);box-shadow:0 0 0 1px rgba(23,25,28,.16);color:var(--ink)}
 .tk-open svg{width:15px;height:15px}
 .tk-rx{background:var(--paper);border-radius:9999px;padding:1px 8px;box-shadow:0 0 0 1px var(--line);font-size:12px}
-dialog.tk-pop{width:min(400px,calc(100vw - 16px));border-radius:24px}
+dialog.tk-pop{width:min(480px,calc(100vw - 16px));border-radius:24px}
+.tk-top{display:flex;align-items:flex-start;gap:12px}
+.tk-tt{flex:1;min-width:0}
+.tk-popin .tk-h{font-size:19px;font-weight:500;line-height:1.3;padding:2px 0}
+.tk-by[hidden]{display:none}
+.tk-by{display:block;margin-top:4px;font-size:13px;color:var(--slate);line-height:1.45}
+.tk-note{display:block;width:100%;margin-top:12px;min-height:0;max-height:260px;border:0;border-radius:0;background:none;padding:0;font:inherit;font-size:15px;line-height:1.45;color:var(--ink);resize:none;overflow-y:auto}
+.tk-note:focus{outline:0}
+.tk-note::placeholder{color:var(--smoke)}
+
+.ro .tk-note:placeholder-shown{display:none}
+.ro .tk-h:focus{box-shadow:none}
+.ro .tk-who1 i{display:none}
+.ro .tk-who1{cursor:default}
+.ro .tk-ctl-row input:disabled{opacity:1;color:var(--ink);background:var(--mist);border-color:transparent}
+.tk-files{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tk-files:empty{display:none}
+.tk-file{display:inline-flex;align-items:center;max-width:100%;border:1px solid var(--hair);border-radius:10px;background:var(--paper)}
+.tk-file.pend{opacity:.7;border-style:dashed}
+.tk-fopen{display:inline-flex;align-items:center;gap:7px;min-width:0;border:0;background:none;padding:6px 6px 6px 9px;font-size:13px;color:var(--ink);cursor:pointer}
+.tk-fopen svg{width:16px;height:16px;flex:none;color:var(--slate)}
+.tk-fopen .n{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.tk-fopen small{color:var(--slate);font-size:12px;white-space:nowrap}
+.tk-fx{border:0;background:none;width:26px;height:26px;color:var(--slate);font-size:15px;cursor:pointer;border-radius:8px}
+.tk-fx:hover{color:var(--ink);background:var(--mist)}
+.tk-attach{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 10px;border:1px dashed #a9adb6;border-radius:10px;background:none;font-size:13px;color:var(--ink);cursor:pointer}
+.tk-attach svg{width:15px;height:15px;color:var(--slate)}
+.tk-attach:hover{border-style:solid}
+.tk-foot{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:16px}
+.tk-foot .tk-sp{flex:1}
+.tk-foot #tkRe .res{margin-top:0}
+.tk-foot #tkRe{display:contents}
+.tk-foot .re-pick{order:9;flex-basis:100%}
+.tk-ck[aria-disabled=true]{opacity:.35;cursor:default}
+.theme-tog .i-sun{display:none}
+:root[data-theme=dark] .theme-tog .i-moon{display:none}
+:root[data-theme=dark] .theme-tog .i-sun{display:block}
 .tk-popin{padding:16px;font-size:15px}
 .tk-h{display:block;width:100%;border:0;background:none;padding:0;margin:0;font:480 16px/1.3 var(--sans);color:var(--ink);resize:none;overflow:hidden;max-height:160px;border-radius:4px}
-.tk-h:focus{outline:0;box-shadow:0 2px 0 var(--ink)}
+.tk-h:focus{outline:0;box-shadow:none}
 .tk-h::placeholder{color:var(--smoke);font-weight:400}
 .tk-popin .pop-h>div>span{display:block}
 .tk-sub-due.overdue{color:#b4231f;font-weight:500}
 .tk-sub-due.today{color:var(--sienna);font-weight:500}
 .tk-sub-due.done{color:#1a7f54;font-weight:500}
 .tk-popin .re{min-width:38px;padding:0 6px}
-.tk-ctl{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.tk-ctl{display:flex;flex-direction:column;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .tk-ctl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;position:relative}
 .tk-ctl-row .tk-lab{min-width:28px;font-size:13px;color:var(--slate)}
 .tk-ctl-row input{height:34px;border:1px solid var(--hair);border-radius:9999px;background:var(--paper);padding:0 12px;font-size:14px;color:var(--ink)}
@@ -833,7 +876,7 @@ dialog.tk-pop{width:min(400px,calc(100vw - 16px));border-radius:24px}
 .sky-tog{width:36px;height:36px;color:var(--slate)}
 .sky-tog svg{width:19px;height:19px}
 .sky-tog:hover{color:var(--ink)}
-.sky-tog-in{display:grid;flex:none;pointer-events:auto;width:34px;height:34px;background:rgba(255,255,255,.92);color:var(--ink);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.sky-tog-in{display:grid;flex:none;pointer-events:auto;width:34px;height:34px;background:rgba(255,255,255,.92);color:#17191c;box-shadow:0 1px 4px rgba(0,0,0,.18)}
 .sky-tog-in:hover{background:#fff}
 .sky .sky-tog-in svg{position:static;inset:auto;width:18px;height:18px}
 :root[data-sky=off] .sky{height:60px!important;cursor:default;pointer-events:none}
@@ -1092,7 +1135,7 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
 <body>
 
 <div class="wrap">
-  <header class="top"><a class="logo" href="#" id="topLogo" aria-label="Noon, back to the top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 16a6 6 0 0 1 12 0" fill="#ffc83a" stroke="#f6a623" stroke-width="1.5"/></svg>Noon</a><div class="top-r"><button type="button" class="ib arr-tog" id="arrTog" aria-pressed="false" aria-label="Arrange the page" data-tip="Arrange the page&#10;Move blocks around, hide what you don't need."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg></button><nav class="top-acts" id="topAcct" aria-label="Account"></nav></div>
+  <header class="top"><a class="logo" href="#" id="topLogo" aria-label="Noon, back to the top"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 16h18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M6 16a6 6 0 0 1 12 0" fill="#ffc83a" stroke="#f6a623" stroke-width="1.5"/></svg>Noon</a><div class="top-r"><button type="button" class="ib theme-tog" id="themeTog" aria-pressed="false" aria-label="Dark mode" data-tip="Dark mode"><svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg><svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button><button type="button" class="ib arr-tog" id="arrTog" aria-pressed="false" aria-label="Arrange the page" data-tip="Arrange the page&#10;Move blocks around, hide what you don't need."><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8"/></svg></button><nav class="top-acts" id="topAcct" aria-label="Account"></nav></div>
     <div class="acct-menu" id="acctMenu" role="menu" hidden>
       <div class="am-head" id="amHead"></div>
       <button type="button" role="menuitemcheckbox" class="am-theme" id="amTheme" aria-checked="false"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Dark mode</span><i class="am-sw" aria-hidden="true"></i></button>
@@ -1388,13 +1431,15 @@ dialog[open]::backdrop{animation:fade .2s ease-out}
 <!-- Task -->
 <dialog id="dTask" class="tk-pop"><div class="tk-popin">
   <form id="fTaskEd" autocomplete="off">
-    <div class="pop-h"><span id="tkdAv"></span><div><textarea name="title" class="tk-h" rows="1" maxlength="200" required placeholder="What needs doing" aria-label="Task"></textarea><span id="tkdBy"></span></div><button type="button" class="pop-x" data-close aria-label="Close">×</button></div>
-    <div id="tkRe"></div>
+    <div class="tk-top"><div class="tk-tt"><textarea name="title" class="tk-h" rows="1" maxlength="200" required placeholder="What needs doing" aria-label="Title"></textarea><span class="tk-by" id="tkdBy" hidden></span></div><button type="button" class="pop-x" data-close aria-label="Close">×</button></div>
+    <textarea name="note" class="tk-note" rows="2" maxlength="4000" placeholder="Add a description" aria-label="Description"></textarea>
+    <div class="tk-files" id="tkdFiles"></div>
+    <input type="file" id="tkdFileIn" multiple hidden>
     <div class="tk-ctl">
       <div class="tk-ctl-row"><span class="tk-lab">For</span><span class="tk-wholist" id="tkdWhoList"></span><div class="tk-dd"><button type="button" class="inv-add" id="tkdAddBtn" aria-expanded="false" aria-haspopup="listbox"><span class="plus">+</span><span>Add people</span></button><div class="inv-dd" id="tkdDd" hidden><input type="text" id="tkdQ" placeholder="Search by name" autocomplete="off" aria-label="Search people"><div class="inv-list" id="tkdWho"></div></div></div></div>
       <div class="tk-ctl-row"><span class="tk-lab">Due</span><input name="day" type="date" aria-label="Due date"><input name="time" type="time" aria-label="Due time"><span class="muted small" id="tkdTz" style="margin:0"></span></div>
     </div>
-    <div class="pop-b"><button type="button" class="btn sm" id="tkdDone">Mark done</button><button type="button" class="btn sm quiet" id="tkdDel">Delete</button><button type="submit" class="btn sm fill" id="tkdSave">Add task</button></div>
+    <div class="tk-foot"><button type="submit" class="btn sm fill" id="tkdSave">Add task</button><button type="button" class="btn sm" id="tkdDone">Mark done</button><button type="button" class="btn sm quiet" id="tkdDel">Delete</button><div id="tkRe"></div></div>
   </form>
   <div id="tkThread" hidden></div>
 </div></dialog>
@@ -1967,10 +2012,10 @@ function thResolve(key){
 }
 // the panel under the timeline: an inbox of requests and threads, and your own day
 function renderAgenda(c,a,b){
-  const T=team(),m=me(),H=home(),nameOf=x=>x.isMe?'You':first(x.name),tab=!UI.tab||UI.tab==='req'?'th':UI.tab,IN=inbox(),miss=IN.missRq+IN.missTh+IN.missTk;
+  const T=team(),m=me(),H=home(),nameOf=x=>x.isMe?'You':first(x.name),tab=!UI.tab||UI.tab==='req'?'day':UI.tab,IN=inbox(),miss=IN.missRq+IN.missTh+IN.missTk;
   const act=document.activeElement,focusId=act&&act.id&&$('#agenda').contains(act)?act.id:null,caret=focusId&&act.selectionStart,keep=$('#agenda .inl .th-list'),keepTop=keep?keep.scrollTop:null;
   const chip=$('#missChip');chip.hidden=!miss;chip.textContent=[IN.missRq?`${IN.missRq} missed ${IN.missRq===1?'request':'requests'}`:'',IN.missTh?`${IN.missTh} missed ${IN.missTh===1?'thread':'threads'}`:'',IN.missTk?`${IN.missTk} overdue ${IN.missTk===1?'task':'tasks'}`:''].filter(Boolean).join(', ');chip.dataset.tip=`You missed ${miss} ${miss===1?'thing':'things'}\nRequests for a time that has passed, or mentions on a past block. Click to see them.`;
-  const tabs=[['th','Threads',IN.needTh,IN.missTh],['day','Day management',null,0]].map(([k,l,n,ms])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}${n==null?'':`<i class="${n?'':'z'}" title="${n} waiting on you${ms?', '+ms+' missed':''}">${n}</i>`}</button>`).join('');
+  const tabs=[['day','Day management',null,0],['th','Threads',IN.needTh,IN.missTh]].map(([k,l,n,ms])=>`<button role="tab" data-tab="${k}" aria-selected="${tab===k}">${l}${n==null?'':`<i class="${n?'':'z'}" title="${n} waiting on you${ms?', '+ms+' missed':''}">${n}</i>`}</button>`).join('');
   const banner=IN.missTh&&tab==='th'?`<div class="banner"><span><b>You missed ${IN.missTh} ${IN.missTh===1?'thread':'threads'}</b> on a past block still waiting on you. ${IN.missTh===1?'It is':'They are'} at the top of the list.</span></div>`:'';
   let body;
   if(tab==='th'){
@@ -2427,6 +2472,7 @@ function drawSky(fast){
 
   const c=ctx(),calm=matchMedia('(prefers-reduced-motion:reduce)').matches,prev=new Map();
   if(!fast&&!calm) for(const b of $('#pins').querySelectorAll('.stack .bub[data-goto]')){const r=b.getBoundingClientRect();prev.set(b.dataset.goto,{x:(r.left+r.right)/2,y:(r.top+r.bottom)/2})}
+  const relDur=m=>Math.floor(m/60)+'h'+(m%60?' '+m%60+'m':'');
   $('#pins').innerHTML=groups.map(g=>{
     // you first, then left to right; past four faces the rest fold into a +N until hovered
     g.items.sort((p,q)=>(q.m.isMe?1:0)-(p.m.isMe?1:0)||p.x-q.x||p.m.name.localeCompare(q.m.name));
@@ -2434,8 +2480,11 @@ function drawSky(fast){
     const names=n>2?`${lead.m.isMe?'You':first(lead.m.name)} +${n-1}`:g.items.map(p=>p.m.isMe?'You':first(p.m.name)).join(', ');
     const times=n>2?[fmtT(UI.t,lead.m.tz)]:[...new Set(g.items.map(p=>fmtT(UI.t,p.m.tz)))];
     const face=(p,i)=>bubble(p.m).replace('<span class="bub',`<span data-goto="${p.m.id}" data-tip="${esc(whoTip(p.m,UI.t,c))+'&#10;Click to go to their row.'}" class="bub${i>=4?' x':''}`);
+    // the picture runs forward from your clock, so a daytime face can be hours behind you: say which way, and how far
+    const offs=g.items.map(p=>tzOffset(p.m.tz,UI.t)-tzOffset(home(),UI.t)),lo=Math.min(...offs),hi=Math.max(...offs),d=lo<0&&hi<0||lo>0&&hi>0?lo:null,span=lo===hi?relDur(Math.abs(lo)):`${relDur(Math.min(Math.abs(lo),Math.abs(hi)))}–${relDur(Math.max(Math.abs(lo),Math.abs(hi)))}`;
+    const rel=g.me||d==null||!d?'':`<i class="rel ${d<0?'behind':'ahead'}">${d<0?'← ':''}${span} ${d<0?'behind you':'ahead of you'}${d>0?' →':''}</i>`;
     const more=n>4?`<span class="bub more" data-tip="${esc(g.items.slice(4).map(p=>p.m.name).join('\n'))}">+${n-4}</span>`:'';
-    return `<div class="grp ${n===1?'solo':''}" tabindex="0" role="button" data-goto="${lead.m.id}" aria-label="${esc(names)}, ${esc(times.join(' / '))}. Go to their row" style="left:${g.cx}px;top:${g.cy}px;--cols:${Math.min(n,4)}"><div class="stack">${g.items.map(face).join('')}${more}</div><div class="lbl ${g.me?'me':''}">${esc(names)}<em>${times.join(' / ')}</em></div></div>`;
+    return `<div class="grp ${n===1?'solo':''}" tabindex="0" role="button" data-goto="${lead.m.id}" aria-label="${esc(names)}, ${esc(times.join(' / '))}. Go to their row" style="left:${g.cx}px;top:${g.cy}px;--cols:${Math.min(n,4)}"><div class="stack">${g.items.map(face).join('')}${more}</div><div class="lbl ${g.me?'me':''}">${esc(names)}<em>${times.join(' / ')}</em>${rel}</div></div>`;
   }).join('');
   // place every label: try above, below, beside and the diagonals, and take the spot that overlaps least. Nothing is hidden.
   const bx=box.getBoundingClientRect(),els=[...$('#pins').querySelectorAll('.grp')];
@@ -2649,7 +2698,7 @@ var SYNC_ON=true; // from here on, saving also syncs
 const CLOUD={user:null,profile:null,last:{},evThread:{},tkThread:{},metaKeys:new Set(),busy:false,dirty:false,pushing:false,pushAgain:false,chan:null,pullT:0,pushT:0,ready:false};
 const user=()=>CLOUD.user?{name:(CLOUD.profile&&CLOUD.profile.name)||(CLOUD.user.user_metadata||{}).name||(CLOUD.user.email||'').split('@')[0],email:CLOUD.user.email}:null;
 // why an account is needed, in the words of what the person was about to do
-const GATE={book:['Book a time','Booking sends an invite under your name, so Noon needs to know who you are.'],comment:['Join the thread','Comments and reactions are posted as you.'],invite:['Invite people','Invites go out from your account, and people join your team.'],integ:['Connect a calendar','Calendar connections are tied to an account.'],team:['Another team','Extra teams are saved to your account.'],request:['Answer a request','Answers are sent as you.'],save:['Keep this on every device','Your team, timezones and threads are saved to your account.'],join:['Join the team','Sign in, or create an account, to take your seat in this team.']};
+const GATE={files:['Attach files','Files are kept in your account, so everyone on the task can open them.'],book:['Book a time','Booking sends an invite under your name, so Noon needs to know who you are.'],comment:['Join the thread','Comments and reactions are posted as you.'],invite:['Invite people','Invites go out from your account, and people join your team.'],integ:['Connect a calendar','Calendar connections are tied to an account.'],team:['Another team','Extra teams are saved to your account.'],request:['Answer a request','Answers are sent as you.'],save:['Keep this on every device','Your team, timezones and threads are saved to your account.'],join:['Join the team','Sign in, or create an account, to take your seat in this team.']};
 const GATED_POP={add:'book',react:'comment',creact:'comment',pick:'comment',cpick:'comment',comment:'comment',delcm:'comment',join:'request',unjoin:'request',post:'request',unpost:'request',shift:'request',accept:'request',decline:'request',delev:'book'};
 function gate(k){if(user()) return false;openAuth('register',k);return true}
 function authTab(kind){document.querySelectorAll('[data-auth]').forEach(b=>b.setAttribute('aria-selected',b.dataset.auth===kind));$('#fRegister').hidden=kind!=='register';$('#fLogin').hidden=kind!=='login';$('#regErr').hidden=true;$('#logErr').hidden=true}
@@ -2725,9 +2774,10 @@ function setPage(p){
 function setTheme(t,quiet){
   document.documentElement.dataset.theme=t;try{localStorage.setItem('noon.theme',t)}catch(e){}
   const b=$('#amTheme');if(b) b.setAttribute('aria-checked',t==='dark');
+  const tg=$('#themeTog');if(tg){tg.setAttribute('aria-pressed',t==='dark');tg.setAttribute('aria-label',t==='dark'?'Light mode':'Dark mode');tg.dataset.tip=t==='dark'?'Light mode':'Dark mode'}
   if(!quiet&&CLOUD.user&&sb) saveProfile({prefs:{...((CLOUD.profile||{}).prefs||{}),theme:t}});
 }
-$('#amTheme').onclick=()=>{setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');render()};
+$('#amTheme').onclick=$('#themeTog').onclick=()=>{setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');render()};
 setTheme(document.documentElement.dataset.theme||'light',true);
 // the sky folds away to a one-line clock; remembered on this device and on the account
 function setSky(on,quiet){
@@ -2921,7 +2971,7 @@ function buildTeams(R,uidMe){
         if(a.move_request&&m.isMe){metaOf(e.id).post=a.move_request;CLOUD.metaKeys.add(e.id)}
       }
     }
-    T.tasks=(R.tasks||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,title:x.title,note:x.note||'',to:(R.tas||[]).filter(y=>y.task_id===x.id).map(y=>y.member_id),by:x.created_by||null,day:x.due_day||null,time:x.due_time||null,tz:x.due_tz||null,at:msOf(x.created_at),done:msOf(x.done_at),cleared:!!x.cleared,re:{},cm:[]}));
+    T.tasks=(R.tasks||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,title:x.title,note:x.note||'',to:(R.tas||[]).filter(y=>y.task_id===x.id).map(y=>y.member_id),by:x.created_by||null,day:x.due_day||null,time:x.due_time||null,tz:x.due_tz||null,at:msOf(x.created_at),done:msOf(x.done_at),cleared:!!x.cleared,files:Array.isArray(x.files)?x.files:[],re:{},cm:[]}));
     const cmsBy={};for(const c of R.comments)(cmsBy[c.thread_id]=cmsBy[c.thread_id]||[]).push(c);
     const reTh={},reCm={};for(const r of R.reactions){const o=r.thread_id?(reTh[r.thread_id]=reTh[r.thread_id]||{}):(reCm[r.comment_id]=reCm[r.comment_id]||{});(o[r.emoji]=o[r.emoji]||[]).push(r.member_id)}
     const cmList=th=>(cmsBy[th.id]||[]).sort((a,b)=>msOf(a.created_at)-msOf(b.created_at)).map(c=>({id:c.id,by:nameOf(c.author_id),byId:c.author_id,text:c.body,at:msOf(c.created_at),re:reCm[c.id]||{}}));
@@ -2937,7 +2987,7 @@ function buildTeams(R,uidMe){
 // a flat picture of one team, the shape the database holds, so two pictures can be compared
 function toImage(T){
   const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{}};
-  for(const t of T.tasks||[]){I.tasks[t.id]={id:t.id,title:t.title,note:t.note||'',day:t.day||null,time:t.time||null,tz:t.tz||null,done:t.done||null,cleared:!!t.cleared,by:t.by||null};for(const mid of t.to||[]) I.tkas[t.id+':'+mid]={task_id:t.id,member_id:mid}}
+  for(const t of T.tasks||[]){I.tasks[t.id]={id:t.id,title:t.title,note:t.note||'',day:t.day||null,time:t.time||null,tz:t.tz||null,done:t.done||null,cleared:!!t.cleared,by:t.by||null,files:t.files||[]};for(const mid of t.to||[]) I.tkas[t.id+':'+mid]={task_id:t.id,member_id:mid}}
   const addCms=(tid,cms)=>{for(const c of cms||[]){I.comments[c.id]={id:c.id,thread_id:tid,author_id:c.byId||null,body:c.text,at:c.at||Date.now()};addRe(null,c.id,c.re)}};
   const addRe=(tid,cid,re)=>{for(const [e,l] of Object.entries(re||{})) for(const mid of l) I.re[(tid||cid)+'|'+mid+'|'+e]={thread_id:tid,comment_id:cid,member_id:mid,emoji:e}};
   for(const m of T.members){
@@ -2983,7 +3033,7 @@ async function pushTeam(T){
   if(attUp.length) await run(sb.from('attendees').upsert(attUp,{onConflict:'event_id,member_id'}));
   for(const k in L.att) if(!N.att[k]) await run(sb.from('attendees').delete().match({event_id:L.att[k].event_id,member_id:L.att[k].member_id}));
   const evDel=Object.keys(L.events).filter(id=>!N.events[id]);if(evDel.length) await run(sb.from('events').delete().in('id',evDel));
-  const LT=L.tasks||{},LA=L.tkas||{},tkRow=n=>({title:n.title,note:n.note||null,due_day:n.day,due_time:n.time,due_tz:n.tz,done_at:n.done?isoOf(n.done):null,cleared:!!n.cleared});
+  const LT=L.tasks||{},LA=L.tkas||{},tkRow=n=>({title:n.title,note:n.note||null,due_day:n.day,due_time:n.time,due_tz:n.tz,done_at:n.done?isoOf(n.done):null,cleared:!!n.cleared,files:n.files||[]});
   const tkIns=[];for(const id in N.tasks){const n=N.tasks[id],o=LT[id];if(!o) tkIns.push({id,team_id:T.id,created_by:n.by||myId,...tkRow(n)});else if(!same(n,o)) await run(sb.from('tasks').update(tkRow(n)).eq('id',id))}
   if(tkIns.length) await run(sb.from('tasks').insert(tkIns));
   const taIns=[];for(const k in N.tkas) if(!LA[k]) taIns.push(N.tkas[k]);if(taIns.length) await run(sb.from('task_assignees').upsert(taIns,{onConflict:'task_id,member_id'}));
@@ -3166,6 +3216,7 @@ function taskDue(t){
   return {state:d<0?'overdue':d===0?'today':d<=7?'week':'later',label:d<0?`Overdue, ${-d} ${-d===1?'day':'days'}`:'Due '+tkDayLabel(t.day),ms};
 }
 const tasksOf=T=>(T.tasks=T.tasks||[]);
+const tkCan=t=>{if(!t) return true;const my=me().id;return !t.by||t.by===my||(t.to||[]).includes(my)};
 const tkName=(T,id)=>{const z=T.members.find(m=>m.id===id);return z?(z.isMe?'you':first(z.name)):(T.gone&&T.gone[id]?first(T.gone[id].name):'someone')};
 const tkNames=(T,ids)=>{const n=ids.map(id=>tkName(T,id));return n.length?n.length>1?n.slice(0,-1).join(', ')+' and '+n[n.length-1]:n[0]:'nobody yet'};
 // where a task's flag sits on a row: at its time, or at the end of that person's online day
@@ -3174,7 +3225,7 @@ function taskFlagAt(t,m,c,a,b){
   if(t.day!==UI.day) return null;
   const ends=(c.work[m.id]||[]).map(s=>s[1]).filter(e=>e>a&&e<=b);return ends.length?Math.max(...ends)-5*MIN:b-20*MIN;
 }
-const grow=el=>{if(!el) return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight,el.form&&el.form.id==='fTaskEd'?220:140)+'px'};
+const grow=el=>{if(!el) return;el.style.height='auto';el.style.height=Math.min(el.scrollHeight+(el.offsetHeight-el.clientHeight),el.form&&el.form.id==='fTaskEd'?(el.name==='note'?260:160):140)+'px'};
 const tkRx=t=>{const re=Object.entries(t.re||{}).filter(x=>x[1].length).sort((a,b)=>b[1].length-a[1].length),n=re.reduce((q,x)=>q+x[1].length,0),c=(t.cm||[]).length;return n||c?`<span class="tk-rx">${re.slice(0,2).map(x=>x[0]).join('')}${n?' '+n:''}${c?' 💬 '+c:''}</span>`:''};
 function tkAssignSet(){const T=team(),ids=new Set(T.members.map(m=>m.id));if(!UI.tkAssign) UI.tkAssign=new Set();UI.tkAssign=new Set([...UI.tkAssign].filter(id=>ids.has(id)));if(!UI.tkAssign.size) UI.tkAssign.add(me().id);return UI.tkAssign}
 const CAL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
@@ -3193,10 +3244,10 @@ function renderTasks(){
   $('#tkForLbl').textContent=sel.length===1?(sel[0].isMe?'For me':'For '+first(sel[0].name)):`For ${sel.length}`;
   tkForList();tkDueLabel();
   const item=t=>{const d=taskDue(t),who=t.to.map(id=>T.members.find(m=>m.id===id)).filter(Boolean);
-    return `<div class="tk ${d.state}" data-task="${t.id}" data-tkopen="${t.id}" role="button" tabindex="0" aria-label="${esc(t.title)}. ${esc(d.label)}"><button type="button" class="tk-ck" data-tkdone="${t.id}" aria-label="${t.done?'Mark not done':'Mark done'}" aria-pressed="${!!t.done}">${t.done?ICON.avail:''}</button>
-      <div class="tk-main"><div class="tk-title">${esc(t.title)}</div><div class="tk-meta"><span class="tk-due">${esc(d.label)}</span><span>${t.to.length?`for ${esc(tkNames(T,t.to))}`:'unassigned'}</span>${t.by&&t.by!==my?`<span>from ${esc(tkName(T,t.by))}</span>`:''}${tkRx(t)}${t.note?'<span title="Has details">has details</span>':''}</div></div>
+    return `<div class="tk ${d.state}" data-task="${t.id}" data-tkopen="${t.id}" role="button" tabindex="0" aria-label="${esc(t.title)}. ${esc(d.label)}"><button type="button" class="tk-ck" data-tkdone="${t.id}" aria-label="${t.done?'Mark not done':'Mark done'}" aria-pressed="${!!t.done}" ${tkCan(t)?'':'aria-disabled="true"'}>${t.done?ICON.avail:''}</button>
+      <div class="tk-main"><div class="tk-title">${esc(t.title)}</div><div class="tk-meta"><span class="tk-due">${esc(d.label)}</span><span>${t.to.length?`for ${esc(tkNames(T,t.to))}`:'unassigned'}</span>${t.by&&t.by!==my?`<span>from ${esc(tkName(T,t.by))}</span>`:''}${tkRx(t)}${t.note?'<span title="Has a description">has details</span>':''}${(t.files||[]).length?`<span>${t.files.length} ${t.files.length===1?'file':'files'}</span>`:''}</div></div>
       <div class="tk-ppl">${who.slice(0,4).map(m=>bubble(m,false)).join('')}${who.length>4?`<span class="bub more">+${who.length-4}</span>`:''}</div>
-      <button type="button" class="ib tk-x" data-tkdel="${t.id}" aria-label="Delete task" data-tip="Delete">${IB.rm}</button></div>`};
+      ${tkCan(t)?`<button type="button" class="ib tk-x" data-tkdel="${t.id}" aria-label="Delete task" data-tip="Delete">${IB.rm}</button>`:'<span></span>'}</div>`};
   const ppl=x=>(x.who||[]).filter(id=>id!==my).map(id=>T.members.find(z=>z.id===id)).filter(Boolean);
   // an invite: Accept and Decline while it is still ahead; once it has passed, bring it forward or dismiss it, as the inbox did
   const invItem=n=>{const x=n.ev,st=mtState(x),when=n.missed?'Passed, no answer':`${whenLabel(x.s)} to ${fmtT(x.e,H)}`;
@@ -3246,30 +3297,31 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(!$('#tkForDd').hid
 function addTask(title,to,day,time){const T=team(),t={id:uid(),title,note:'',to:[...to],by:me().id,day:day||null,time:(day&&time)||null,tz:home(),at:Date.now(),done:null};tasksOf(T).push(t);save();render();return t}
 function openTask(id){
   const T=team(),t=id?tasksOf(T).find(x=>x.id===id):null;if(id&&!t) return;
-  UI.tkEdit=t?t.id:null;UI.tkPick=null;UI.tkDraft='';
-  const f=$('#fTaskEd'),q=$('#fTask');
-  if(t){UI.tkdWho=new Set(t.to);f.title.value=t.title;f.day.value=t.day||'';f.time.value=t.time||''}
-  else{UI.tkdWho=new Set(tkAssignSet());f.title.value=q.title.value.trim();f.day.value=q.day.value||'';f.time.value=q.time.value||''}
+  UI.tkEdit=t?t.id:null;UI.tkPick=null;UI.tkDraft='';UI.tkPend=[];
+  const f=$('#fTaskEd'),q=$('#fTask'),can=tkCan(t);
+  if(t){UI.tkdWho=new Set(t.to);f.title.value=t.title;f.note.value=t.note||'';f.day.value=t.day||'';f.time.value=t.time||''}
+  else{UI.tkdWho=new Set(tkAssignSet());f.title.value=q.title.value.trim();f.note.value='';f.day.value=q.day.value||'';f.time.value=q.time.value||''}
   tkDd(null);
-  const by=t?T.members.find(m=>m.id===t.by):me();
-  $('#tkdAv').innerHTML=bubble(by||{name:t?tkName(T,t.by):'You'},false);
-  $('#tkdDel').hidden=!t;$('#tkdDone').hidden=!t;$('#tkdSave').hidden=!!t;if(t) $('#tkdDone').textContent=t.done?'Mark not done':'Mark done';
-  $('#tkdQ').value='';tkdMeta();tkdWho();tkdTz();renderTaskThread();
+  // people who are not on it can read, react and comment, but not change it
+  f.title.readOnly=f.note.readOnly=!can;f.day.disabled=f.time.disabled=!can;$('#tkdAddBtn').hidden=!can;$('#dTask').classList.toggle('ro',!can);
+  $('#tkdDel').hidden=!t||!can;$('#tkdDone').hidden=!t||!can;$('#tkdSave').hidden=!!t;if(t) $('#tkdDone').textContent=t.done?'Mark not done':'Mark done';
+  $('#tkdQ').value='';tkdMeta();tkdWho();tkdTz();tkdFiles();renderTaskThread();
   const d=$('#dTask');if(!d.open) d.showModal();
   d.append($('#men'),$('#toast')); // floating bits join the window so they show above it
-  grow(f.title);if(!t) f.title.focus();
+  grow(f.title);grow(f.note);if(!t) f.title.focus();
 }
 // the line under the title: who started it and when, and where the deadline stands
 function tkdMeta(){
   const T=team(),t=UI.tkEdit&&tasksOf(T).find(x=>x.id===UI.tkEdit),el=$('#tkdBy');
-  if(!t){el.textContent='A new task. Pick who it is for and when it is due.';return}
+  if(!t){el.textContent='A new task. Add details and files, pick who it is for and when it is due.';return}
   const d=taskDue(t);
-  el.innerHTML=`${esc(t.by===me().id?'You':first(tkName(T,t.by)))} added this ${esc(tkDayLabel(dayOf(t.at)).toLowerCase())} · <span class="tk-sub-due ${d.state}">${esc(d.label)}</span>`;
+  el.innerHTML=`${esc(t.by===me().id?'You':first(tkName(T,t.by)))} added this ${esc(tkDayLabel(dayOf(t.at)).toLowerCase())} · <span class="tk-sub-due ${d.state}">${esc(d.label)}</span>${tkCan(t)?'':`<br>Only ${esc(first(tkName(T,t.by)))} and the people it is for can change it.`}`;
 }
 // edits save themselves: the title on blur, the people and the deadline as they change
 function tkdSave(){
   const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit);if(!t) return;
-  const f=$('#fTaskEd'),title=f.title.value.trim();if(title) t.title=title;else f.title.value=t.title;
+  if(!tkCan(t)) return;
+  const f=$('#fTaskEd'),title=f.title.value.trim();if(title) t.title=title;else f.title.value=t.title;t.note=f.note.value.trim();
   t.to=[...UI.tkdWho];t.day=f.day.value||null;t.time=(t.day&&f.time.value)||null;if(t.time&&!t.tz) t.tz=home();
   save();render();tkdMeta();tkdTz();
 }
@@ -3283,13 +3335,47 @@ function tkdWho(){
 $('#tkdQ').addEventListener('input',tkdWho);
 $('#tkdAddBtn').onclick=()=>tkDd($('#tkdDd').hidden?'tkdDd':null);
 // the thread: the task's own reactions sit under the header, comments follow, the same as on a block of time
+const fmtSize=n=>n<1024?n+' B':n<1048576?Math.round(n/1024)+' KB':(n/1048576).toFixed(1)+' MB';
+const FILE_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z"/><path d="M14 3v5h5"/></svg>';
+const CLIP_IC='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5l-8.2 8.2a5 5 0 0 1-7-7l8.5-8.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4l7.8-7.8"/></svg>';
+function tkdFiles(){
+  const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit),can=tkCan(t),list=t?(t.files||[]):[],pend=UI.tkPend||[];
+  $('#tkdFiles').innerHTML=list.map((x,i)=>`<span class="tk-file"><button type="button" class="tk-fopen" data-tkfopen="${i}" title="Open ${esc(x.name)}">${FILE_IC}<span class="n">${esc(x.name)}</span><small>${fmtSize(x.size||0)}</small></button>${can?`<button type="button" class="tk-fx" data-tkfrm="${i}" aria-label="Remove ${esc(x.name)}">×</button>`:''}</span>`).join('')
+    +pend.map(x=>`<span class="tk-file pend"><span class="tk-fopen">${FILE_IC}<span class="n">${esc(x.name)}</span><small>${fmtSize(x.size)}</small></span></span>`).join('')
+    +(can?`<button type="button" class="tk-attach" id="tkdAttach">${CLIP_IC}<span>${list.length||pend.length?'Add files':'Attach files'}</span></button>`:'');
+}
+// upload into <team>/<task>/<file>; the list on the task syncs with everything else
+async function tkUpload(t,files){
+  const T=team(),big=files.filter(x=>x.size>10485760);if(big.length) toast(`${big.map(x=>x.name).join(', ')} is over 10 MB`);
+  const ok=files.filter(x=>x.size<=10485760);if(!ok.length) return;
+  if(!(CLOUD.user&&sb&&T.cloud)){toast('Files need a team saved to your account');return}
+  t.files=t.files||[];toast(`Uploading ${ok.length} ${ok.length===1?'file':'files'}…`);
+  for(const file of ok){const id=uid(),path=`${T.id}/${t.id}/${id}-${file.name.replace(/[^\w.\-]+/g,'_').slice(-80)}`;
+    const {error}=await sb.storage.from('task-files').upload(path,file,{contentType:file.type||'application/octet-stream'});
+    if(error){toast('Could not upload '+file.name);continue}
+    t.files.push({id,name:file.name,size:file.size,type:file.type||'',path,by:me().id,at:Date.now()})}
+  save();render();if(UI.tkEdit===t.id) tkdFiles();toast('Files attached');
+}
+$('#tkdFileIn').addEventListener('change',e=>{const files=[...e.target.files];e.target.value='';if(!files.length) return;
+  const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit);
+  if(t) tkUpload(t,files);else{UI.tkPend=[...(UI.tkPend||[]),...files];tkdFiles()}});
+document.addEventListener('click',async e=>{
+  const c=sel=>e.target.closest&&e.target.closest(sel);let b;
+  if(c('#tkdAttach')){if(gate('files')) return;if(!team().cloud){toast('Files need a team saved to your account');return}$('#tkdFileIn').click();return}
+  const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit);if(!t) return;
+  if(b=c('[data-tkfopen]')){const x=(t.files||[])[+b.dataset.tkfopen];if(!x) return;if(!sb){toast('Sign in to open files');return}
+    const w=window.open('','_blank');const {data,error}=await sb.storage.from('task-files').createSignedUrl(x.path,3600);
+    if(error||!data){if(w) w.close();toast('Could not open '+x.name);return}if(w) w.location=data.signedUrl;else location.href=data.signedUrl}
+  else if(b=c('[data-tkfrm]')){if(!tkCan(t)) return;const i=+b.dataset.tkfrm,x=(t.files||[])[i];if(!x) return;
+    t.files.splice(i,1);save();render();tkdFiles();if(sb) sb.storage.from('task-files').remove([x.path]);toast('File removed')}
+});
 function renderTaskThread(){
   const t=UI.tkEdit&&tasksOf(team()).find(x=>x.id===UI.tkEdit),box=$('#tkThread');
   if(!t){box.innerHTML='';box.hidden=true;$('#tkRe').innerHTML='';return}
   t.re=t.re||{};t.cm=t.cm||[];box.hidden=false;
   const P=threadParts(t,(a,x)=>`data-tkt="${a}" ${x}`,{pickB:UI.tkPick==='b',pickC:typeof UI.tkPick==='number'?UI.tkPick:null,draft:UI.tkDraft||'',inputId:'tkC',empty:'No comments yet. Ask a question or leave a note for whoever is on it.'});
   $('#tkRe').innerHTML=P.reBar;
-  box.innerHTML=(t.note?`<p class="pop-s" style="margin-top:12px">${mentionHtml(t.note)}</p>`:'')+P.thread;
+  box.innerHTML=P.thread;
 }
 document.addEventListener('click',e=>{
   const ta=e.target.closest&&e.target.closest('[data-tkt]');if(!ta) return;
@@ -3323,24 +3409,26 @@ $('#fTaskEd').addEventListener('submit',e=>{
   e.preventDefault();const f=e.target,title=f.title.value.trim();
   if(UI.tkEdit){tkdSave();return}
   if(!title){f.title.focus();return}
-  const t=addTask(title,UI.tkdWho,f.day.value,f.time.value);
+  const t=addTask(title,UI.tkdWho,f.day.value,f.time.value);t.note=f.note.value.trim();if(UI.tkPend&&UI.tkPend.length){const p=UI.tkPend;UI.tkPend=[];tkUpload(t,p)}save();
   const q=$('#fTask');q.title.value='';q.day.value='';q.time.value='';tkDueLabel();grow(q.title);$('#dTask').close();
   toast(`Task added for ${tkNames(team(),t.to)}${t.day?', '+taskDue(t).label.replace(/^Due/,'due'):''}`);
 });
 $('#fTaskEd').title.addEventListener('input',e=>grow(e.target));
+$('#fTaskEd').note.addEventListener('input',e=>grow(e.target));
+$('#fTaskEd').note.addEventListener('change',()=>{if(UI.tkEdit) tkdSave()});
 $('#fTaskEd').title.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();if(UI.tkEdit) e.target.blur();else $('#fTaskEd').requestSubmit()}});
 $('#fTaskEd').title.addEventListener('change',()=>{if(UI.tkEdit) tkdSave()});
 ['day','time'].forEach(n=>$('#fTaskEd')[n].addEventListener('change',()=>{if(UI.tkEdit) tkdSave()}));
 $('#fTaskEd').time.addEventListener('input',tkdTz);
-$('#tkdDone').onclick=()=>{const t=tasksOf(team()).find(x=>x.id===UI.tkEdit);if(!t) return;if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();$('#dTask').close();save();render();toast(t.done?'Done. Nice.':'Back on the list')};
-$('#tkdDel').onclick=()=>{const T=team(),undo=snapshot();T.tasks=tasksOf(T).filter(x=>x.id!==UI.tkEdit);$('#dTask').close();save();render();toast('Task deleted',undo)};
+$('#tkdDone').onclick=()=>{const t=tasksOf(team()).find(x=>x.id===UI.tkEdit);if(!t||!tkCan(t)) return;if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();$('#dTask').close();save();render();toast(t.done?'Done. Nice.':'Back on the list')};
+$('#tkdDel').onclick=()=>{if(!tkCan(tasksOf(team()).find(x=>x.id===UI.tkEdit))) return;const T=team(),undo=snapshot();T.tasks=tasksOf(T).filter(x=>x.id!==UI.tkEdit);$('#dTask').close();save();render();toast('Task deleted',undo)};
 document.addEventListener('click',e=>{
   const c=sel=>e.target.closest&&e.target.closest(sel);let b;
   if(b=c('[data-tkf]')){UI.tkf=b.dataset.tkf;renderTasks();return}
   if(b=c('[data-tkav]')){const A=tkAssignSet(),id=b.dataset.tkav;A.has(id)?A.delete(id):A.add(id);if(!A.size) A.add(id);renderTasks();if(!$('#tkForDd').hidden) $('#tkForQ').focus();return}
-  if(b=c('[data-tkdpick]')){const id=b.dataset.tkdpick;UI.tkdWho.has(id)?UI.tkdWho.delete(id):UI.tkdWho.add(id);tkdWho();if(UI.tkEdit) tkdSave();return}
-  if(b=c('[data-tkdone]')){const t=tasksOf(team()).find(x=>x.id===b.dataset.tkdone);if(!t) return;const undo=snapshot();if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();save();render();toast(t.done?'Done. Nice.':'Back on the list',undo);return}
-  if(b=c('[data-tkdel]')){const T=team(),undo=snapshot();T.tasks=tasksOf(T).filter(x=>x.id!==b.dataset.tkdel);save();render();toast('Task deleted',undo);return}
+  if(b=c('[data-tkdpick]')){if(!tkCan(tasksOf(team()).find(x=>x.id===UI.tkEdit))) return;const id=b.dataset.tkdpick;UI.tkdWho.has(id)?UI.tkdWho.delete(id):UI.tkdWho.add(id);tkdWho();if(UI.tkEdit) tkdSave();return}
+  if(b=c('[data-tkdone]')){const t=tasksOf(team()).find(x=>x.id===b.dataset.tkdone);if(!t) return;if(!tkCan(t)){toast(`Only ${first(tkName(team(),t.by))} and the people it is for can tick this off`);return}const undo=snapshot();if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();save();render();toast(t.done?'Done. Nice.':'Back on the list',undo);return}
+  if(b=c('[data-tkdel]')){const T=team(),tt=tasksOf(T).find(x=>x.id===b.dataset.tkdel);if(!tkCan(tt)) return;const undo=snapshot();T.tasks=tasksOf(T).filter(x=>x.id!==b.dataset.tkdel);save();render();toast('Task deleted',undo);return}
   if(b=c('[data-tkopen]')){openTask(b.dataset.tkopen);return}
   if(c('[data-tkresolve]')){const T=team(),undo=snapshot(),my2=me().id,f2=UI.tkf||'open';let n=0;for(const t of tasksOf(T)) if(t.done&&!t.cleared&&(f2!=='mine'||t.to.includes(my2))){t.cleared=true;n++}save();render();toast(`${n} resolved ${n===1?'task':'tasks'} cleared. They are in Done.`,undo);return}
   if(c('[data-tkclear]')){const T=team(),undo=snapshot();T.tasks=tasksOf(T).filter(x=>!x.done);save();render();toast('Done tasks cleared',undo);return}
