@@ -378,3 +378,407 @@ create policy "task-files: teammates upload" on storage.objects for insert to au
   with check (bucket_id = 'task-files' and public.is_member(((storage.foldername(name))[1])::uuid));
 create policy "task-files: teammates remove" on storage.objects for delete to authenticated
   using (bucket_id = 'task-files' and public.is_member(((storage.foldername(name))[1])::uuid));
+
+-- ---------------------------------------------------------------- 2026-10-27: place and kind on a meeting
+alter table public.events add column if not exists location text;
+alter table public.events add column if not exists kind text check (kind is null or kind in ('meet','plan','review'));
+
+-- ---------------------------------------------------------------- 2026-10-27: projects, versions and the comments on them
+
+create table if not exists public.projects (
+  id         uuid primary key,
+  team_id    uuid not null references public.teams(id) on delete cascade,
+  name       text not null check (length(name) <= 60),
+  due_day    date,
+  created_by uuid references public.members(id) on delete set null,
+  changed_by uuid references public.members(id) on delete set null,
+  changed_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+create index if not exists projects_team_idx on public.projects(team_id);
+
+create table if not exists public.project_assignees (
+  project_id uuid not null references public.projects(id) on delete cascade,
+  member_id  uuid not null references public.members(id) on delete cascade,
+  primary key (project_id, member_id)
+);
+
+create table if not exists public.versions (
+  id         uuid primary key,
+  project_id uuid not null references public.projects(id) on delete cascade,
+  team_id    uuid not null references public.teams(id) on delete cascade,
+  n          integer not null,
+  name       text not null,
+  path       text not null,
+  size       integer,
+  file       text,                                  -- storage path of the page in project-files
+  assets     jsonb not null default '[]'::jsonb,    -- [{id, path, size, type, file}]
+  created_by uuid references public.members(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists versions_project_idx on public.versions(project_id, n);
+create index if not exists versions_team_idx on public.versions(team_id);
+
+create table if not exists public.version_comments (
+  id           uuid primary key,
+  version_id   uuid not null references public.versions(id) on delete cascade,
+  team_id      uuid not null references public.teams(id) on delete cascade,
+  n            integer not null,
+  sel          text,                                -- css path to the element the pin sits on
+  rx           real, ry real,                       -- where on that element, 0..1
+  px           real, py real,                       -- page coordinates, the fallback
+  dev          text,                                -- width it was left at: desktop, tablet, phone
+  body         text not null check (length(body) <= 1000),
+  author_id    uuid references public.members(id) on delete set null,
+  status       text not null default 'open' check (status in ('open', 'resolved')),
+  from_version text,                                -- "v1" when carried over from an earlier version
+  from_comment uuid,
+  created_at   timestamptz not null default now()
+);
+create index if not exists version_comments_version_idx on public.version_comments(version_id);
+create index if not exists version_comments_team_idx on public.version_comments(team_id);
+
+create table if not exists public.version_replies (
+  id         uuid primary key,
+  comment_id uuid not null references public.version_comments(id) on delete cascade,
+  team_id    uuid not null references public.teams(id) on delete cascade,
+  author_id  uuid references public.members(id) on delete set null,
+  body       text not null check (length(body) <= 1000),
+  created_at timestamptz not null default now()
+);
+create index if not exists version_replies_comment_idx on public.version_replies(comment_id);
+create index if not exists version_replies_team_idx on public.version_replies(team_id);
+
+alter table public.projects          enable row level security;
+alter table public.project_assignees enable row level security;
+alter table public.versions          enable row level security;
+alter table public.version_comments  enable row level security;
+alter table public.version_replies   enable row level security;
+
+-- teammates see everything in the project, add to it, and change what is shared (name, deadline, who is on it, a comment's status);
+-- you remove what you wrote, or a whole project or version if you are on the team
+drop policy if exists "projects: teammates" on public.projects;
+drop policy if exists "projects: add"       on public.projects;
+drop policy if exists "projects: edit"      on public.projects;
+drop policy if exists "projects: remove"    on public.projects;
+create policy "projects: teammates" on public.projects for select using (public.is_member(team_id));
+create policy "projects: add"       on public.projects for insert with check (public.is_member(team_id));
+create policy "projects: edit"      on public.projects for update using (public.is_member(team_id)) with check (public.is_member(team_id));
+create policy "projects: remove"    on public.projects for delete using (public.is_member(team_id));
+
+drop policy if exists "project_assignees: teammates" on public.project_assignees;
+drop policy if exists "project_assignees: add"       on public.project_assignees;
+drop policy if exists "project_assignees: remove"    on public.project_assignees;
+create policy "project_assignees: teammates" on public.project_assignees for select using (
+  exists (select 1 from public.projects p where p.id = project_id and public.is_member(p.team_id)));
+create policy "project_assignees: add" on public.project_assignees for insert with check (
+  exists (select 1 from public.projects p where p.id = project_id and public.is_member(p.team_id)));
+create policy "project_assignees: remove" on public.project_assignees for delete using (
+  exists (select 1 from public.projects p where p.id = project_id and public.is_member(p.team_id)));
+
+drop policy if exists "versions: teammates" on public.versions;
+drop policy if exists "versions: add"       on public.versions;
+drop policy if exists "versions: edit"      on public.versions;
+drop policy if exists "versions: remove"    on public.versions;
+create policy "versions: teammates" on public.versions for select using (public.is_member(team_id));
+create policy "versions: add"       on public.versions for insert with check (public.is_member(team_id));
+create policy "versions: edit"      on public.versions for update using (public.is_member(team_id)) with check (public.is_member(team_id));
+create policy "versions: remove"    on public.versions for delete using (public.is_member(team_id));
+
+drop policy if exists "version_comments: teammates"  on public.version_comments;
+drop policy if exists "version_comments: add own"    on public.version_comments;
+drop policy if exists "version_comments: edit"       on public.version_comments;
+drop policy if exists "version_comments: remove own" on public.version_comments;
+create policy "version_comments: teammates" on public.version_comments for select using (public.is_member(team_id));
+create policy "version_comments: add own"   on public.version_comments for insert with check (
+  public.is_member(team_id) and (author_id is null or author_id = public.my_member_id(team_id)
+    or from_comment is not null));                   -- carried-over comments keep their original author
+create policy "version_comments: edit"      on public.version_comments for update using (public.is_member(team_id)) with check (public.is_member(team_id));
+create policy "version_comments: remove own" on public.version_comments for delete using (
+  author_id = public.my_member_id(team_id) or author_id is null);
+
+drop policy if exists "version_replies: teammates"  on public.version_replies;
+drop policy if exists "version_replies: add own"    on public.version_replies;
+drop policy if exists "version_replies: remove own" on public.version_replies;
+create policy "version_replies: teammates"  on public.version_replies for select using (public.is_member(team_id));
+create policy "version_replies: add own"    on public.version_replies for insert with check (
+  public.is_member(team_id) and (author_id is null or author_id = public.my_member_id(team_id)));
+create policy "version_replies: remove own" on public.version_replies for delete using (
+  author_id = public.my_member_id(team_id) or author_id is null);
+
+-- the files: a private bucket only teammates can read; path <team_id>/<project_id>/<version_id>/<file path>
+insert into storage.buckets (id, name, public, file_size_limit) values ('project-files', 'project-files', false, 26214400) on conflict (id) do nothing;
+drop policy if exists "project-files: teammates read"   on storage.objects;
+drop policy if exists "project-files: teammates upload" on storage.objects;
+drop policy if exists "project-files: teammates replace" on storage.objects;
+drop policy if exists "project-files: teammates remove" on storage.objects;
+create policy "project-files: teammates read" on storage.objects for select to authenticated
+  using (bucket_id = 'project-files' and public.is_member(((storage.foldername(name))[1])::uuid));
+create policy "project-files: teammates upload" on storage.objects for insert to authenticated
+  with check (bucket_id = 'project-files' and public.is_member(((storage.foldername(name))[1])::uuid));
+create policy "project-files: teammates replace" on storage.objects for update to authenticated
+  using (bucket_id = 'project-files' and public.is_member(((storage.foldername(name))[1])::uuid));
+create policy "project-files: teammates remove" on storage.objects for delete to authenticated
+  using (bucket_id = 'project-files' and public.is_member(((storage.foldername(name))[1])::uuid));
+
+-- live updates
+do $$ begin
+  alter publication supabase_realtime add table public.projects, public.project_assignees, public.versions, public.version_comments, public.version_replies;
+exception when duplicate_object then null; end $$;
+
+-- ================================================================ 2026-10-27: client links and the Claude connector
+-- (also in supabase/2026-10-27-share-and-connector.sql; applied as migration noon_share_and_connector)
+
+-- ---------------------------------------------------------------- client links
+alter table public.projects add column if not exists share_on boolean not null default false;
+alter table public.projects add column if not exists share_token text;
+alter table public.projects add column if not exists changed_guest text;           -- a client's name when they made the last change
+create unique index if not exists projects_share_token_idx on public.projects(share_token) where share_token is not null;
+alter table public.projects drop constraint if exists projects_share_token_check;
+alter table public.projects add constraint projects_share_token_check check (share_token is null or share_token ~ '^[A-Za-z0-9_-]{20,64}$');
+
+alter table public.version_comments add column if not exists guest_name text;      -- set when a client left it
+alter table public.version_comments add column if not exists guest_key  text;      -- sha-256 of the guest's browser key, so they can delete their own
+alter table public.version_comments add column if not exists snippet    text;      -- the element the pin sits on, as it was then
+alter table public.version_comments drop constraint if exists version_comments_guest_check;
+alter table public.version_comments add constraint version_comments_guest_check check ((guest_name is null or length(guest_name) <= 60) and (snippet is null or length(snippet) <= 2000));
+alter table public.version_replies add column if not exists guest_name text;
+alter table public.version_replies add column if not exists guest_key  text;
+alter table public.version_replies drop constraint if exists version_replies_guest_check;
+alter table public.version_replies add constraint version_replies_guest_check check (guest_name is null or length(guest_name) <= 60);
+
+-- the project behind a live link, or nothing
+create or replace function public.shared_project(p_token text) returns public.projects
+language sql stable security definer set search_path = public as $$
+  select * from public.projects where p_token ~ '^[A-Za-z0-9_-]{20,64}$' and share_token = p_token and share_on limit 1;
+$$;
+
+create or replace function public.guest_hash(p_key text) returns text
+language sql immutable set search_path = public as $$
+  select case when p_key is null or length(p_key) < 16 or length(p_key) > 128 then null else encode(sha256(convert_to(p_key, 'UTF8')), 'hex') end;
+$$;
+
+-- everything a client sees: the project, its versions, the comments and replies, and the names of the people who wrote them
+create or replace function public.share_open(p_token text, p_key text default null) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare p public.projects; k text := public.guest_hash(p_key);
+begin
+  select * into p from public.shared_project(p_token);
+  if p.id is null then return null; end if;
+  return jsonb_build_object(
+    'project', jsonb_build_object('id', p.id, 'team_id', p.team_id, 'name', p.name, 'changed_at', p.changed_at,
+                                  'team', (select t.name from public.teams t where t.id = p.team_id)),
+    'versions', coalesce((select jsonb_agg(jsonb_build_object('id', v.id, 'n', v.n, 'name', v.name, 'path', v.path, 'size', v.size,
+                  'file', v.file, 'assets', v.assets, 'created_at', v.created_at) order by v.n)
+                from public.versions v where v.project_id = p.id), '[]'::jsonb),
+    'comments', coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'version_id', c.version_id, 'n', c.n, 'sel', c.sel, 'rx', c.rx, 'ry', c.ry,
+                  'px', c.px, 'py', c.py, 'dev', c.dev, 'body', c.body, 'author_id', c.author_id, 'guest_name', c.guest_name,
+                  'status', c.status, 'from_version', c.from_version, 'created_at', c.created_at,
+                  'mine', (k is not null and c.guest_key = k)) order by c.n)
+                from public.version_comments c join public.versions v on v.id = c.version_id where v.project_id = p.id), '[]'::jsonb),
+    'replies', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'comment_id', r.comment_id, 'body', r.body, 'author_id', r.author_id,
+                  'guest_name', r.guest_name, 'created_at', r.created_at, 'mine', (k is not null and r.guest_key = k)) order by r.created_at)
+                from public.version_replies r join public.version_comments c on c.id = r.comment_id join public.versions v on v.id = c.version_id
+                where v.project_id = p.id), '[]'::jsonb),
+    'people', coalesce((select jsonb_agg(jsonb_build_object('id', m.id, 'name', m.name, 'photo', m.photo))
+                from public.v_members m where m.team_id = p.team_id and (
+                  m.id in (select c.author_id from public.version_comments c join public.versions v on v.id = c.version_id where v.project_id = p.id)
+                  or m.id in (select r.author_id from public.version_replies r join public.version_comments c on c.id = r.comment_id join public.versions v on v.id = c.version_id where v.project_id = p.id))), '[]'::jsonb));
+end $$;
+
+-- a guest can post about 60 things every ten minutes per project; enough for a real review, not for a flood
+create or replace function public.guest_check(p public.projects, k text, p_name text) returns void
+language plpgsql stable security definer set search_path = public as $$
+begin
+  if k is null then raise exception 'This browser is missing its guest key. Reload the page.'; end if;
+  if p_name is null or length(btrim(p_name)) = 0 or length(p_name) > 60 then raise exception 'Add your name first.'; end if;
+  if (select count(*) from public.version_comments c join public.versions v on v.id = c.version_id
+        where v.project_id = p.id and c.guest_key = k and c.created_at > now() - interval '10 minutes')
+   + (select count(*) from public.version_replies r join public.version_comments c on c.id = r.comment_id join public.versions v on v.id = c.version_id
+        where v.project_id = p.id and r.guest_key = k and r.created_at > now() - interval '10 minutes') >= 60
+  then raise exception 'That is a lot of comments in a short time. Wait a few minutes and try again.'; end if;
+end $$;
+
+create or replace function public.share_comment(p_token text, p_key text, p_name text, p_version uuid, p_id uuid, p_body text,
+  p_sel text default null, p_rx real default null, p_ry real default null, p_px real default null, p_py real default null,
+  p_dev text default null, p_snippet text default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare p public.projects; k text := public.guest_hash(p_key); n_ integer;
+begin
+  select * into p from public.shared_project(p_token);
+  if p.id is null then raise exception 'This link is turned off.'; end if;
+  if not exists (select 1 from public.versions where id = p_version and project_id = p.id) then raise exception 'That version is not part of this project.'; end if;
+  if p_body is null or length(btrim(p_body)) = 0 or length(p_body) > 1000 then raise exception 'Comments are 1 to 1000 characters.'; end if;
+  perform public.guest_check(p, k, p_name);
+  if exists (select 1 from public.version_comments where id = p_id) then
+    return (select jsonb_build_object('id', id, 'n', n) from public.version_comments where id = p_id and guest_key = k);
+  end if;
+  select coalesce(max(n), 0) + 1 into n_ from public.version_comments where version_id = p_version;
+  insert into public.version_comments (id, version_id, team_id, n, sel, rx, ry, px, py, dev, body, author_id, guest_name, guest_key, snippet, status)
+  values (p_id, p_version, p.team_id, n_, left(p_sel, 1000), p_rx, p_ry, p_px, p_py,
+          case when p_dev in ('desktop', 'tablet', 'phone') then p_dev else 'desktop' end,
+          btrim(p_body), null, btrim(p_name), k, left(p_snippet, 2000), 'open');
+  update public.projects set changed_at = now(), changed_by = null, changed_guest = btrim(p_name) where id = p.id;
+  return jsonb_build_object('id', p_id, 'n', n_);
+end $$;
+
+create or replace function public.share_reply(p_token text, p_key text, p_name text, p_comment uuid, p_id uuid, p_body text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare p public.projects; k text := public.guest_hash(p_key);
+begin
+  select * into p from public.shared_project(p_token);
+  if p.id is null then raise exception 'This link is turned off.'; end if;
+  if not exists (select 1 from public.version_comments c join public.versions v on v.id = c.version_id where c.id = p_comment and v.project_id = p.id)
+    then raise exception 'That comment is not part of this project.'; end if;
+  if p_body is null or length(btrim(p_body)) = 0 or length(p_body) > 1000 then raise exception 'Replies are 1 to 1000 characters.'; end if;
+  perform public.guest_check(p, k, p_name);
+  insert into public.version_replies (id, comment_id, team_id, author_id, guest_name, guest_key, body)
+  values (p_id, p_comment, p.team_id, null, btrim(p_name), k, btrim(p_body)) on conflict (id) do nothing;
+  update public.projects set changed_at = now(), changed_by = null, changed_guest = btrim(p_name) where id = p.id;
+  return jsonb_build_object('id', p_id);
+end $$;
+
+-- a guest removes what they wrote from this browser, nothing else
+create or replace function public.share_delete(p_token text, p_key text, p_id uuid) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare p public.projects; k text := public.guest_hash(p_key); hit integer;
+begin
+  select * into p from public.shared_project(p_token);
+  if p.id is null or k is null then return false; end if;
+  delete from public.version_replies r using public.version_comments c, public.versions v
+    where r.id = p_id and r.guest_key = k and c.id = r.comment_id and v.id = c.version_id and v.project_id = p.id;
+  get diagnostics hit = row_count;
+  if hit = 0 then
+    delete from public.version_comments c using public.versions v
+      where c.id = p_id and c.guest_key = k and v.id = c.version_id and v.project_id = p.id;
+    get diagnostics hit = row_count;
+  end if;
+  return hit > 0;
+end $$;
+
+revoke execute on function public.shared_project(text) from public, anon, authenticated;
+revoke execute on function public.guest_check(public.projects, text, text) from public, anon, authenticated;
+revoke execute on function public.share_open(text, text) from public;
+revoke execute on function public.share_comment(text, text, text, uuid, uuid, text, text, real, real, real, real, text, text) from public;
+revoke execute on function public.share_reply(text, text, text, uuid, uuid, text) from public;
+revoke execute on function public.share_delete(text, text, uuid) from public;
+grant execute on function public.share_open(text, text) to anon, authenticated;
+grant execute on function public.share_comment(text, text, text, uuid, uuid, text, text, real, real, real, real, text, text) to anon, authenticated;
+grant execute on function public.share_reply(text, text, text, uuid, uuid, text) to anon, authenticated;
+grant execute on function public.share_delete(text, text, uuid) to anon, authenticated;
+
+-- the files of a shared project can be read by anyone holding the link (the paths are only handed out by share_open)
+create or replace function public.project_is_shared(p_team text, p_project text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.projects where id::text = p_project and team_id::text = p_team and share_on);
+$$;
+drop policy if exists "project-files: shared read" on storage.objects;
+create policy "project-files: shared read" on storage.objects for select to anon, authenticated
+  using (bucket_id = 'project-files' and public.project_is_shared((storage.foldername(name))[1], (storage.foldername(name))[2]));
+
+-- ---------------------------------------------------------------- the Claude connector
+create table if not exists public.api_tokens (
+  id           uuid primary key default gen_random_uuid(),
+  user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name         text not null default 'Claude' check (length(name) <= 60),
+  token_hash   text not null unique check (token_hash ~ '^[0-9a-f]{64}$'),
+  hint         text check (hint is null or length(hint) <= 12),   -- the last characters, to tell keys apart
+  created_at   timestamptz not null default now(),
+  last_used_at timestamptz
+);
+create index if not exists api_tokens_user_idx on public.api_tokens(user_id);
+alter table public.api_tokens enable row level security;
+drop policy if exists "api_tokens: mine"   on public.api_tokens;
+drop policy if exists "api_tokens: add"    on public.api_tokens;
+drop policy if exists "api_tokens: remove" on public.api_tokens;
+create policy "api_tokens: mine"   on public.api_tokens for select to authenticated using (user_id = (select auth.uid()));
+create policy "api_tokens: add"    on public.api_tokens for insert to authenticated with check (user_id = (select auth.uid()));
+create policy "api_tokens: remove" on public.api_tokens for delete to authenticated using (user_id = (select auth.uid()));
+
+-- ================================================================ 2026-10-27: comment layers (team in the app, client on the link)
+-- (also in supabase/2026-10-27-comment-layers.sql; applied as migration noon_comment_layers; replaces share_open, share_comment, share_reply above)
+
+alter table public.version_comments add column if not exists layer text not null default 'team';
+alter table public.version_comments drop constraint if exists version_comments_layer_check;
+alter table public.version_comments add constraint version_comments_layer_check check (layer in ('team', 'client'));
+update public.version_comments set layer = 'client' where guest_name is not null and layer <> 'client';
+create index if not exists version_comments_layer_idx on public.version_comments(version_id, layer);
+
+-- the link shows the client layer only, and the names of whoever wrote in it
+create or replace function public.share_open(p_token text, p_key text default null) returns jsonb
+language plpgsql stable security definer set search_path = public as $$
+declare p public.projects; k text := public.guest_hash(p_key);
+begin
+  select * into p from public.shared_project(p_token);
+  if p.id is null then return null; end if;
+  return jsonb_build_object(
+    'project', jsonb_build_object('id', p.id, 'team_id', p.team_id, 'name', p.name, 'changed_at', p.changed_at,
+                                  'team', (select t.name from public.teams t where t.id = p.team_id)),
+    'versions', coalesce((select jsonb_agg(jsonb_build_object('id', v.id, 'n', v.n, 'name', v.name, 'path', v.path, 'size', v.size,
+                  'file', v.file, 'assets', v.assets, 'created_at', v.created_at) order by v.n)
+                from public.versions v where v.project_id = p.id), '[]'::jsonb),
+    'comments', coalesce((select jsonb_agg(jsonb_build_object('id', c.id, 'version_id', c.version_id, 'n', c.n, 'sel', c.sel, 'rx', c.rx, 'ry', c.ry,
+                  'px', c.px, 'py', c.py, 'dev', c.dev, 'body', c.body, 'author_id', c.author_id, 'guest_name', c.guest_name,
+                  'status', c.status, 'from_version', c.from_version, 'created_at', c.created_at,
+                  'mine', (k is not null and c.guest_key = k)) order by c.n)
+                from public.version_comments c join public.versions v on v.id = c.version_id
+                where v.project_id = p.id and c.layer = 'client'), '[]'::jsonb),
+    'replies', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'comment_id', r.comment_id, 'body', r.body, 'author_id', r.author_id,
+                  'guest_name', r.guest_name, 'created_at', r.created_at, 'mine', (k is not null and r.guest_key = k)) order by r.created_at)
+                from public.version_replies r join public.version_comments c on c.id = r.comment_id join public.versions v on v.id = c.version_id
+                where v.project_id = p.id and c.layer = 'client'), '[]'::jsonb),
+    'people', coalesce((select jsonb_agg(jsonb_build_object('id', m.id, 'name', m.name, 'photo', m.photo))
+                from public.v_members m where m.team_id = p.team_id and (
+                  m.id in (select c.author_id from public.version_comments c join public.versions v on v.id = c.version_id where v.project_id = p.id and c.layer = 'client')
+                  or m.id in (select r.author_id from public.version_replies r join public.version_comments c on c.id = r.comment_id join public.versions v on v.id = c.version_id
+                              where v.project_id = p.id and c.layer = 'client'))), '[]'::jsonb));
+end $$;
+
+-- a comment left on the link is in the client layer and numbered there
+create or replace function public.share_comment(p_token text, p_key text, p_name text, p_version uuid, p_id uuid, p_body text,
+  p_sel text default null, p_rx real default null, p_ry real default null, p_px real default null, p_py real default null,
+  p_dev text default null, p_snippet text default null) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare p public.projects; k text := public.guest_hash(p_key); n_ integer;
+begin
+  select * into p from public.shared_project(p_token);
+  if p.id is null then raise exception 'This link is turned off.'; end if;
+  if not exists (select 1 from public.versions where id = p_version and project_id = p.id) then raise exception 'That version is not part of this project.'; end if;
+  if p_body is null or length(btrim(p_body)) = 0 or length(p_body) > 1000 then raise exception 'Comments are 1 to 1000 characters.'; end if;
+  perform public.guest_check(p, k, p_name);
+  if exists (select 1 from public.version_comments where id = p_id) then
+    return (select jsonb_build_object('id', id, 'n', n) from public.version_comments where id = p_id and guest_key = k);
+  end if;
+  select coalesce(max(n), 0) + 1 into n_ from public.version_comments where version_id = p_version and layer = 'client';
+  insert into public.version_comments (id, version_id, team_id, n, sel, rx, ry, px, py, dev, body, author_id, guest_name, guest_key, snippet, status, layer)
+  values (p_id, p_version, p.team_id, n_, left(p_sel, 1000), p_rx, p_ry, p_px, p_py,
+          case when p_dev in ('desktop', 'tablet', 'phone') then p_dev else 'desktop' end,
+          btrim(p_body), null, btrim(p_name), k, left(p_snippet, 2000), 'open', 'client');
+  update public.projects set changed_at = now(), changed_by = null, changed_guest = btrim(p_name) where id = p.id;
+  return jsonb_build_object('id', p_id, 'n', n_);
+end $$;
+
+-- replies on the link only go on client-layer comments
+create or replace function public.share_reply(p_token text, p_key text, p_name text, p_comment uuid, p_id uuid, p_body text) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare p public.projects; k text := public.guest_hash(p_key);
+begin
+  select * into p from public.shared_project(p_token);
+  if p.id is null then raise exception 'This link is turned off.'; end if;
+  if not exists (select 1 from public.version_comments c join public.versions v on v.id = c.version_id
+                 where c.id = p_comment and v.project_id = p.id and c.layer = 'client')
+    then raise exception 'That comment is not part of this review.'; end if;
+  if p_body is null or length(btrim(p_body)) = 0 or length(p_body) > 1000 then raise exception 'Replies are 1 to 1000 characters.'; end if;
+  perform public.guest_check(p, k, p_name);
+  insert into public.version_replies (id, comment_id, team_id, author_id, guest_name, guest_key, body)
+  values (p_id, p_comment, p.team_id, null, btrim(p_name), k, btrim(p_body)) on conflict (id) do nothing;
+  update public.projects set changed_at = now(), changed_by = null, changed_guest = btrim(p_name) where id = p.id;
+  return jsonb_build_object('id', p_id);
+end $$;
+
+revoke execute on function public.share_open(text, text) from public;
+revoke execute on function public.share_comment(text, text, text, uuid, uuid, text, text, real, real, real, real, text, text) from public;
+revoke execute on function public.share_reply(text, text, text, uuid, uuid, text) from public;
+grant execute on function public.share_open(text, text) to anon, authenticated;
+grant execute on function public.share_comment(text, text, text, uuid, uuid, text, text, real, real, real, real, text, text) to anon, authenticated;
+grant execute on function public.share_reply(text, text, text, uuid, uuid, text) to anon, authenticated;

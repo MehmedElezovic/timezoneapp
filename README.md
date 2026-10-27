@@ -1,24 +1,26 @@
 # Noon
 
-A visual timezone planner for distributed teams. See who is awake, free or asleep, find the hour everyone shares, book it, and leave threads and reactions on any block of time.
+Find the hour your whole team shares. A calendar, team availability across timezones, and tasks, in one static app.
 
-- Paper-cut day/night sky sized to the real length of day and night where you are
-- Team planner with sleep, free, busy and offline blocks, warnings near sleep and on heavy days
-- Popover booking with custom time pickers, invites and Slack-style threads with @mentions
-- Requests, threads and day management with missed-item reminders
-- Welcome tour and guest mode: every timezone tool works without an account
-- Accounts and sync on Supabase: signed-in teams, invites, threads and reactions update live for everyone
+## Files
 
-## Run it
+- `index.html` — the shell: sidebar, the four views (Calendar, Team, Tasks, Projects), inbox, event panel, dialogs.
+- `css/app.css` — styles. Dark frame and sidebar, white working panel, pastel event colours; dark theme via `data-theme`.
+- `js/tz.js` — timezone data and search (cities, countries, codes like CET, offsets like UTC+2).
+- `js/core.js` — time math, state (`localStorage` key `noon.v1`), availability (status, free windows, warnings), tasks, inbox, calendar links, demo team.
+- `js/app.js` — everything on screen. The calendar week is one row per day with the hours across; overlapping things stack into lanes, the visible hours follow your online block and what is booked (at least 72px an hour, anything outside shows as an "earlier"/"later" marker), the day view is that row plus the day as a list with the free stretches you can book, and the month is a grid. The date strip above the grid is the only navigator (chevrons at its ends, Today caption on today's card, a quiet Today button only when today is off screen).
+- `js/projects.js` — Projects: a project is a stack of versions. Every HTML file you upload is the next version (v1, v2, …), a new version starts with no comments. Open a version at desktop, tablet or phone width and click anywhere on the page to pin a comment to that element (replies, resolve, make a task). Compare puts the previous version beside the new one, scroll-synced, and tells you for each old comment how the new version answers it (text changed with before/after, looks different, unchanged, element gone); click one to jump both frames to that spot, resolve it on the old version or carry it to the new one. Files (pages and the images, styles and scripts dropped with them) live in IndexedDB (`noon-files`); a lone HTML file reuses the previous version's files. The project list and comments ride on the team like tasks do; signed-in teams sync them to Supabase (rows in `projects`, `versions`, `version_comments`, `version_replies`, files in the private `project-files` bucket under `<team>/<project>/<version>/<path>`). Each version can be downloaded again, as the HTML file or as a zip with the files that came with it.
+- `js/sync.js` — accounts and sync with Supabase. Guests keep the browser sandbox; signed-in teams mirror to the database, projects included, with the client-link fields and the element snapshot on each comment.
+- `js/share.js` — client links. Share, in a project's header, turns on a link (`?share=<token>`). Whoever opens it gets that one project: every version, the comments, Compare, and their own comments and replies under a name they type, with no account. The app boots in a sandbox for it (nothing saved in that browser's Noon), and every read and write goes through the `share_*` functions in Supabase, which check the link each time. Comments come in two layers: the team's, in the app, and the client link's. Anyone on the link sees only the link's layer, whoever left it (a teammate who opens the link comments there too); in the app each version's comments have a Team / Client link switch, and posting or replying in Client link is visible on the link. Numbers count per layer. Turning the link off, or making a new one, stops the old link at once.
+- `js/connector.js` — Settings › Claude: personal keys for the Claude connector. A key is shown once; only its SHA-256 is stored (`api_tokens`).
+- `supabase/functions/noon-mcp/index.ts` — the Claude connector, a remote MCP server deployed as the Supabase Edge Function `noon-mcp` (`https://boielhshrswqdqkxiupz.supabase.co/functions/v1/noon-mcp`, JWT check off: it checks the Noon key itself). Tools: `list_projects`, `get_project`, `get_version` (full HTML, files, comments with selector, element snapshot and width, team comments as #1, #2 and client-link comments as C1, C2), `get_comments`, `upload_version` (next version, previous files carried over, optional resolve + reply), `resolve_comments`, `reply_to_comment`. Optional secret `NOON_APP_URL` adds links back into the app.
+- `supabase/schema.sql` — the database schema, the migrations folded in. `supabase/2026-10-27-event-location-kind.sql` (place and kind on a meeting) and `supabase/2026-10-27-projects.sql` (projects, versions, comments, replies, the `project-files` bucket) are applied to the Timezoneapp project, and so are `supabase/2026-10-27-share-and-connector.sql` (client links, guest comment functions, the shared-file read rule, `api_tokens`) and `supabase/2026-10-27-comment-layers.sql` (`version_comments.layer`: team or client, and the link functions limited to the client layer); the app checks for the tables at sign-in and works without them.
+- `legacy/noon-v1.html` — the previous single-file build, kept for reference.
 
-It is a single static file with no build step. Open `index.html`, or serve the folder:
+## Run locally
 
-```bash
-npx http-server . -p 5177
-```
+Any static server works, for example:
 
-Guests keep their data in the browser's localStorage. Signed-in teams live in Supabase.
+    python -m http.server 4380
 
-## Database
-
-`supabase/schema.sql` is the full schema (tables, row level security, functions, realtime). Run it once in a fresh Supabase project, then put the project URL and publishable key in `index.html` (`SB_URL`, `SB_KEY`). In the Supabase dashboard, add the site's address to Authentication → URL Configuration so confirmation and sign-in links come back to the app.
+Address hooks, handy for demos and screenshots: `?demo=1` loads the demo team, `?view=team|tasks|projects|calendar`, `?proj=first` opens the demo project (or `?proj=<id>&ver=<n>` any project, which is what the link button in a project copies), `&ver=first|last` a version in the viewer, `&mode=compare` the side-by-side, `?cal=week|month|day`, `?theme=dark`, `?pop=new`, `?task=first`, `?inbox=1`, `?dlg=settings|member|auth|invite`.
