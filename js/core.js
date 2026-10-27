@@ -52,38 +52,17 @@ const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturda
 
 /* ---------- state ---------- */
 function mk(name,tz,s,e,o={}){return {id:uid(),name,email:'',tz,start:s,end:e,cal:false,status:'active',...o}}
-const PIC=n=>`https://i.pravatar.cc/120?img=${n}`;
-const DEMO={
-  'You':{photo:PIC(12),start:9,end:17,start2:20,end2:22.5,weekends:true,cal:true},
-  'Amara Okafor':{photo:PIC(16),start:8,end:12,start2:13,end2:17,weekends:true,cal:true,sleepStart:22.5,sleepEnd:6.5,joined:true,conn:['google','slack']},
-  'Jonas Weber':{photo:PIC(13),start:7.5,end:17.5,weekends:true,cal:true,sleepStart:23.5,sleepEnd:7,joined:true,conn:['outlook','slack']},
-  'Priya Nair':{photo:PIC(32),start:10,end:14,start2:15,end2:19,weekends:true,cal:true,joined:true,conn:['google']},
-  'Mei Tanaka':{photo:PIC(26),start:9,end:18,start2:21,end2:23.5,weekends:true,cal:true,sleepStart:0,sleepEnd:7.5,joined:true,conn:['google','slack']},
-  'Diego Alves':{photo:PIC(59),start:9,end:13,start2:15,end2:19,weekends:true,cal:false,sleepStart:1,sleepEnd:8},
-  'Sam Rivera':{photo:PIC(8),start:8,end:16,weekends:true,sleepStart:22,sleepEnd:6},
-  'Olivia Chen':{photo:PIC(47),start:9,end:17.5,weekends:true,cal:true,sleepStart:23,sleepEnd:6.5,joined:true,conn:['google','slack']},
-  'Noah Williams':{photo:PIC(68),start:8.5,end:16.5,weekends:true,cal:true,sleepStart:23,sleepEnd:7,joined:true,conn:['slack']},
-  'Sofia Rossi':{photo:PIC(44),start:9.5,end:13,start2:14.5,end2:18.5,weekends:true,cal:false,sleepStart:0,sleepEnd:7.5},
-  'Liam Murphy':{photo:PIC(53),start:8,end:16,weekends:true,cal:true,sleepStart:22.5,sleepEnd:6,joined:true,conn:['google']},
-  'Aisha Khan':{photo:PIC(45),start:9,end:18,weekends:true,cal:true,sleepStart:23.5,sleepEnd:7,joined:true,conn:['outlook','slack']}};
-const V3={'You':[['end2',22,22.5]],'Mei Tanaka':[['end2',23,23.5]],'Jonas Weber':[['start',9,7.5]]};
 function upgrade(st){
-  const v=st.v|0,demo=m=>DEMO[m.name]&&(m.isMe||/@example\.com$/.test(m.email||''));
-  for(const t of st.teams){
-    for(const m of t.members){
-      if(!demo(m)) continue;
-      if(v<2) Object.assign(m,DEMO[m.name]);
-      else if(v<3) for(const [k,from,to] of V3[m.name]||[]) if(m[k]===from) m[k]=to;
-    }
-    if(t.sample===undefined) t.sample=t.members.some(m=>!m.isMe&&demo(m));
-  }
-  if(v<5) for(const t of st.teams) for(const m of t.members) if(demo(m)&&!m.isMe){const d=DEMO[m.name];m.joined=!!d.joined;m.conn=d.conn||[];if(!d.joined) m.cal=false}
+  const v=st.v|0;
+  // older saves may still hold the demo team and its sample people: they go
+  st.teams=(st.teams||[]).filter(t=>!t.demo&&!t.sample);
+  for(const t of st.teams) if(t.projects) t.projects=t.projects.filter(p=>!p.demo);
   if(v<6) for(const t of st.teams){const mine=(t.members.find(x=>x.isMe)||{}).id;for(const m of t.members){
     for(const n of m.notes||[]){m.threads=m.threads||[];let th=m.threads.find(x=>x.s===n.t);if(!th){th={id:'t'+n.id,s:n.t,e:n.t+30*MIN,re:{},cm:[]};m.threads.push(th)}
       if(n.text) th.cm.push({id:n.id,by:'You',text:n.text,at:n.t});if(n.emoji) (th.re[n.emoji]=th.re[n.emoji]||[]).push(mine)}
     delete m.notes}}
-  if(v<7) for(const t of st.teams) if(t.sample&&t.name==='Demo crew') t.demo=true;
-  st.meta=st.meta||{};st.integ=st.integ||{google:false,outlook:false};if(st.hour12==null) st.hour12=false;if(st.weekStart==null) st.weekStart=1;st.v=7;return st;
+  for(const t of st.teams) for(const m of t.members) m.cal=false;
+  st.meta=st.meta||{};st.integ={google:false,outlook:false};if(st.hour12==null) st.hour12=false;if(st.weekStart==null) st.weekStart=1;st.v=8;return st;
 }
 const blocksOf=m=>[[m.start,m.end],...(m.start2!=null&&m.end2>m.start2?[[m.start2,m.end2]]:[])];
 const dayOn=(m,D)=>!!m.weekends||isWeekday(D.y,D.m,D.d);
@@ -92,7 +71,7 @@ function seed(){
   const t={id:uid(),name:'My team',sample:false,members:[mk('You',my,9,17,{isMe:true,cal:false})]};
   return upgrade({teams:[t],active:t.id,hour12:false,weekStart:1,integ:{google:false,outlook:false},v:7});
 }
-function load(){try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.teams&&j.teams.length)return upgrade(j)}catch(e){}return seed()}
+function load(){try{const j=JSON.parse(localStorage.getItem(LS));if(j&&j.teams&&j.teams.length){const st=upgrade(j);if(st.teams.length) return st}}catch(e){}return seed()}
 var SYNC_ON=false; // sync.js flips this once accounts are wired in
 // ?share=<token> is a client opening a review link: Noon boots with just that project in memory and saves nothing locally
 const SHARE=(()=>{try{const t=new URLSearchParams(location.search).get('share');return t&&/^[A-Za-z0-9_-]{20,64}$/.test(t)?t:null}catch(e){return null}})();
@@ -143,8 +122,6 @@ const snapshot=()=>{const j=JSON.stringify({teams:S.teams,meta:S.meta||{}});retu
 const live=o=>(o&&((o.cm||[]).length||Object.values(o.re||{}).some(l=>l.length)));
 
 /* ---------- availability ---------- */
-function rng(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
-const busyCache={},SAMPLE_EVENTS=['Standup','1:1','Design review','Client call','Planning','Interview','Sprint planning','Code review','Roadmap planning'];
 const TYPES={meet:['Meeting','purple'],plan:['Planning','blue'],review:['Review','yellow']};
 const typeOf=t=>/plan|roadmap|sprint|kickoff/i.test(t||'')?'plan':/review|retro|demo|critique/i.test(t||'')?'review':'meet';
 const kindOfItem=(title,kind)=>TYPES[kind]?kind:typeOf(title);
@@ -152,15 +129,6 @@ const evColor=(title,kind)=>TYPES[kindOfItem(title,kind)][1];
 // busy list for one person between a and b: [s,e,title,id,who,pend,req,loc,kind]
 function busyList(m,a,b){
   const out=(m.events||[]).map(ev=>[ev.s,ev.e,ev.title,ev.id,ev.who,!!ev.pend,ev.req,ev.loc||'',ev.kind||'']);
-  if(m.cal) for(const D of localDates(m.tz,a-DAY,b+DAY)){
-    const bl=blocksOf(m),key=m.id+m.tz+D.y+'-'+D.m+'-'+D.d+JSON.stringify(bl)+!!m.weekends;
-    if(!busyCache[key]){
-      const r=rng(key),list=[];
-      if(dayOn(m,D)) for(const s of [8,9,10,11,13,14,15,16,17,20].filter(h=>bl.some(([x,y])=>h>=x&&h+1<=y)).filter(()=>r()<(isWeekday(D.y,D.m,D.d)?.4:.12))){const len=r()<.5?30:60,st=zonedToUtc(m.tz,D.y,D.m,D.d,s,0);list.push([st,st+len*MIN,SAMPLE_EVENTS[Math.floor(r()*SAMPLE_EVENTS.length)]])}
-      busyCache[key]=list;
-    }
-    out.push(...busyCache[key]);
-  }
   return out.sort((x,y)=>x[0]-y[0]);
 }
 function workSegs(m,a,b){
@@ -373,35 +341,3 @@ function readJoin(){
   if(/^c:[0-9a-f]{16}$/.test(m[1])) return {code:m[1].slice(2)};
   try{return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))))}catch(e){return null}
 }
-
-/* ---------- the demo team: people across the world, meetings, invites, threads and tasks, all on today ---------- */
-function buildDemo(){
-  const P=(name,tz,o={})=>mk(name,tz,9,17,{email:name.toLowerCase().split(' ')[0]+'@example.com',...DEMO[name],...o});
-  const d=DEMO['You'],m0=me(),I={...m0,id:uid(),events:[],threads:[],cal:true,photo:m0.photo||d.photo,start2:m0.start2??d.start2,end2:m0.end2??d.end2};
-  const A=P('Amara Okafor','Africa/Lagos'),J=P('Jonas Weber','Europe/Berlin'),N=P('Noah Williams','Europe/London'),So=P('Sofia Rossi','Europe/Rome'),O=P('Olivia Chen','America/New_York'),
-    Pr=P('Priya Nair','Asia/Kolkata'),Ai=P('Aisha Khan','Asia/Dubai'),Me=P('Mei Tanaka','Asia/Tokyo'),Li=P('Liam Murphy','Australia/Sydney'),D=P('Diego Alves','America/Sao_Paulo'),Sa=P('Sam Rivera','America/Los_Angeles',{status:'invited'});
-  const t={id:uid(),name:'Demo crew',sample:true,demo:true,members:[I,A,J,N,So,O,Pr,Ai,Me,Li,D,Sa],tasks:[]};
-  S.teams.push(t);S.active=t.id;S.meta=S.meta||{};UI.day=today();
-  const [a]=dayRange(),my=I.id,cm=(z,text,ago,re)=>({id:uid(),by:z.isMe?'You':first(z.name),byId:z.id,text,at:Date.now()-ago*MIN,...(re?{re}:{})});
-  const slot=(h,dur,who)=>{const c=ctx(),base=a+h*HR;for(let k=0;k<=20;k++) for(const sg of k?[1,-1]:[1]){const st=base+sg*k*15*MIN;if(st>=a&&who.every(z=>freeFor(z,st,st+dur*MIN,c))) return st}return base};
-  const book=(title,h,dur,who,o={})=>{
-    const st=slot(h,dur,who),id=uid(),ids=who.map(z=>z.id);
-    for(const z of who) (z.events=z.events||[]).push({id,title,s:st,e:st+dur*MIN,who:ids,by:(o.req||who[0]).id,loc:o.loc||'',pend:(o.pend||[]).includes(z),...(o.req&&(o.pend||[]).includes(z)?{req:o.req.id}:{})});
-    if(o.meta) S.meta[id]=o.meta;
-  };
-  const thread=(z,h,re,cms)=>{const [bs,be]=blockAt(z,a+h*HR,ctx());(z.threads=z.threads||[]).push({id:uid(),s:bs,e:be,re,cm:cms})};
-  book('Sprint planning',10,60,[I,A,J,N,So],{loc:'https://meet.google.com/noon-sprint',pend:[N],meta:{re:{'👍':[A.id,J.id,my],'🎉':[So.id]},cm:[cm(A,'Can we start five minutes late? School run.',95,{'👍':[J.id,So.id]}),cm(J,'Fine by me. @Sofia can you bring the estimates?',90),cm(I,'Works. I will share the board before.',80,{'🙏':[A.id],'🎉':[J.id,N.id]})]}});
-  book('Design review',14,45,[I,So,O],{pend:[O],meta:{re:{'👀':[O.id]},cm:[cm(So,'I will bring the new onboarding flow.',40)],post:'30 min later'}});
-  book('1:1 with Priya',11.5,30,[I,Pr],{pend:[I],req:Pr,meta:{re:{},cm:[cm(Pr,'Want to go over the Q4 plan. Thirty minutes is enough.',120)]}});
-  book('Roadmap sync',16,30,[I,J,Ai],{pend:[I],req:J,meta:{re:{'👍':[Ai.id]},cm:[]}});
-  book('Client demo dry run',15,30,[I,D],{loc:'Zoom, link in the invite'});
-  book('APAC handover',8.5,30,[Me,Li,Pr],{meta:{re:{'🙏':[Li.id,Pr.id]},cm:[cm(Me,'Notes are in the doc.',300),cm(Li,'Thanks, picking up the release checks.',290)],join:[my]}});
-  thread(A,13,{'👀':[my],'👍':[J.id]},[cm(I,'Are you around for a quick pairing session in here?',60,{'👀':[A.id]}),cm(A,'Yes, any time after my standup.',52,{'👍':[my]}),cm(I,'Great, I will book twenty minutes.',50)]);
-  thread(Li,16,{'😴':[my]},[cm(I,'Leaving this for when you are up: can you review the launch deck?',30)]);
-  thread(I,17.5,{'👍':[N.id,O.id]},[cm(O,'Could we grab twenty minutes here? It is my morning.',25,{'👍':[N.id]}),cm(N,'I can join too.',20)]);
-  {const id=uid(),st=a-DAY+15*HR;for(const z of [I,Ai]) (z.events=z.events||[]).push({id,title:'Budget review',s:st,e:st+30*MIN,who:[I.id,Ai.id],by:Ai.id,pend:z===I,...(z===I?{req:Ai.id}:{})})}
-  const dayPlus=n=>shiftDay(today(),n),tk=(title,to,by,day,time,o={})=>({id:uid(),title,note:o.note||'',to:to.map(z=>z.id),by:by.id,day,time:time||null,tz:by.tz,at:Date.now()-(o.ago||120)*MIN,done:o.done||null,re:o.re||{},cm:o.cm||[],files:[]});
-  t.tasks=[tk('Send the launch deck to Priya',[I],A,today(),'17:00',{ago:200,note:'The v3 file, with the pricing slide updated.',re:{'👀':[A.id],'🙏':[Pr.id]},cm:[cm(A,'Priya needs it before her Thursday review.',150),cm(I,'On it, the v3 goes out today.',60,{'👍':[A.id]}),cm(A,'@You can you confirm once it is sent?',20)]}),tk('Reply to the APAC handover notes',[I],Me,dayPlus(-1),null,{ago:1800}),tk('Book a room for the onboarding review',[So],I,dayPlus(1),null,{ago:60}),tk('Draft the Q4 roadmap outline',[I,J],I,dayPlus(3),null,{ago:30}),tk('Confirm the demo recording works',[D],I,null,null,{ago:15}),tk('Update the timezone list',[I],I,dayPlus(-2),null,{ago:3000,done:Date.now()-26*HR})];
-  save();
-}
-function clearSample(){const T=team();T.members=T.members.filter(m=>m.isMe);T.sample=false;delete T.demo;T.tasks=[];T.projects=(T.projects||[]).filter(p=>!p.demo);S.meta={};save()}

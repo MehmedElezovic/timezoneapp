@@ -83,7 +83,7 @@ function render(){
 /* ---------- sidebar ---------- */
 function renderSide(){
   const m=me(),u=typeof user==='function'?user():null,now=Date.now(),ib=inbox();
-  $('#profileCard').innerHTML=`<button type="button" class="tbtn pf" data-open-settings="account" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">${avatar(m,'',statusNow(m)[0])}<span class="who"><span class="name">${esc(u?u.name:m.name==='You'?'You':m.name)}</span><span class="role">${esc(tzLabel(home()))} · ${fmtT(now,home())}${u?'':' · not signed in'}</span></span></button>
+  $('#profileCard').innerHTML=`<button type="button" class="tbtn pf" data-open-settings="account" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">${avatar(m,'',statusNow(m)[0])}<span class="who"><span class="name">${esc(u?u.name:m.name)}</span><span class="role">${esc(tzLabel(home()))} · ${fmtT(now,home())}</span></span></button>
     <button type="button" class="ibtn" id="bellBtn" aria-label="Inbox${ib.count?`, ${ib.count} waiting`:''}" title="Inbox">${I.bell}<span class="badge">${ib.count||''}</span></button><span class="sync" id="syncState"></span>`;
   const T=team(),open=tasksOf(T).filter(t=>!t.done&&!t.cleared),late=open.filter(t=>taskDue(t).state==='overdue').length,inv=(m.events||[]).filter(x=>x.pend&&x.e>now).length;
   const navItems=[['calendar',I.cal,'Calendar',inv?`<span class="cnt">${inv}</span>`:''],['team',I.team,'Team',`<span class="cnt quiet">${T.members.length}</span>`],['tasks',I.task,'Tasks',late?`<span class="cnt bad">${late}</span>`:open.length?`<span class="cnt quiet">${open.length}</span>`:''],['projects',I.proj,'Projects',(T.projects||[]).length?`<span class="cnt quiet">${T.projects.length}</span>`:''],['settings',I.gear,'Settings','']];
@@ -427,7 +427,7 @@ function renderTeam(){
   const wins=w.list.map(x=>`<div class="win${w.max<w.total?' part':''}" style="left:${pct(x.start)}%;width:${pct(x.end)-pct(x.start)}%"></div>`).join('');
   $('#tmWrap').innerHTML=`<div class="tm-ruler"><div></div><div class="rl" id="tmRuler">${ruler}${UI.hover?`<span class="cur" style="left:${pct(UI.hover)}%">${fmtT(UI.hover,H)}</span>`:''}</div></div>
     <div class="tm-rows" id="tmRows"><div class="tm-layer">${M.length>1?wins:''}${day===today()?`<div class="now" style="left:${pct(now)}%"></div>`:''}${UI.hover?`<div class="hov" style="left:${pct(UI.hover)}%"></div>`:''}</div>${rows}</div>
-    ${M.length<2?`<p class="tm-empty"><b>It is just you so far.</b> Add the people you work with, with their city and online hours, and this page shows who is awake, who is free and the hours you all share. Or load the demo team from Settings to see it full.</p>`:''}`;
+    ${M.length<2?`<p class="tm-empty"><b>It is just you so far.</b> Add the people you work with, with their city and online hours, and this page shows who is awake, who is free and the hours you all share.</p>`:''}`;
   fitRuler();
 }
 function fitRuler(){const rl=$('#tmRuler');if(!rl) return;const w=rl.clientWidth,step=w/24,need=S.hour12?40:36,every=[1,2,3,4,6,8,12].find(e=>step*e>=need)||12;$$('#tmRuler span[data-h]').forEach(s=>s.classList.toggle('hide',(+s.dataset.h)%every!==0))}
@@ -605,9 +605,7 @@ function renderSettings(page){
       <h3>Password</h3><form id="fAcPass"><div class="grid2"><label class="lbl">New password <input name="pass" type="password" minlength="8" required autocomplete="new-password"></label><label class="lbl">Again <input name="pass2" type="password" minlength="8" required autocomplete="new-password"></label></div><p class="err" id="acPassMsg" hidden></p><div class="dlg-acts"><button type="submit" class="btn dark">Update password</button></div></form>
       <h3>Notifications</h3><p class="hint">Emails go to ${esc(u.email)}.</p><div class="checks">${[['invites','Someone invites me to a meeting'],['mentions','Someone mentions me'],['replies','Someone replies in my thread'],['missed','An invite passed without my answer'],['weekly','A weekly summary']].map(([k,l])=>`<label class="ck"><input type="checkbox" data-notify="${k}" ${({...NOTIFY_DEFAULT,...((CLOUD.profile||{}).notify||{})})[k]?'checked':''}><span></span>${l}</label>`).join('')}</div>
       <h3>Danger zone</h3><p class="hint">Deleting your account removes your profile, your seat in every team and everything you posted. Teams you created pass to a teammate.</p><button type="button" class="btn ghost danger" id="acDelete">Delete my account</button>`
-    :`<h2>Account</h2><div class="acct">${avatar(m)}<div><b>${esc(m.name==='You'?'You':m.name)}</b><small>Not signed in · this device only</small></div></div>
-      <p class="hint">Everything about timezones works without an account. Create one to keep your team on every device, invite people with a link, attach files and post comments as you.</p>
-      <div class="dlg-acts" style="justify-content:flex-start"><button type="button" class="btn dark" data-auth-open="register">Create account</button><button type="button" class="btn" data-auth-open="login">Log in</button></div>`;
+    :'';
   if(page==='schedule'){const f=$('#fSched'),[ss,se]=sleepOf(m);setTz(f.tz,m.tz);f.start.value=hhmm(m.start);f.end.value=hhmm(m.end);f.start2.value=m.start2!=null?hhmm(m.start2):'';f.end2.value=m.end2!=null?hhmm(m.end2):'';f.weekends.checked=!!m.weekends;f.sleepStart.value=hhmm(ss);f.sleepEnd.value=hhmm(se)}
   $$('#clockSeg button').forEach(b=>b.classList.toggle('on',(b.dataset.clock==='12')===!!S.hour12));
   $$('#wsSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.ws===(S.weekStart??1)));
@@ -615,11 +613,9 @@ function renderSettings(page){
   $('#prefDur').value=String(UI.dur);
   $('#setTeam').innerHTML=`<h2>Team</h2><p class="hint">Switch between teams, rename the one you are in, or start another.</p>
     ${S.teams.map(t=>`<div class="teamrow${t.id===T.id?' on':''}"><b>${esc(t.name)}${t.id===T.id?' <span class="cur">current</span>':''}</b><small style="color:var(--ink-3)">${t.members.length} ${t.members.length===1?'person':'people'}${t.cloud?'':' · this device'}</small>${t.id===T.id?'':`<button type="button" class="btn sm" data-switch="${t.id}">Switch</button>`}</div>`).join('')}
-    <div class="dlg-acts" style="justify-content:flex-start;margin-top:14px"><button type="button" class="btn" id="stNew">New team</button><button type="button" class="btn" id="stInvite">Invite link</button><button type="button" class="btn" id="stAdd">Add a person</button></div>
-    <h3>Sample data</h3><p class="hint">${T.sample?'This team has sample people in it.':'Load a full demo team to see availability, invites, threads and tasks in action.'}</p>
-    <div class="dlg-acts" style="justify-content:flex-start">${S.teams.some(t=>t.demo)?'':'<button type="button" class="btn" id="stDemo">Load the demo team</button>'}${T.sample?'<button type="button" class="btn ghost danger" id="stClear">Remove sample people</button>':''}</div>`;
+    <div class="dlg-acts" style="justify-content:flex-start;margin-top:14px"><button type="button" class="btn" id="stNew">New team</button><button type="button" class="btn" id="stInvite">Invite link</button><button type="button" class="btn" id="stAdd">Add a person</button></div>`;
   if(typeof renderClaude==='function') renderClaude();
-  $('#integList').innerHTML=[['google','Google Calendar','G'],['outlook','Outlook Calendar','O'],['slack','Slack','S']].map(([k,n,l])=>`<div class="integ"><div class="ico">${l}</div><div><b>${n}</b><small>${S.integ[k]?'Connected. Sample meetings show on your row.':'Show your meetings, not just when you are online.'}</small></div><button type="button" class="btn sm ${S.integ[k]?'':'dark'}" data-integ="${k}">${S.integ[k]?'Disconnect':'Connect'}</button></div>`).join('');
+  $('#integList').innerHTML=[['google','Google Calendar','G'],['outlook','Outlook Calendar','O'],['slack','Slack','S']].map(([k,n,l])=>`<div class="integ"><div class="ico">${l}</div><div><b>${n}</b><small>${k==='slack'?'Get invites and mentions in Slack.':'Show your real meetings on your row.'}</small></div><span class="soon">Coming soon</span></div>`).join('');
 }
 $('#setNav').addEventListener('click',e=>{const b=e.target.closest('[data-page]');if(b) renderSettings(b.dataset.page)});
 $('#dSettings').addEventListener('click',async e=>{
@@ -635,9 +631,6 @@ $('#dSettings').addEventListener('click',async e=>{
   if(c('#stNew')){if(typeof gate==='function'&&gate('team')) return;$('#fTeam').reset();$('#dTeam').showModal();return}
   if(c('#stInvite')){$('#dSettings').close();openInvite();return}
   if(c('#stAdd')){$('#dSettings').close();openMember(null);return}
-  if(c('#stDemo')){buildDemo();UI.filter=new Set();$('#dSettings').close();gotoDay(today());toast('Demo team loaded. Your own team is still under Settings › Team.');return}
-  if(c('#stClear')){if(await confirmDlg('Remove the sample people?','Everyone except you leaves this team, along with their meetings and the tasks on them.')){const undo=snapshot();clearSample();render();renderSettings();toast('Sample people removed',undo)}return}
-  if(b=c('[data-integ]')){const k=b.dataset.integ;S.integ[k]=!S.integ[k];me().cal=!!(S.integ.google||S.integ.outlook);save();render();renderSettings();toast(S.integ[k]?'Connected':'Disconnected');return}
   if(b=c('[data-auth-open]')){$('#dSettings').close();openAuth(b.dataset.authOpen);return}
 });
 $('#dSettings').addEventListener('submit',async e=>{
@@ -664,7 +657,7 @@ function openMember(id){
   editing=id;const f=$('#fMember'),m=id&&findM(id),k=m&&kindOf(m),locked=k==='joined'||(m&&team().cloud&&!m.isMe&&m.addedBy&&CLOUD.user&&m.addedBy!==CLOUD.user.id);
   $('#mTitle').textContent=m?m.name:'Add a person';$('#mSave').textContent=m?'Save changes':'Add person';$('#mDelete').hidden=!m||m.isMe;$('#mMailRow').hidden=!!m;
   const note=$('#mNote');note.hidden=!m||!locked;if(m&&locked) note.textContent=k==='joined'?`${first(m.name)} joined with their own account and keeps their own schedule. You can still remove them from the team.`:`${first(m.name)} was added by a teammate, so only they can change these details.`;
-  f.reset();if(m){f.name.value=m.name;f.email.value=m.email||'';setTz(f.tz,m.tz);f.start.value=hhmm(m.start);f.end.value=hhmm(m.end);f.start2.value=m.start2!=null?hhmm(m.start2):'';f.end2.value=m.end2!=null?hhmm(m.end2):'';const [ss,se]=sleepOf(m);f.sleepStart.value=hhmm(ss);f.sleepEnd.value=hhmm(se);f.weekends.checked=!!m.weekends;f.cal.checked=!!m.cal;f.photo.value=m.photo||''}
+  f.reset();if(m){f.name.value=m.name;f.email.value=m.email||'';setTz(f.tz,m.tz);f.start.value=hhmm(m.start);f.end.value=hhmm(m.end);f.start2.value=m.start2!=null?hhmm(m.start2):'';f.end2.value=m.end2!=null?hhmm(m.end2):'';const [ss,se]=sleepOf(m);f.sleepStart.value=hhmm(ss);f.sleepEnd.value=hhmm(se);f.weekends.checked=!!m.weekends;f.photo.value=m.photo||''}
   else setTz(f.tz,'');
   for(const el of f.elements) if(el.type!=='button'&&el.type!=='submit') el.disabled=!!locked;$('#mSave').hidden=!!locked;
   $('#dMember').showModal();setTimeout(()=>f.name.focus(),50);
@@ -673,7 +666,7 @@ $('#fMember').addEventListener('submit',e=>{
   const f=e.target;
   if(!validTz(f.tz.value)){e.preventDefault();f.tz.setCustomValidity('We could not find that place. Try a city, a country, or a code like CET.');f.tz.reportValidity();return}
   f.tz.setCustomValidity('');
-  const two=f.start2.value&&f.end2.value,data={name:f.name.value.trim(),email:f.email.value.trim(),tz:f.tz.value,start:toH(f.start.value),end:toH(f.end.value),cal:f.cal.checked,sleepStart:toH(f.sleepStart.value),sleepEnd:toH(f.sleepEnd.value),start2:two?toH(f.start2.value):null,end2:two?toH(f.end2.value):null,weekends:f.weekends.checked,photo:f.photo.value.trim()};
+  const two=f.start2.value&&f.end2.value,data={name:f.name.value.trim(),email:f.email.value.trim(),tz:f.tz.value,start:toH(f.start.value),end:toH(f.end.value),sleepStart:toH(f.sleepStart.value),sleepEnd:toH(f.sleepEnd.value),start2:two?toH(f.start2.value):null,end2:two?toH(f.end2.value):null,weekends:f.weekends.checked,photo:f.photo.value.trim()};
   const T=team();
   if(editing){const z=findM(editing);if(!z||kindOf(z)==='joined') return;Object.assign(z,data);toast('Changes saved')}
   else{
@@ -740,11 +733,8 @@ $('#dMember').addEventListener('close',()=>{editing=null});
 UI.day=today();
 if(!document.documentElement.dataset.theme) document.documentElement.dataset.theme='light';
 {let v=null;try{v=localStorage.getItem('noon.view')}catch(e){}setView(SHARE?'projects':['calendar','team','tasks','projects'].includes(v)?v:'calendar',true)}
-// address hooks, handy for demos and screenshots: ?demo=1 loads the demo team, ?view=team|tasks|projects|calendar, ?cal=week|month|day
+// address hooks, handy for screenshots: ?view=team|tasks|projects|calendar, ?cal=week|month|day
 {const q=new URLSearchParams(location.search);
-  if(SHARE) q.delete('demo');
-  if(q.get('demo')&&!S.teams.some(t=>t.demo)) buildDemo();
-  if(q.get('demo')){const t=S.teams.find(t=>t.demo);if(t) S.active=t.id}
   if(!SHARE&&['calendar','team','tasks','projects'].includes(q.get('view'))) setView(q.get('view'),true);
   if(['week','month','day'].includes(q.get('cal'))) UI.cal=q.get('cal');
   window.__hook=q;}
@@ -754,7 +744,7 @@ else if(J){window.__join=J;$('#joinTitle').textContent='Join '+J.n;setTz($('#fJo
 render();scrollToDay();
 addEventListener('load',()=>{const q=window.__hook;if(q){ // more hooks for screenshots, run once every module is in: ?pop=first|new opens the event panel, ?task=first opens a task, ?inbox=1 the inbox
   if(q.get('pop')==='first'){const x=itemsOn(me(),today()).find(x=>x[3]);if(x) openEvent(x[3],x[0])}
-  if(q.get('pop')==='new'){const s=dayStart(today())+10*HR;openDraft({s,e:s+UI.dur*MIN,title:'Design sync',loc:'',kind:'meet',who:new Set(team().members.map(z=>z.id))})}
+  if(q.get('pop')==='new'){const s=dayStart(today())+10*HR;openDraft({s,e:s+UI.dur*MIN,title:'',loc:'',kind:'meet',who:new Set(team().members.map(z=>z.id))})}
   if(q.get('task')==='first'){const t=tasksOf(team()).find(t=>!t.done);if(t) openTask(t.id)}
   if(q.get('inbox')) openInbox(true);
   if(q.get('theme')) setTheme(q.get('theme'),true);

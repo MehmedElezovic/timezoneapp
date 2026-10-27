@@ -6,7 +6,7 @@
 <title>Noon</title>
 <meta name="description" content="Noon. Find the hour your whole team shares: calendar, team availability across timezones, tasks, and pages to review together.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='4' width='18' height='17' rx='5' fill='%23b79cf0'/%3E%3Crect x='3' y='9' width='18' height='1.6' fill='%231b1b1d'/%3E%3C/svg%3E">
-<script>try{var t=localStorage.getItem('noon.theme');if(t) document.documentElement.dataset.theme=t}catch(e){}</script>
+<script>var d=document.documentElement;try{var t=localStorage.getItem('noon.theme');if(t) d.dataset.theme=t;if(localStorage.getItem('sb-boielhshrswqdqkxiupz-auth-token')) d.dataset.auth='in'}catch(e){}if(!d.dataset.auth&&!/[?&]share=/.test(location.search)) d.dataset.auth='wait'</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -14,6 +14,58 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
+<!-- Signed out: log in or create an account. Signed in for the first time: a short setup. -->
+<div class="gate" id="gate">
+  <aside class="gate-side">
+    <div class="gate-brand"><span class="gate-logo"><svg width="16" height="16" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="5" fill="#b79cf0"/><rect x="3" y="9" width="18" height="1.6" fill="#1b1b1d"/></svg></span>Noon</div>
+    <div class="gate-body" id="gateAuth">
+      <h1 id="gateTitle">Welcome back</h1>
+      <p class="gate-sub" id="gateSub"></p>
+      <p class="note" id="authWhy" hidden></p>
+      <button type="button" class="btn gate-google" id="btnGoogle"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Continue with Google</span></button>
+      <div class="gate-or">or with email</div>
+      <form id="fLogin" autocomplete="on">
+        <label class="lbl">Email <input name="email" type="email" required autocomplete="email"></label>
+        <label class="lbl">Password <input name="pass" type="password" required autocomplete="current-password"></label>
+        <p class="err" id="logErr" hidden></p>
+        <button type="submit" class="btn dark full">Log in</button>
+        <button type="button" class="btn ghost full" id="btnMagic">Email me a sign-in link instead</button>
+      </form>
+      <form id="fRegister" autocomplete="on" hidden>
+        <label class="lbl">Your name <input name="name" required maxlength="60" autocomplete="name"></label>
+        <label class="lbl">Email <input name="email" type="email" required autocomplete="email"></label>
+        <label class="lbl">Password <small>8 characters or more</small><input name="pass" type="password" required minlength="8" autocomplete="new-password"></label>
+        <p class="err" id="regErr" hidden></p>
+        <button type="submit" class="btn dark full">Create account</button>
+      </form>
+      <p class="gate-switch" id="gateSwitch"></p>
+    </div>
+    <div class="gate-body" id="gateOnb"></div>
+  </aside>
+  <div class="gate-art" aria-hidden="true">
+    <svg viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <radialGradient id="gaGlow"><stop offset="0" stop-color="#b79cf0" stop-opacity=".42"/><stop offset=".55" stop-color="#7e60d6" stop-opacity=".12"/><stop offset="1" stop-color="#7e60d6" stop-opacity="0"/></radialGradient>
+        <radialGradient id="gaMint"><stop offset="0" stop-color="#48ba82" stop-opacity=".26"/><stop offset="1" stop-color="#48ba82" stop-opacity="0"/></radialGradient>
+        <radialGradient id="gaWarm"><stop offset="0" stop-color="#f6b35b" stop-opacity=".22"/><stop offset="1" stop-color="#f6b35b" stop-opacity="0"/></radialGradient>
+        <radialGradient id="gaSun"><stop offset="0" stop-color="#fff1cc"/><stop offset=".35" stop-color="#fcd98c"/><stop offset=".7" stop-color="#f6b35b" stop-opacity=".35"/><stop offset="1" stop-color="#f6b35b" stop-opacity="0"/></radialGradient>
+      </defs>
+      <circle cx="500" cy="500" r="560" fill="url(#gaGlow)"/>
+      <circle cx="800" cy="210" r="340" fill="url(#gaMint)"/>
+      <circle cx="210" cy="820" r="360" fill="url(#gaWarm)"/>
+      <g fill="none" stroke="rgba(255,255,255,.075)" stroke-width="1.5"><circle cx="500" cy="500" r="130"/><circle cx="500" cy="500" r="210"/><circle cx="500" cy="500" r="290"/><circle cx="500" cy="500" r="370"/></g>
+      <g class="ga-ticks" stroke="rgba(255,255,255,.22)" stroke-width="2" stroke-linecap="round"><line x1="500.0" y1="70.0" x2="500.0" y2="44.0" class="lg"/><line x1="613.9" y1="75.0" x2="617.0" y2="63.4"/><line x1="720.0" y1="118.9" x2="726.0" y2="108.6"/><line x1="811.1" y1="188.9" x2="819.6" y2="180.4"/><line x1="881.1" y1="280.0" x2="891.4" y2="274.0"/><line x1="925.0" y1="386.1" x2="936.6" y2="383.0"/><line x1="930.0" y1="500.0" x2="956.0" y2="500.0" class="lg"/><line x1="925.0" y1="613.9" x2="936.6" y2="617.0"/><line x1="881.1" y1="720.0" x2="891.4" y2="726.0"/><line x1="811.1" y1="811.1" x2="819.6" y2="819.6"/><line x1="720.0" y1="881.1" x2="726.0" y2="891.4"/><line x1="613.9" y1="925.0" x2="617.0" y2="936.6"/><line x1="500.0" y1="930.0" x2="500.0" y2="956.0" class="lg"/><line x1="386.1" y1="925.0" x2="383.0" y2="936.6"/><line x1="280.0" y1="881.1" x2="274.0" y2="891.4"/><line x1="188.9" y1="811.1" x2="180.4" y2="819.6"/><line x1="118.9" y1="720.0" x2="108.6" y2="726.0"/><line x1="75.0" y1="613.9" x2="63.4" y2="617.0"/><line x1="70.0" y1="500.0" x2="44.0" y2="500.0" class="lg"/><line x1="75.0" y1="386.1" x2="63.4" y2="383.0"/><line x1="118.9" y1="280.0" x2="108.6" y2="274.0"/><line x1="188.9" y1="188.9" x2="180.4" y2="180.4"/><line x1="280.0" y1="118.9" x2="274.0" y2="108.6"/><line x1="386.1" y1="75.0" x2="383.0" y2="63.4"/></g>
+      <g fill="none" stroke-width="10" stroke-linecap="round">
+        <g class="ga-spin" style="--d:46s"><circle cx="500" cy="500" r="130" pathLength="100" stroke="#fcd98c" stroke-dasharray="22 78" stroke-dashoffset="-8"/><circle cx="613.9" cy="562.6" r="7" fill="#fcd98c" stroke="none"/></g>
+        <g class="ga-spin rev" style="--d:78s"><circle cx="500" cy="500" r="210" pathLength="100" stroke="#b7f0cb" stroke-dasharray="30 70" stroke-dashoffset="-30"/><circle cx="500" cy="500" r="210" pathLength="100" stroke="#bcdcfb" stroke-dasharray="12 88" stroke-dashoffset="-72"/><circle cx="435.1" cy="699.7" r="7" fill="#b7f0cb" stroke="none"/><circle cx="460.6" cy="293.7" r="7" fill="#bcdcfb" stroke="none"/></g>
+        <g class="ga-spin" style="--d:112s"><circle cx="500" cy="500" r="290" pathLength="100" stroke="#c7b0f4" stroke-dasharray="18 82" stroke-dashoffset="-55"/><circle cx="224.2" cy="410.4" r="7" fill="#c7b0f4" stroke="none"/></g>
+        <g class="ga-spin rev" style="--d:150s"><circle cx="500" cy="500" r="370" pathLength="100" stroke="#f8b4dc" stroke-dasharray="13 87" stroke-dashoffset="-12"/><circle cx="500" cy="500" r="370" pathLength="100" stroke="#b7f0cb" stroke-dasharray="8 92" stroke-dashoffset="-48"/><circle cx="769.7" cy="753.3" r="7" fill="#f8b4dc" stroke="none"/><circle cx="132.9" cy="546.4" r="7" fill="#b7f0cb" stroke="none"/></g>
+      </g>
+      <g class="ga-sun"><circle cx="500" cy="500" r="96" fill="url(#gaSun)"/><circle cx="500" cy="500" r="30" fill="#fff4d6"/></g>
+    </svg>
+  </div>
+</div>
+
 <div class="app" id="app">
   <aside class="side" id="side">
     <div class="card profile" id="profileCard"></div>
@@ -138,7 +190,6 @@
     <label class="lbl">Photo URL <small>optional</small><input name="photo" type="url" placeholder="https://…"></label>
     <div class="checks">
       <label class="ck"><input type="checkbox" name="weekends"><span></span>Works weekends</label>
-      <label class="ck"><input type="checkbox" name="cal"><span></span>Show sample calendar meetings</label>
       <label class="ck" id="mMailRow"><input type="checkbox" name="mail" checked><span></span>Email an invite</label>
     </div>
     <div class="dlg-acts"><button type="button" class="btn ghost danger" id="mDelete" hidden>Remove from team</button><span class="sp"></span><button type="button" class="btn ghost" data-close>Cancel</button><button type="submit" class="btn dark" id="mSave">Add person</button></div>
@@ -180,32 +231,11 @@
       <section data-page="team" hidden id="setTeam"></section>
       <section data-page="claude" hidden id="setClaude"></section>
       <section data-page="integ" hidden>
-        <h2>Integrations</h2><p class="hint">Connect a calendar so your real meetings show on your row. Connections are sample data in this build.</p>
+        <h2>Integrations</h2><p class="hint">Calendar and Slack connections are on the way. Until then, meetings you book in Noon show on everyone's row.</p>
         <div id="integList"></div>
       </section>
     </div>
   </div>
-</dialog>
-
-<!-- Account -->
-<dialog id="dAuth" class="dlg">
-  <button type="button" class="xbtn dlg-x" data-close aria-label="Close">×</button>
-  <div class="dlg-head"><h2>Your account</h2></div>
-  <p class="note" id="authWhy" hidden></p>
-  <div class="seg full" role="tablist"><button data-auth="register" role="tab">Create account</button><button data-auth="login" role="tab">Log in</button></div>
-  <form id="fRegister" autocomplete="on">
-    <label class="lbl">Your name <input name="name" required maxlength="60" autocomplete="name"></label>
-    <label class="lbl">Email <input name="email" type="email" required autocomplete="email"></label>
-    <label class="lbl">Password <input name="pass" type="password" required minlength="8" autocomplete="new-password"></label>
-    <p class="err" id="regErr" hidden></p>
-    <div class="dlg-acts"><button type="submit" class="btn dark full">Create account</button></div>
-  </form>
-  <form id="fLogin" autocomplete="on" hidden>
-    <label class="lbl">Email <input name="email" type="email" required autocomplete="email"></label>
-    <label class="lbl">Password <input name="pass" type="password" required autocomplete="current-password"></label>
-    <p class="err" id="logErr" hidden></p>
-    <div class="dlg-acts col"><button type="submit" class="btn dark full">Log in</button><button type="button" class="btn ghost full" id="btnMagic">Email me a sign-in link instead</button></div>
-  </form>
 </dialog>
 
 <!-- Invite -->
@@ -288,6 +318,7 @@
 <script src="js/app.js"></script>
 <script src="js/projects.js"></script>
 <script src="js/sync.js"></script>
+<script src="js/welcome.js"></script>
 <script src="js/share.js"></script>
 <script src="js/connector.js"></script>
 </body>

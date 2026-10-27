@@ -27,7 +27,7 @@ function renderClaude(){
       <div class="copyrow"><input readonly value="${esc(clUrl(k))}" aria-label="Connector address"><button type="button" class="btn" data-cl-copy="url">Copy</button></div></div>`:'')
     +`<h3>Keys</h3>${CL.keys===null?'<p class="hint">Loading…</p>':keys.length?keys.map(x=>`<div class="integ"><div class="ico">${I.link||'K'}</div><div><b>${esc(x.name)} · ends in ${esc(x.hint||'????')}</b><small>Made ${esc(agoLabel(msOf(x.created_at)))} · ${x.last_used_at?`last used ${esc(agoLabel(msOf(x.last_used_at)))}`:'not used yet'}</small></div><button type="button" class="btn sm ghost danger" data-cl-del="${x.id}">Remove</button></div>`).join(''):'<p class="hint">No keys yet.</p>'}
     <div class="dlg-acts" style="justify-content:flex-start"><button type="button" class="btn dark" id="clNew">${keys.length?'Make another key':'Make a key'}</button></div>
-    <h3>Then ask Claude</h3><p class="hint">“Apply the open comments on Lumen launch in Noon and upload it as the next version.” Claude finds the project by its name. You can also paste a project's link: the link button in the project's header copies it.</p>`;
+    <h3>Then ask Claude</h3><p class="hint">“Apply the open comments on my project in Noon and upload it as the next version”, with your project's name in it. Claude finds the project by its name. You can also paste a project's link: the link button in the project's header copies it.</p>`;
 }
 $('#dSettings').addEventListener('click',async e=>{
   const c=s=>e.target.closest(s);let b;

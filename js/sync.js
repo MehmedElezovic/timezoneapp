@@ -6,15 +6,23 @@ const AUTH={why:null};
 SYNC_ON=true;
 const CLOUD={user:null,profile:null,last:{},evThread:{},tkThread:{},metaKeys:new Set(),busy:false,dirty:false,pushing:false,pushAgain:false,chan:null,pullT:0,pushT:0,ready:false};
 const user=()=>CLOUD.user?{name:(CLOUD.profile&&CLOUD.profile.name)||(CLOUD.user.user_metadata||{}).name||(CLOUD.user.email||'').split('@')[0],email:CLOUD.user.email}:null;
-const GATE={share:['Share with a client','A client link puts the project online, so it needs your account.'],claude:['Connect Claude','Claude works in your projects as you, so it needs your account.'],files:['Attach files','Files are kept in your account, so everyone on the task can open them.'],book:['Book a time','Booking sends an invite under your name, so Noon needs to know who you are.'],comment:['Join the thread','Comments and reactions are posted as you.'],invite:['Invite people','Invites go out from your account, and people join your team.'],integ:['Connect a calendar','Calendar connections are tied to an account.'],team:['Another team','Extra teams are saved to your account.'],request:['Answer a request','Answers are sent as you.'],save:['Keep this on every device','Your team, timezones and threads are saved to your account.'],join:['Join the team','Sign in, or create an account, to take your seat in this team.']};
+const GATE={share:['Share with a client','A client link puts the project online, so it needs your account.'],claude:['Connect Claude','Claude works in your projects as you, so it needs your account.'],files:['Attach files','Files are kept in your account, so everyone on the task can open them.'],book:['Book a time','Booking sends an invite under your name, so Noon needs to know who you are.'],comment:['Join the thread','Comments and reactions are posted as you.'],invite:['Invite people','Invites go out from your account, and people join your team.'],integ:['Connect a calendar','Calendar connections are tied to an account.'],team:['Another team','Extra teams are saved to your account.'],request:['Answer a request','Answers are sent as you.'],save:['Keep this on every device','Your team, timezones and threads are saved to your account.'],join:['Join the team','Log in, or create an account, to take your seat in this team.']};
+const setAuthState=k=>{if(!SHARE) document.documentElement.dataset.auth=k};
+// teams kept on this device that hold real work move to the account; an empty starter team does not
+const hasWork=t=>t.members.length>1||!!(t.tasks||[]).length||!!(t.projects||[]).length||t.members.some(m=>(m.events||[]).length||(m.threads||[]).length);
 function gate(k){if(user()) return false;openAuth('register',k);return true}
-function authTab(kind){$$('[data-auth]').forEach(b=>b.setAttribute('aria-selected',b.dataset.auth===kind));$('#fRegister').hidden=kind!=='register';$('#fLogin').hidden=kind!=='login';say('#regErr','');say('#logErr','')}
+function authTab(kind){
+  const reg=kind==='register';$('#fRegister').hidden=!reg;$('#fLogin').hidden=reg;
+  $('#gateTitle').textContent=reg?'Create your account':'Welcome back';
+  $('#gateSub').textContent=reg?'Noon shows when everyone on your team is around, in your own time. Setup takes a minute.':'Log in to your team, calendar, tasks and projects.';
+  $('#gateSwitch').innerHTML=reg?'Already have an account? <button type="button" data-auth="login">Log in</button>':'New to Noon? <button type="button" data-auth="register">Create an account</button>';
+  say('#regErr','');say('#logErr','');
+}
 function openAuth(kind,why){
   AUTH.why=why||null;const w=$('#authWhy');
-  if(why&&GATE[why]){w.hidden=false;w.innerHTML=`<b>${GATE[why][0]}.</b> ${GATE[why][1]} <span>Everything about timezones keeps working without one.</span>`}else w.hidden=true;
-  const m=me(),fr=$('#fRegister');if(!fr.name.value&&m.name&&m.name!=='You') fr.name.value=m.name;
-  authTab(kind||'register');const d=$('#dAuth');if(!d.open) d.showModal();
-  setTimeout(()=>{const i=$(kind==='login'?'#fLogin':'#fRegister').querySelector('input');if(i) i.focus()},60);
+  if(why&&GATE[why]){w.hidden=false;w.innerHTML=`<b>${GATE[why][0]}.</b> ${GATE[why][1]}`}else w.hidden=true;
+  authTab(kind||'login');if(!CLOUD.user) setAuthState('out');
+  if(innerWidth>860) setTimeout(()=>{const i=$(kind==='register'?'#fRegister':'#fLogin').querySelector('input');if(i) i.focus()},60);
 }
 const siteUrl=()=>location.origin+location.pathname;
 const authMsg=e=>{const m=(e&&e.message)||String(e);return /invalid login credentials/i.test(m)?'Wrong email or password.':/not confirmed/i.test(m)?'Confirm your email first: the link is in your inbox.':/rate limit/i.test(m)?'Too many emails sent for now. Try again in a little while.':/already registered/i.test(m)?'That email already has an account. Log in instead.':m};
@@ -42,7 +50,16 @@ $('#btnMagic').onclick=async()=>{
   if(error){say('#logErr',authMsg(error));return}
   say('#logErr',`Sent. Open the link we emailed to ${email} and you are in.`,true);
 };
-$('#dAuth').addEventListener('close',()=>{AUTH.why=null;say('#regErr','');say('#logErr','')});
+// Google needs switching on in Supabase (Authentication › Providers); until then the button says so
+AUTH.gp=SHARE?null:fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(j=>{AUTH.google=!!(j.external||{}).google}).catch(()=>{});
+$('#btnGoogle').onclick=async()=>{
+  const err=$('#fLogin').hidden?'#regErr':'#logErr',b=$('#btnGoogle');say(err,'');
+  if(!sb){say(err,'Accounts are not reachable right now. Check your connection and try again.');return}
+  if(AUTH.google===undefined&&AUTH.gp){b.disabled=true;await AUTH.gp;b.disabled=false}
+  if(AUTH.google===false){say(err,'Google sign-in is not switched on yet. Use your email for now.');return}
+  b.disabled=true;const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:siteUrl()}});
+  if(error){b.disabled=false;say(err,authMsg(error))}
+};
 
 /* ---------- account settings ---------- */
 const NOTIFY_DEFAULT={invites:true,mentions:true,replies:true,missed:true,weekly:false};
@@ -277,18 +294,21 @@ async function cloudStart(u){
   try{const {error}=await sb.from('events').select('location,kind').limit(1);CLOUD.evCols=!error}catch(e){CLOUD.evCols=false}
   try{const {error}=await sb.from('projects').select('id').limit(1);CLOUD.pjOn=!error}catch(e){CLOUD.pjOn=false} // the 2026-10-27 projects migration
   try{const {error}=await sb.from('version_comments').select('layer').limit(1);CLOUD.shareCols=CLOUD.pjOn&&!error}catch(e){CLOUD.shareCols=false} // client links, connector and comment layers
+  const fresh=document.documentElement.dataset.auth!=='in';
   await pull();
-  for(const T of S.teams.filter(t=>!t.cloud&&!t.sample&&!t.demo&&t.members.some(m=>m.isMe))){
+  try{const {data}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle();if(data) CLOUD.profile={...(CLOUD.profile||{}),...data}}catch(e){}
+  for(const T of S.teams.filter(t=>!t.cloud&&t.members.some(m=>m.isMe)&&hasWork(t))){
     try{await uploadTeam(T)}catch(e){console.warn('upload',e);toast('Could not move '+T.name+' to your account: '+((e&&e.message)||e))}
   }
   let code=null;try{code=sessionStorage.getItem('noon.join');sessionStorage.removeItem('noon.join')}catch(e){}
   if(code) await joinByCode(code);
-  if(!S.teams.some(t=>t.cloud)) await createCloudTeam('My team');
   if(!S.teams.find(t=>t.id===S.active)||!team().cloud){const c=S.teams.find(t=>t.cloud);if(c) S.active=c.id}
   listen();CLOUD.ready=true;await pull();
-  const why=AUTH.why;AUTH.why=null;if($('#dAuth').open) $('#dAuth').close();
-  save();UI.day=today();render();
-  toast(`Welcome, ${first(user().name)}.${why&&why!=='save'&&why!=='join'?' Go ahead and try that again.':''}`);
+  AUTH.why=null;if(S.teams.some(t=>t.cloud)) S.teams=S.teams.filter(t=>t.cloud||hasWork(t));
+  save();UI.day=today();
+  if(needsOnboarding()){startOnboarding();return}
+  setAuthState('in');render();
+  if(fresh) toast(`Welcome back, ${first(user().name)}.`);
 }
 function cloudStop(){
   if(CLOUD.chan){sb.removeChannel(CLOUD.chan);CLOUD.chan=null}
@@ -296,14 +316,16 @@ function cloudStop(){
   CLOUD.user=null;CLOUD.profile=null;CLOUD.ready=false;
   S.teams=S.teams.filter(t=>!t.cloud);
   if(!S.teams.length){const sd=seed();S.teams=sd.teams;S.active=sd.active}else if(!S.teams.find(t=>t.id===S.active)) S.active=S.teams[0].id;
-  save();UI.day=today();render();
+  $$('dialog[open]').forEach(d=>d.close());
+  save();UI.day=today();render();authTab('login');setAuthState('out');
 }
 if(sb&&!SHARE) sb.auth.onAuthStateChange((ev,session)=>{
   const u=session&&session.user;
   if(u){if(!CLOUD.user||CLOUD.user.id!==u.id) cloudStart(u);else CLOUD.user=u}
   else if(CLOUD.user){cloudStop();toast('Logged out. Your teams are safe in your account.')}
-  else renderSide();
+  else{renderSide();setAuthState('out')}
 });
+if(!SHARE){authTab('login');if(!sb){setAuthState('out');say('#logErr','Accounts are not reachable right now. Check your connection and reload.')}}
 function logout(){if(sb) sb.auth.signOut()}
 // a sign-in link that failed comes back with the reason in the address
 {const h=new URLSearchParams(location.hash.slice(1));if(h.get('error')||h.get('error_code')){const c=h.get('error_code')||'',msg=/expired/.test(c)?'That link has expired or was already used. Log in with your password, or ask for a new link.':(h.get('error_description')||'That sign-in link did not work.');history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>{if(!CLOUD.user){openAuth('login');say('#logErr',msg)}},700)}}

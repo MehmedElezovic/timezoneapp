@@ -66,12 +66,12 @@ function removeFiles(paths){if(paths.length&&cloudOn()) sb.storage.from(BUCKET).
 // after a local team moves to the account: every file that is not in the bucket yet goes up
 async function syncProjectFiles(T){
   if(!cloudOn()) return;
-  for(const p of projectsOf(T)) for(const v of versOf(p)){if(v.demo) continue;
+  for(const p of projectsOf(T)) for(const v of versOf(p)){
     if(!v.file){const b=await fdbGet(v.id);if(b) v.file=await putFile({...T,cloud:true},p.id,v.id,v.path,b,'text/html')}
     for(const a of v.assets) if(!a.file){const b=await fdbGet(a.id);if(b) a.file=await putFile({...T,cloud:true},p.id,v.id,a.path,b,a.type)}}
 }
 // blobs a version owns that no other version still points at
-function orphanFiles(p,v){const keep=new Set();for(const o of versOf(p)) if(o!==v) for(const a of o.assets) keep.add(a.id);const own=v.assets.filter(a=>!keep.has(a.id));return {ids:[...(v.demo?[]:[v.id]),...own.map(a=>a.id)],paths:[...(v.file?[v.file]:[]),...own.map(a=>a.file).filter(Boolean)]}}
+function orphanFiles(p,v){const keep=new Set();for(const o of versOf(p)) if(o!==v) for(const a of o.assets) keep.add(a.id);const own=v.assets.filter(a=>!keep.has(a.id));return {ids:[v.id,...own.map(a=>a.id)],paths:[...(v.file?[v.file]:[]),...own.map(a=>a.file).filter(Boolean)]}}
 
 /* ---------- paths and rewriting: relative images, styles and scripts resolve to the uploaded files ---------- */
 const dirOf=p=>p.includes('/')?p.slice(0,p.lastIndexOf('/')+1):'';
@@ -105,7 +105,7 @@ async function assetUrls(v){
 }
 async function pageHtml(v){
   if(PJ.html[v.id]) return PJ.html[v.id];
-  let raw=v.demo?demoPageHtml(v.demo):null;
+  let raw=null;
   if(raw==null){const b=await fileBlob(v.id,v.file);raw=b?await b.text():null}
   if(raw==null) return null;
   return PJ.html[v.id]=rewriteHtml(raw,dirOf(v.path),mkUrlOf(await assetUrls(v)));
@@ -188,7 +188,7 @@ async function makeZip(entries){
 }
 function dlBlob(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
 async function downloadVersion(p,v){
-  const html=v.demo?new Blob([demoPageHtml(v.demo)],{type:'text/html'}):await fileBlob(v.id,v.file);
+  const html=await fileBlob(v.id,v.file);
   if(!html){toast('The file for this version is not on this device');return}
   if(!v.assets.length){dlBlob(html,v.name);toast(`Downloading ${vLabel(v)} · ${v.name}`);return}
   toast('Packing the files…');
@@ -243,7 +243,7 @@ function renderProject(p){
   const card=v=>{const o=openIn(v,'team').length,co=openIn(v,'client').length,r=v.cm.filter(c=>c.status==='resolved').length,pv=prevVer(p,v),cur=v===cv;
     return `<div class="ver-card${cur?' cur':''}" role="button" tabindex="0" data-ver-open="${v.id}">${thumbHtml(v)}
       <div class="ver-body"><div class="ver-head"><span class="ver-n">${vLabel(v)}</span>${cur?'<span class="ver-cur">Current</span>':''}<b>${esc(v.name)}</b></div>
-        <small>${fmtSize(v.size||0)} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}${v.assets.length?` · ${plural(v.assets.length,'file')} alongside`:''}${cloudFiles(T)&&!v.file&&!v.demo?' · not in your account yet':''}</small>
+        <small>${fmtSize(v.size||0)} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}${v.assets.length?` · ${plural(v.assets.length,'file')} alongside`:''}${cloudFiles(T)&&!v.file?' · not in your account yet':''}</small>
         <span class="pg-cnt">${o?`<i class="o">${o} open</i>`:''}${co?`<i class="cl">${co} on the client link</i>`:''}${r?`<i>${r} resolved</i>`:''}${!o&&!r&&!co?'<i>No comments yet</i>':''}</span></div>
       <div class="ver-acts"><button type="button" class="btn sm dark" data-ver-open="${v.id}">Open</button>${pv?`<button type="button" class="btn sm" data-ver-cmp="${v.id}">${PI.cmp}Compare with ${vLabel(pv)}</button>`:''}<button type="button" class="btn sm" data-ver-dl="${v.id}" title="${v.assets.length?'Download as a zip with its files':'Download the HTML file'}">${PI.dl}Download</button><button type="button" class="tk-x" data-ver-del="${v.id}" aria-label="Delete version">${I.trash}</button></div></div>`};
   $('#vProj').innerHTML=`<header class="top"><button type="button" class="chev" id="pjBack" aria-label="All projects">${PI.back}</button><div class="ttl-wrap"><h1 class="editable" id="pjName" contenteditable="true" spellcheck="false" title="Click to rename">${esc(p.name)}</h1><span class="sub">${vs.length?`${plural(vs.length,'version')} · ${vLabel(cv)} is current`:'no versions yet'} · ${open?`${open} open ${open===1?'comment':'comments'}`:'nothing open'}</span></div>
@@ -486,7 +486,7 @@ $('#vProj').addEventListener('click',async e=>{
   if(c('#pvBack')){PV.ver=null;renderProjects();return}
   if(b=c('[data-proj-del]')){const q=projById(b.dataset.projDel);if(!q) return;const n=versOf(q).length;
     if(!await confirmDlg(`Delete ${q.name}?`,`${n?`Its ${plural(n,'version')} and every comment on them go too.`:'It has no versions yet.'} This cannot be undone.`,'Delete project')) return;
-    const ids=[],paths=[];for(const x of versOf(q)){dropUrls(x);if(!x.demo) ids.push(x.id);if(x.file) paths.push(x.file);for(const a of x.assets){ids.push(a.id);if(a.file) paths.push(a.file)}}
+    const ids=[],paths=[];for(const x of versOf(q)){dropUrls(x);ids.push(x.id);if(x.file) paths.push(x.file);for(const a of x.assets){ids.push(a.id);if(a.file) paths.push(a.file)}}
     T.projects=projectsOf(T).filter(x=>x!==q);if(PV.proj===q.id){PV.proj=null;PV.ver=null}save();render();fdbDel([...new Set(ids)]);removeFiles([...new Set(paths)]);toast('Project deleted');return}
   if((b=c('[data-ver-del]'))||c('#pvDel')){const id=b?b.dataset.verDel:null,q=id?verById(p,id):v;if(!q||!p) return;
     if(!await confirmDlg(`Delete ${vLabel(q)}?`,`${q.cm.length?`Its ${plural(q.cm.length,'comment')} go too. `:''}${q===curVer(p)&&prevVer(p,q)?`${vLabel(prevVer(p,q))} becomes the current version. `:''}This cannot be undone.`,'Delete version')) return;
@@ -551,42 +551,7 @@ $('#fProject').addEventListener('submit',e=>{const name=e.target.name.value.trim
 document.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.view!=='projects'||document.querySelector('dialog[open]')) return;if(e.target.matches&&e.target.matches('textarea,input,select,[contenteditable]')){e.target.blur();return}pvEscape()});
 addEventListener('resize',()=>{if(UI.view!=='projects') return;if(PV.ver) pvLayout();else fitThumbs()});
 
-/* ---------- the demo project: a landing page, a round of feedback on v1, and the v2 that answers most of it ---------- */
-function demoPageHtml(which){
-  const v2=which==='v2';
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lumen</title>
-<style>*{box-sizing:border-box}body{margin:0;font:16px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;color:#1d1d1f;background:#fff}
-.nav{display:flex;align-items:center;justify-content:space-between;padding:18px 6vw;max-width:1200px;margin:0 auto}.logo{font-weight:800;letter-spacing:-.02em;font-size:20px}.nav a{color:#1d1d1f;text-decoration:none;margin-left:22px;font-size:14px;font-weight:500}
-.hero{background:linear-gradient(135deg,#14131a,#2a2340 60%,#4a3b7a);color:#fff;padding:80px 6vw 90px;text-align:center}.hero h1{font-size:clamp(34px,6vw,62px);line-height:1.05;letter-spacing:-.03em;margin:0 auto 18px;max-width:840px}.hero p{font-size:19px;opacity:.8;max-width:560px;margin:0 auto 32px}
-.btn{display:inline-block;background:#111;color:#fff;padding:16px 30px;border-radius:14px;font-weight:700;text-decoration:none;font-size:16px}${v2?'.hero .btn{background:#b79cf0;color:#1c1230}':''}
-.lamp{width:150px;height:150px;margin:0 auto 30px;border-radius:50%;background:radial-gradient(circle at 50% 42%,#ffe9a8,#f7b64a 52%,rgba(247,182,74,0) 72%)}
-.feat{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:70px 6vw;max-width:1200px;margin:0 auto}.feat div{background:#f5f4fa;border-radius:20px;padding:28px}.feat h3{margin:0 0 8px;font-size:18px}.feat p{margin:0;color:#5a5a66;font-size:15px}.ico{width:40px;height:40px;border-radius:12px;background:#b79cf0;margin-bottom:18px}
-.plans{background:#f8f7fc;padding:70px 6vw}.plans h2{text-align:center;margin:0 0 36px;font-size:34px;letter-spacing:-.02em}.row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px;max-width:820px;margin:0 auto}
-.plan{background:#fff;border-radius:22px;padding:30px;box-shadow:0 10px 40px rgba(20,19,26,.08)}.plan.pro{box-shadow:0 0 0 2px #b79cf0,0 10px 40px rgba(20,19,26,.08)}.plan h3{margin:0;font-size:16px;color:#6b6b78;font-weight:600}.price{font-size:44px;font-weight:800;letter-spacing:-.03em;margin:8px 0 16px}.price small{font-size:15px;font-weight:500;color:#6b6b78}
-.plan ul{padding-left:18px;margin:0 0 22px;color:#5a5a66;font-size:15px;line-height:1.9}.plan .btn{display:block;text-align:center}.plan.pro .btn{background:#b79cf0;color:#1c1230}
-footer{padding:40px 6vw;display:flex;justify-content:space-between;align-items:center;max-width:1200px;margin:0 auto;color:#6b6b78;font-size:14px;flex-wrap:wrap;gap:12px}footer a{color:#6b6b78;text-decoration:none;margin-left:18px}
-@media (max-width:760px){.feat,.row{grid-template-columns:1fr}.hero{padding:56px 6vw 64px}.nav a{margin-left:14px}}</style></head>
-<body><nav class="nav"><span class="logo">Lumen</span><span><a href="#features">Features</a><a href="#plans">Plans</a><a href="#plans">Pre-order</a></span></nav>
-<section class="hero"><div class="lamp"></div>${v2?'<h1 id="hero-title">The desk lamp that follows the sun</h1><p>For the people who work late: Lumen shifts from cool daylight to warm amber as your evening goes on, so your eyes never notice the hours.</p>':'<h1 id="hero-title">The desk lamp that follows the sun, for the people who work late</h1><p>Lumen shifts from cool daylight to warm amber as your evening goes on, so your eyes never notice the hours.</p>'}<a class="btn" id="cta" href="#plans">Pre-order for $89</a></section>
-<section class="feat" id="features"><div><div class="ico"></div><h3>Follows the sun</h3><p>Colour temperature tracks sunrise and sunset where you are. No app needed, it just knows.</p></div><div><div class="ico"></div><h3>One touch</h3><p>Tap the base for three brightness levels. Hold it to pause the sun for an hour.</p></div><div><div class="ico"></div><h3>Built to stay</h3><p>Machined aluminium, a braided cord and a ten year warranty on the light itself.</p></div></section>
-<section class="plans" id="plans"><h2>Pick a plan</h2><div class="row"><div class="plan" id="plan-solo"><h3>Solo</h3><div class="price">$89</div><ul><li>One Lumen lamp</li><li>Free shipping</li><li>Ten year warranty</li></ul><a class="btn" href="#">Pre-order</a></div><div class="plan pro" id="plan-pro"><h3>Team</h3><div class="price">$79 <small>${v2?'per lamp, from three lamps':'per lamp'}</small></div><ul><li>Three lamps or more</li><li>Shared sunrise schedule</li><li>Priority support</li></ul><a class="btn" href="#">Talk to us</a></div></div></section>
-<footer><span>© 2026 Lumen Labs</span><span id="footer-links"><a href="#">Shipping</a><a href="#">Returns</a><a href="#">Privacy</a></span></footer></body></html>`}
-function demoProject(T){
-  if(projectsOf(T).some(p=>p.demo)) return;
-  const by=n=>T.members.find(m=>first(m.name)===n)||me(),A=by('Amara'),J=by('Jonas'),So=by('Sofia'),Me=me(),now=Date.now();
-  const cm=(n,sel,rx,ry,dev,z,text,ago,o={})=>({id:uid(),n,sel,rx,ry,px:0,py:0,dev,text,by:z.isMe?'You':first(z.name),byId:z.id,at:now-ago*MIN,status:o.status||'open',re:(o.re||[]).map(([q,t,g])=>({id:uid(),by:q.isMe?'You':first(q.name),byId:q.id,text:t,at:now-g*MIN}))});
-  const v1={id:uid(),n:1,name:'index.html',path:'lumen/index.html',demo:'v1',size:6140,at:now-26*HR,by:Me.id,assets:[],cm:[
-    cm(1,'#hero-title',.5,.5,'phone',A,'The headline wraps to four lines on phones. Can "for the people who work late" become the subline?',24*60,{re:[[Me,'Good call, trying a two-line version.',23*60]]}),
-    cm(2,'#cta',.5,.5,'desktop',J,'Make this lavender like the plan buttons. Black on the dark hero disappears.',22*60),
-    cm(3,'#plan-pro>.price',.6,.5,'tablet',So,'Is $79 only from three lamps? Say so next to the price, people will ask.',20*60,{re:[[Me,'@Sofia yes, minimum three. Adding it.',19*60],[So,'Thanks!',18*60]]}),
-    cm(4,'#footer-links',.2,.5,'desktop',A,'Privacy link is missing.',25*60,{status:'resolved',re:[[Me,'Added.',24*60+30]]}),
-    cm(5,'.feat>div:nth-of-type(2)>p',.5,.5,'desktop',J,'"Hold it to pause the sun" needs a tiny icon next to it.',21*60)]};
-  const v2={id:uid(),n:2,name:'index.html',path:'lumen/index.html',demo:'v2',size:6210,at:now-50*MIN,by:Me.id,assets:[],cm:[]};
-  projectsOf(T).push({id:uid(),name:'Lumen launch',demo:true,at:now-16*MIN,by:Me.id,who:So.id,due:shiftDay(today(),4),to:[Me.id,A.id],versions:[v1,v2]});
-}
-{const _bd=buildDemo;buildDemo=function(){_bd();demoProject(team());save()}}
 upgradeProjects();
-if(team().demo){demoProject(team());save()}
 if(UI.view==='projects') renderProjects();
 // address hooks for screenshots: ?proj=first opens the first project, &ver=first|last a version in the viewer, &mode=compare the side-by-side
 {const q=new URLSearchParams(location.search),id=q.get('proj');if(!SHARE&&id&&/^[0-9a-f-]{36}$/i.test(id)){PJ.want={id:id.toLowerCase(),n:+(q.get('ver')||'').replace(/^v/i,'')||null};setView('projects',true);render()}}
