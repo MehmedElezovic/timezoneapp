@@ -2,6 +2,7 @@
 
 /* ---------- icons ---------- */
 const I={
+  pen:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>',
   cal:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="16" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   cal16:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="16" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
   team:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.5a5 5 0 0 1 6 4.5"/></svg>',
@@ -108,7 +109,6 @@ function renderNext(){
 
 /* ---------- calendar ---------- */
 const colorOf=x=>x[5]?'pend':!x[3]?'cal':evColor(x[2],x[8]);
-const LANE=40,CHIP=34;
 const narrowCal=()=>innerWidth<=860;
 const durLabel=ms=>{const m=Math.round(ms/MIN);return m<60?m+' min':m%60?`${Math.floor(m/60)} h ${m%60} min`:`${m/60} h`};
 function calDays(){return UI.cal==='day'?[UI.day]:weekDays(UI.day)}
@@ -122,23 +122,10 @@ function dayItems(d){
   out.sort((p,q)=>p.s-q.s||q.e-p.e);
   return out;
 }
-// the hours on screen: my main online block with an hour of air each side, widened to take in what is booked as long as
-// every hour keeps at least 72px (so titles stay readable); anything outside shows as an "earlier" or "later" marker on the row
-function calWindow(days){
-  const m=me();let lo=24,hi=0,main=null,il=24,ih=0;
-  const sty=getComputedStyle(document.documentElement),px=v=>parseFloat(sty.getPropertyValue(v))||0;
-  const tlw=Math.max(300,$('#scroller').clientWidth-2*px('--side-pad')-px('--wk-left')),cap=clamp(Math.floor(tlw/72),10,24);
-  for(const d of days){const [a,b]=dayRange(d),c=ctx(d);
-    for(const it of dayItems(d)){if(it.e<=a||it.s>=b) continue;il=Math.min(il,clamp((it.s-a)/HR,0,24));ih=Math.max(ih,clamp((it.e-a)/HR,0,24))}
-    for(const [s,e] of c.work[m.id]){if(e<=a||s>=b) continue;const seg=[(Math.max(s,a)-a)/HR,(Math.min(e,b)-a)/HR];if(!main||seg[1]-seg[0]>main[1]-main[0]) main=seg}}
-  if(main){lo=Math.floor(main[0])-1;hi=Math.ceil(main[1])+1}else{lo=8;hi=18}
-  if(il<ih){const L=Math.min(lo,Math.floor(il)-1),Hh=Math.max(hi,Math.ceil(ih)+1);if(Hh-L<=cap){lo=L;hi=Hh}else if(UI.draft&&!UI.draft.id){const dl=Math.floor((UI.draft.s-dayStart(dayOf(UI.draft.s)))/HR)-1,dh=Math.ceil((UI.draft.e-dayStart(dayOf(UI.draft.s)))/HR)+1;lo=Math.min(lo,dl);hi=Math.max(hi,dh)}}
-  lo=clamp(lo,0,23);hi=clamp(hi,1,24);
-  if(hi-lo<10){lo=clamp(Math.round((lo+hi)/2)-5,0,14);hi=lo+10}
-  return [lo,hi];
-}
-// overlapping things stack into lanes so every title stays readable
-function lanesOf(items){const ends=[];for(const it of items){let l=ends.findIndex(e=>e<=it.s);if(l<0){l=ends.length;ends.push(0)}ends[l]=it.e;it.lane=l}return Math.max(1,ends.length)}
+// overlapping things share a column side by side; each cluster of overlaps splits its own width
+function vgLanes(items){let grp=[],end=-Infinity;const done=()=>{const ends=[];for(const it of grp){let l=ends.findIndex(e=>e<=it.s);if(l<0){l=ends.length;ends.push(0)}ends[l]=it.e;it.lane=l}for(const it of grp) it.lanes=ends.length;grp=[]};
+  for(const it of items){if(it.s>=end) done();grp.push(it);end=Math.max(end,it.e)}done()}
+const vgHp=()=>clamp(Math.floor(($('#scroller').clientHeight||600)/11),44,64);
 function renderCal(){
   const v=$('#vCal');v.className='view cal-'+UI.cal;
   $('#calTitle').textContent=dayTitle(UI.day);
@@ -149,7 +136,7 @@ function renderCal(){
   // the Today shortcut only when today is off screen
   $('#calToday').hidden=UI.cal==='month'?UI.day.slice(0,7)===tod.slice(0,7):weekDays(UI.day).includes(tod);
   const unit={week:'week',day:'day',month:'month'}[UI.cal];$('#calPrev').setAttribute('aria-label','Previous '+unit);$('#calNext').setAttribute('aria-label','Next '+unit);
-  if(UI.cal==='month'){renderMonthNav();renderMonth();return}
+  if(UI.cal==='month'){UI.vgKey=null;renderMonthNav();renderMonth();return}
   const wk=weekDays(UI.day);
   document.documentElement.style.setProperty('--ncol',7);
   $('#days').innerHTML=wk.map(d=>`<button type="button" class="dcard${d===UI.day?' sel':''}${d===tod?' today':''}" data-day="${d}" aria-label="${DAYS[dowOf(d)]} ${+d.slice(8)}${d===tod?', today':''}" ${d===UI.day?'aria-current="date"':''}><span class="wd" data-short="${DAYS[dowOf(d)].slice(0,3)}">${DAYS[dowOf(d)]}</span><span class="n">${+d.slice(8)}</span><span class="cap">${d===tod?'Today':''}</span></button>`).join('');
@@ -158,7 +145,7 @@ function renderCal(){
   $('#allday').innerHTML=ad.some(x=>x.includes('tchip'))?`<div class="lbl">Due</div>${ad.join('')}<div></div>`:'';
   $('#scroller').classList.remove('month-mode');
   const days=calDays();
-  if(UI.cal==='week'&&narrowCal()){v.classList.add('cal-list');$('#wk').innerHTML='';renderAgenda(days)}
+  if(UI.cal==='week'&&narrowCal()){UI.vgKey=null;v.classList.add('cal-list');$('#wk').innerHTML='';renderAgenda(days)}
   else{renderRows(days);if(UI.cal==='day') renderAgenda(days);else $('#agenda').innerHTML=''}
   if(UI.draft) placePop();
 }
@@ -168,39 +155,32 @@ function renderMonthNav(){
   $('#days').innerHTML=Array.from({length:12},(_,i)=>`<button type="button" class="mcard${i+1===m?' sel':''}${y===cy&&i+1===cm?' cur':''}" data-month="${y}-${String(i+1).padStart(2,'0')}" aria-label="${MONTHS[i]} ${y}${y===cy&&i+1===cm?', this month':''}">${MONTHS[i].slice(0,3)}</button>`).join('');
   $('#allday').innerHTML='';
 }
+// the days stand in columns under their date cards, the hours run down the left; the whole day scrolls and opens at your online hours
 function renderRows(days){
-  const H=home(),tod=today(),now=Date.now(),m=me(),[w0,w1]=calWindow(days);UI.win=[w0,w1];
-  const span=(w1-w0)*HR,at=h=>(h-w0)/(w1-w0)*100;
-  // rows share the panel height on tall screens, within reason, so the week never sits in the top half of an empty panel
-  const fill=UI.cal==='week'?clamp(Math.floor(($('#scroller').clientHeight-30-24-days.length-1)/days.length),narrowCal()?50:58,104):(narrowCal()?50:72);
-  let ruler='';for(let h=w0;h<=w1;h++) ruler+=`<span style="left:${at(h)}%" data-h="${h}">${fmtHr(dayStart(days[0])+h*HR,H)}</span>`;
-  const rows=days.map(d=>{
-    const a=dayStart(d),c=ctx(d),items=dayItems(d),x0=a+w0*HR,lanes=lanesOf(items.filter(it=>it.e>x0&&it.s<x0+span)),rowH=Math.max(fill,12+lanes*LANE),top0=(rowH-lanes*LANE+(LANE-CHIP))/2;
-    const pct=t=>clamp((t-x0)/span*100,0,100);
+  const H=home(),tod=today(),now=Date.now(),m=me(),hp=vgHp();UI.hp=hp;
+  let hrs='';for(let h=1;h<24;h++) hrs+=`<span style="top:${h*hp}px">${fmtHr(dayStart(days[0])+h*HR,H)}</span>`;
+  const cols=days.map(d=>{
+    const [a,b]=dayRange(d),c=ctx(d),y=t=>clamp((t-a)/HR,0,24)*hp,items=dayItems(d).filter(it=>it.e>a&&it.s<b),work=c.work[m.id].filter(([s0,e0])=>e0>a&&s0<b);vgLanes(items);
     let inner='';
-    for(const [s,e] of c.work[m.id]) if(e>x0&&s<x0+span) inner+=`<div class="work" style="left:${pct(s)}%;width:${pct(e)-pct(s)}%"></div>`;
-    for(let h=w0+1;h<w1;h++) inner+=`<div class="hl" style="left:${at(h)}%"></div>`;
-    const before=items.filter(it=>it.e<=x0&&!it.draft).length,after=items.filter(it=>it.s>=x0+span&&!it.draft).length;
-    if(before) inner+=`<button type="button" class="wk-more l" data-open-day="${d}" title="Open the day to see everything">${before} earlier</button>`;
-    if(after) inner+=`<button type="button" class="wk-more r" data-open-day="${d}" title="Open the day to see everything">${after} later</button>`;
-    for(const it of items){if(it.e<=x0||it.s>=x0+span) continue;const l=pct(it.s),wd=Math.max(pct(it.e)-l,.5),top=top0+it.lane*LANE;
-      if(it.draft){inner+=`<div class="wk-draft" style="left:${l}%;width:${wd}%;top:${top}px"><i>${I.plus}</i></div>`;continue}
-      if(it.task){const t=it.task;inner+=`<div class="chip task" data-task="${t.id}" style="left:${l}%;width:${wd}%;top:${top}px" title="${esc(t.title)} · due ${fmtT(it.s,H)}">${I.task.replace('width="20" height="20"','width="14" height="14"')}<span>${esc(t.title)}</span></div>`;continue}
+    for(const [s0,e0] of work) inner+=`<div class="vg-work" style="top:${y(s0)}px;height:${y(e0)-y(s0)}px"></div>`;
+    for(const it of items){
+      const top=y(it.s),ht=Math.max(y(it.e)-top-2,20),pos=`top:${top}px;height:${ht}px;left:calc(${it.lane/it.lanes*100}% + 2px);width:calc(${100/it.lanes}% - 4px)`,tall=ht>=40;
+      if(it.draft){inner+=`<div class="wk-draft" style="${pos}"><i>${I.plus}</i></div>`;continue}
+      if(it.task){const t=it.task;inner+=`<div class="chip vchip task" data-task="${t.id}" style="${pos}" title="${esc(t.title)} · due ${fmtT(it.s,H)}"><span>${esc(t.title)}</span>${tall?`<small>Due ${fmtT(it.s,H)}</small>`:''}</div>`;continue}
       const x=it.x,z=it.who,cls=colorOf(x);
-      inner+=`<div class="chip ${cls}${z?' other':''}${UI.sel===(x[3]||x[0]+'')?' sel':''}" data-ev="${x[3]||''}" data-s="${x[0]}" data-who="${z?z.id:''}" style="left:${l}%;width:${wd}%;top:${top}px;--bg:var(--ev-${cls==='pend'||cls==='cal'?'white':cls})" title="${esc(x[2])} · ${fmtT(x[0],H)} – ${fmtT(x[1],H)}${z?' · '+esc(first(z.name))+"'s calendar":''}${x[5]?' · invite, no answer yet':''}">${z?avatar(z,'xs'):''}${!x[3]&&!z?I.cal16:''}<span>${esc(x[2]||'Meeting')}</span><small>${fmtT(x[0],H)} – ${fmtT(x[1],H)}</small></div>`}
-    if(d===tod&&now>=x0&&now<=x0+span) inner+=`<div class="wk-now" style="left:${pct(now)}%"></div>`;
-    const off=!c.work[m.id].length,mine=items.filter(i=>i.x&&!i.who).length;
-    const sub=d===tod?'Today':off?'Day off':mine?`${mine} ${mine===1?'meeting':'meetings'}`:'Free';
-    return `<div class="wk-row${d===UI.day?' sel':''}${d===tod?' today':''}${off?' off':''}" data-day="${d}"><div class="wk-lbl" data-open-day="${d}" title="Open ${d===tod?'today':DAYS[dowOf(d)]} in Day view"><b>${DAYS[dowOf(d)].slice(0,3)} ${+d.slice(8)}</b><small>${sub}</small></div><div class="wk-tl" style="height:${rowH}px">${inner}</div></div>`});
-  $('#wk').innerHTML=`<div class="wk-ruler"><div></div><div class="rl" id="wkRuler">${ruler}</div></div>${rows.join('')}`;
-  fitWkRuler();
+      inner+=`<div class="chip vchip ${cls}${z?' other':''}${UI.sel===(x[3]||x[0]+'')?' sel':''}" data-ev="${x[3]||''}" data-s="${x[0]}" data-who="${z?z.id:''}" style="${pos};--bg:var(--ev-${cls==='pend'||cls==='cal'?'white':cls})" title="${esc(x[2])} · ${fmtT(x[0],H)} – ${fmtT(x[1],H)}${z?' · '+esc(first(z.name))+"'s calendar":''}${x[5]?' · invite, no answer yet':''}"><span>${z?avatar(z,'xs'):''}${esc(x[2]||'Meeting')}</span>${tall?`<small>${fmtT(x[0],H)} – ${fmtT(x[1],H)}</small>`:''}</div>`}
+    if(d===tod&&now>=a&&now<b) inner+=`<div class="wk-now" style="top:${y(now)}px"></div>`;
+    return `<div class="vg-col${d===tod?' today':''}${work.length?'':' off'}" data-day="${d}">${inner}</div>`});
+  $('#wk').innerHTML=`<div class="vg${days.length===1?' one':''}" style="--hp:${hp}px"><div class="vg-hrs" id="wkRuler">${hrs}</div>${cols.join('')}${days.length>1?'<div></div>':''}</div>`;
+  const key=UI.cal+days[0]+hp;if(UI.vgKey!==key){UI.vgKey=key;vgScroll(days)}
 }
-function fitWkRuler(){const rl=$('#wkRuler');if(!rl||!UI.win) return;const [w0,w1]=UI.win,step=rl.clientWidth/(w1-w0),need=S.hour12?44:38,every=[1,2,3,4,6].find(e=>step*e>=need)||6;$$('#wkRuler span[data-h]').forEach(x=>{const h=+x.dataset.h;x.classList.toggle('hide',h%every!==0||h===w1)})}
+// open the grid an hour before your online hours start on the day in focus
+function vgScroll(days){const d=days.includes(UI.day)?UI.day:days[0],[a,b]=dayRange(d),w=ctx(d).work[me().id].find(([s,e])=>e>a&&s<b),st=w?Math.max(0,(w[0]-a)/HR):8;$("#scroller").scrollTop=Math.max(0,(Math.floor(st)-1)*(UI.hp||48)-14)}
 // the day as a list: what is booked, in order, with the free stretches in your online hours you can book in one click
 function renderAgenda(days){
   const H=home(),m=me(),now=Date.now(),tod=today();
   const html=days.map(d=>{
-    const a=dayStart(d),c=ctx(d),items=dayItems(d).filter(i=>!i.draft),work=c.work[m.id];
+    const [a,b]=dayRange(d),c=ctx(d),items=dayItems(d).filter(i=>!i.draft),work=c.work[m.id].filter(([s,e])=>e>a&&s<b);
     const ws=work.length?work[0][0]:a+9*HR,we=work.length?work[work.length-1][1]:a+17*HR;
     let out=[],cur=Math.max(ws,d===tod?Math.ceil(now/(15*MIN))*15*MIN:0);
     for(const t of tasksOf(team()).filter(t=>t.day===d&&!t.time&&!t.cleared&&!t.done)) out.push(`<button type="button" class="ag" data-task="${t.id}"><span class="tm">Due<small>any time</small></span><span class="bar" style="--bg:var(--ev-green)"></span><span class="bd"><b>${esc(t.title)}</b><span class="meta"><span>Task · for ${esc(tkNames(team(),t.to))}</span></span></span><span></span></button>`);
@@ -236,17 +216,17 @@ function renderMonth(){
   let md=$('#vCal .mdow');if(!md){md=document.createElement('div');md.className='mdow';$('#scroller').before(md)}md.innerHTML=dow;
   $('#month').innerHTML=html;$('#scroller').classList.add('month-mode');
 }
-// bring the selected day's row into view (the whole week usually fits)
-function scrollToDay(){const r=$(`#wk .wk-row[data-day="${UI.day}"]`);if(r) r.scrollIntoView({block:'nearest'});else $('#scroller').scrollTop=0}
+// bring the online hours of the day in focus into view
+function scrollToDay(){if(UI.view==='calendar'&&UI.cal!=='month'&&$('#wk .vg')) vgScroll(calDays());else $('#scroller').scrollTop=0}
 function gotoDay(day,quiet){UI.day=day;if(!quiet) render()}
-// hover: a guide line in the row and the time it points at in the ruler
-function wkTimeAt(e){const tl=e.target.closest('.wk-tl');if(!tl||!UI.win) return null;const r=tl.getBoundingClientRect(),[w0,w1]=UI.win,d=tl.parentElement.dataset.day,a=dayStart(d)+w0*HR;return {d,tl,t:a+clamp((e.clientX-r.left)/r.width,0,1)*(w1-w0)*HR,x:clamp((e.clientX-r.left)/r.width,0,1)*100}}
+// hover: a guide line across the column and the time it points at beside the hours
+function wkTimeAt(e){const col=e.target.closest('.vg-col');if(!col) return null;const r=col.getBoundingClientRect(),d=col.dataset.day,f=clamp((e.clientY-r.top)/r.height,0,1);return {d,tl:col,t:dayStart(d)+f*24*HR,y:f*r.height}}
 function wkHover(r){
   $$('#wk .wk-hov').forEach(x=>{if(!r||x.parentElement!==r.tl) x.remove()});
   const rl=$('#wkRuler');let c=rl&&rl.querySelector('.cur');
   if(!r){if(c) c.remove();return}
-  let h=r.tl.querySelector('.wk-hov');if(!h){h=document.createElement('div');h.className='wk-hov';r.tl.append(h)}h.style.left=r.x+'%';
-  if(rl){if(!c){c=document.createElement('span');c.className='cur';rl.append(c)}c.style.left=r.x+'%';c.textContent=fmtT(Math.round(r.t/(5*MIN))*5*MIN,home())}
+  let h=r.tl.querySelector('.wk-hov');if(!h){h=document.createElement('div');h.className='wk-hov';r.tl.append(h)}h.style.top=r.y+'px';
+  if(rl){if(!c){c=document.createElement('span');c.className='cur';rl.append(c)}c.style.top=r.y+'px';c.textContent=fmtT(Math.round(r.t/(5*MIN))*5*MIN,home())}
 }
 $('#wk').addEventListener('mousemove',e=>{const r=wkTimeAt(e);if(r) wkHover(r);else wkHover(null)});
 $('#wk').addEventListener('mouseleave',()=>wkHover(null));
@@ -377,10 +357,10 @@ $('#pop').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='pTit
 /* ---------- threads (meetings and tasks) ---------- */
 function threadHtml(M,scope){
   const T=team(),my=me().id,have=Object.entries(M.re||{}).filter(x=>x[1].length),A=(a,x='')=>`data-th="${a}" data-scope="${scope}" ${x}`;
-  const reBar=`<div class="res">${have.map(([e,l])=>`<button type="button" class="re" ${A('react',`data-e="${e}"`)} aria-pressed="${l.includes(my)}">${e}<i>${l.length}</i></button>`).join('')}<button type="button" class="re add" ${A('pick')} aria-expanded="${UI.pick==='b'}">${have.length?'+':'+ React'}</button></div>${UI.pick==='b'?`<div class="re-pick">${EMOJI.map(e=>`<button type="button" ${A('react',`data-e="${e}"`)}>${e}</button>`).join('')}</div>`:''}`;
+  const reBar=scope==='tk'?'':`<div class="res">${have.map(([e,l])=>`<button type="button" class="re" ${A('react',`data-e="${e}"`)} aria-pressed="${l.includes(my)}">${e}<i>${l.length}</i></button>`).join('')}<button type="button" class="re add" ${A('pick')} aria-expanded="${UI.pick==='b'}">${have.length?'+':'+ React'}</button></div>${UI.pick==='b'?`<div class="re-pick">${EMOJI.map(e=>`<button type="button" ${A('react',`data-e="${e}"`)}>${e}</button>`).join('')}</div>`:''}`;
   const list=`<div class="th-list">${(M.cm||[]).length?M.cm.map((x,i)=>{const z=(x.byId&&findM(x.byId,T))||me(),own=!x.byId||x.byId===my,cr=Object.entries(x.re||{}).filter(q=>q[1].length),picking=UI.pickC===i;
-      return `<div class="th-r">${avatar(z)}<div class="th-b"><b>${esc(own?'You':first(z.name))}</b><time>${x.at?whenLabel(x.at):''}</time><p>${mentionHtml(x.text)}</p><div class="cres">${cr.map(([e,l])=>`<button type="button" class="re sm" ${A('creact',`data-i="${i}" data-e="${e}"`)} aria-pressed="${l.includes(my)}">${e}<i>${l.length}</i></button>`).join('')}<button type="button" class="re sm add" ${A('cpick',`data-i="${i}"`)}>+</button></div>${picking?`<div class="re-pick">${EMOJI.map(e=>`<button type="button" ${A('creact',`data-i="${i}" data-e="${e}"`)}>${e}</button>`).join('')}</div>`:''}</div>${own?`<button type="button" class="th-x" ${A('delcm',`data-i="${i}"`)} aria-label="Remove">×</button>`:'<span></span>'}</div>`}).join(''):'<p class="th-empty">No comments yet. Leave a note for whoever is on it.</p>'}</div>`;
-  return `<div class="thread">${reBar}${list}<div class="th-box"><textarea class="cbox" ${A('box')} rows="1" maxlength="500" placeholder="Comment, @ someone to mention them">${esc(UI.thDraft&&UI.thDraft.scope===scope?UI.thDraft.text:'')}</textarea><button type="button" class="th-send" ${A('comment')} aria-label="Send">${I.send}</button></div></div>`;
+      return `<div class="th-r">${avatar(z)}<div class="th-b"><b>${esc(own?'You':first(z.name))}</b><time>${x.at?whenLabel(x.at):''}</time><p>${mentionHtml(x.text)}</p><div class="cres">${cr.map(([e,l])=>`<button type="button" class="re sm" ${A('creact',`data-i="${i}" data-e="${e}"`)} aria-pressed="${l.includes(my)}">${e}<i>${l.length}</i></button>`).join('')}<button type="button" class="re sm add" ${A('cpick',`data-i="${i}"`)}>+</button></div>${picking?`<div class="re-pick">${EMOJI.map(e=>`<button type="button" ${A('creact',`data-i="${i}" data-e="${e}"`)}>${e}</button>`).join('')}</div>`:''}</div>${own?`<button type="button" class="th-x" ${A('delcm',`data-i="${i}"`)} aria-label="Remove">×</button>`:'<span></span>'}</div>`}).join(''):scope==='tk'?'':'<p class="th-empty">No comments yet. Leave a note for whoever is on it.</p>'}</div>`;
+  return `<div class="thread">${reBar}${list}<div class="th-box"><textarea class="cbox" ${A('box')} rows="1" maxlength="500" placeholder="${scope==='tk'?'Add a comment…':'Comment, @ someone to mention them'}">${esc(UI.thDraft&&UI.thDraft.scope===scope?UI.thDraft.text:'')}</textarea><button type="button" class="th-send" ${A('comment')} aria-label="Send">${I.send}</button></div></div>`;
 }
 function threadTarget(scope){return scope==='ev'?(UI.draft&&UI.draft.id?metaOf(UI.draft.id):null):(UI.tkEdit?taskById(UI.tkEdit):null)}
 document.addEventListener('click',e=>{
@@ -431,7 +411,7 @@ function renderTeam(){
   fitRuler();
 }
 function fitRuler(){const rl=$('#tmRuler');if(!rl) return;const w=rl.clientWidth,step=w/24,need=S.hour12?40:36,every=[1,2,3,4,6,8,12].find(e=>step*e>=need)||12;$$('#tmRuler span[data-h]').forEach(s=>s.classList.toggle('hide',(+s.dataset.h)%every!==0))}
-let rsT=0;addEventListener('resize',()=>{if(UI.view==='team') fitRuler();if(UI.view==='calendar') fitWkRuler();if(UI.draft) placePop();clearTimeout(rsT);rsT=setTimeout(()=>{if(UI.view==='calendar') renderCal()},150)});
+let rsT=0;addEventListener('resize',()=>{if(UI.view==='team') fitRuler();if(UI.draft) placePop();clearTimeout(rsT);rsT=setTimeout(()=>{if(UI.view==='calendar') renderCal()},150)});
 // hover: the cursor column shows each person's local time
 function tmHover(t){
   const prev=UI.hover;UI.hover=t;if(!!prev===!!t&&t&&Math.abs(prev-t)<MIN) return;
@@ -515,26 +495,34 @@ $('#fTask').addEventListener('submit',e=>{
 });
 $('#tkSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tkf]');if(!b) return;UI.tkf=b.dataset.tkf;renderTasks()});
 $('#tkResolve').onclick=()=>{const T=team(),undo=snapshot(),my=me().id,f=UI.tkf||'open';let n=0;for(const t of tasksOf(T)) if(t.done&&!t.cleared&&(f!=='mine'||t.to.includes(my))){t.cleared=true;n++}save();render();toast(`${n} done ${n===1?'task':'tasks'} cleared. They are under Done.`,undo)};
-function openTask(id){UI.tkEdit=id;UI.tkPick=false;UI.pick=null;UI.pickC=null;if(UI.view!=='tasks') setView('tasks',true);render();const t=$('#tkDetail .ttl');if(t&&!taskById(id).title) t.focus()}
+function openTask(id){UI.tkEdit=id;UI.tkField=null;UI.tkPick=false;UI.pick=null;UI.pickC=null;if(UI.view!=='tasks') setView('tasks',true);render();const t=$('#tkDetail .ttl');if(t&&!taskById(id).title) t.focus()}
 function closeTask(){UI.tkEdit=null;renderTasks()}
 function renderTaskDetail(){
   const box=$('#tkDetail'),t=UI.tkEdit&&taskById(UI.tkEdit);if(!t){box.hidden=true;box.innerHTML='';return}
-  const T=team(),can=tkCan(t),d=taskDue(t),who=t.to.map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!t.to.includes(z.id)),tz=t.tz||home();
+  const T=team(),can=tkCan(t),d=taskDue(t),ed=can?UI.tkField:null,who=t.to.map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!t.to.includes(z.id)),tz=t.tz||home();
   box.hidden=false;
   box.innerHTML=`<div class="tkd-head"><textarea class="ttl" id="tkdTitle" rows="1" maxlength="120" ${can?'':'readonly'}>${esc(t.title)}</textarea><button type="button" class="xbtn" id="tkdClose" aria-label="Close">×</button></div>
     <p class="by">${esc(t.by===me().id?'You':cap(tkName(T,t.by)))} added this ${esc(dayLabel(dayOf(t.at||Date.now())).toLowerCase())} · <span class="due ${d.state}">${esc(d.label)}</span>${can?'':`<br>Only ${esc(first(tkName(T,t.by)))} and the people it is for can change it.`}</p>
     <div class="sec"><h4>For</h4><div class="whochips">${who.map(z=>`<button type="button" class="who1" data-tkdrm="${z.id}" ${can?'':'disabled'}>${avatar(z)}${esc(z.isMe?'Me':first(z.name))}${can?'<i>×</i>':''}</button>`).join('')}${can&&cand.length?`<button type="button" class="addc" id="tkdAddBtn" aria-label="Add someone">${I.plus}</button>`:''}</div>
       ${can&&UI.tkPick?`<div class="dd" id="tkdDd"><div class="dd-list">${cand.map(z=>`<button type="button" class="opt" data-tkdadd="${z.id}">${avatar(z,'sm')}<span class="n">${esc(z.name)}<small>${esc(tzLabel(z.tz))}</small></span></button>`).join('')}</div></div>`:''}</div>
-    <div class="sec"><h4>Due</h4><div class="grid2"><label class="lbl"><input type="date" id="tkdDay" value="${t.day||''}" ${can?'':'disabled'}></label><label class="lbl"><input type="time" id="tkdTime" value="${t.time||''}" ${can?'':'disabled'}></label></div>${t.time?`<p class="by" style="margin-top:6px">The time is in ${esc(tzLabel(tz))}${tz!==home()?', where it was set':''}. Everyone sees it in their own zone${tz!==home()?`: ${fmtT(taskInstant(t),home())} for you`:''}.</p>`:''}</div>
-    <div class="sec"><h4>Details</h4><textarea class="note" id="tkdNote" placeholder="Add details, links, what done looks like…" ${can?'':'readonly'}>${esc(t.note||'')}</textarea></div>
+    <div class="sec"><div class="sec-h"><h4>Due</h4>${can&&ed!=='due'?`<button type="button" class="tkd-pen" data-tkd-edit="due" aria-label="Change the due date" title="Change">${I.pen}</button>`:''}</div>
+      ${ed==='due'?`<div class="grid2"><label class="lbl"><input type="date" id="tkdDay" value="${t.day||''}" aria-label="Day"></label><label class="lbl"><input type="time" id="tkdTime" value="${t.time||''}" aria-label="Time, optional"></label></div><div class="tkd-acts"><button type="button" class="btn sm ghost" data-tkd-cancel>Cancel</button><button type="button" class="btn sm dark" data-tkd-save>Save</button></div>`
+        :t.day?`<p class="tkd-val">${esc(dayLabel(t.day))}${t.time?` · ${fmtT(taskInstant(t),home())}`:''}</p>${t.time&&tz!==home()?`<p class="by" style="margin-top:4px">Set in ${esc(tzLabel(tz))}. Everyone sees it in their own zone.</p>`:''}`
+        :can?`<button type="button" class="tkd-add" data-tkd-edit="due">Add a due date</button>`:'<p class="tkd-val empty">No due date</p>'}</div>
+    <div class="sec"><div class="sec-h"><h4>Details</h4>${can&&ed!=='note'&&t.note?`<button type="button" class="tkd-pen" data-tkd-edit="note" aria-label="Edit the details" title="Edit">${I.pen}</button>`:''}</div>
+      ${ed==='note'?`<textarea class="note" id="tkdNote" placeholder="Details, links, what done looks like…">${esc(t.note||'')}</textarea><div class="tkd-acts"><button type="button" class="btn sm ghost" data-tkd-cancel>Cancel</button><button type="button" class="btn sm dark" data-tkd-save>Save</button></div>`
+        :t.note?`<p class="tkd-val tkd-note">${esc(t.note)}</p>`:can?`<button type="button" class="tkd-add" data-tkd-edit="note">Add details</button>`:'<p class="tkd-val empty">No details</p>'}</div>
     <div class="sec"><h4>Files</h4><div class="files">${(t.files||[]).map((x,i)=>`<span class="file"><button type="button" class="n" data-tkfopen="${i}" title="Open ${esc(x.name)}">${I.file}<span>${esc(x.name)}</span></button><small>${fmtSize(x.size||0)}</small>${can?`<button type="button" class="rm" data-tkfrm="${i}" aria-label="Remove">${I.x}</button>`:''}</span>`).join('')}${can?`<button type="button" class="attach" id="tkdAttach">${I.clip}<span>${(t.files||[]).length?'Add files':'Attach files'}</span></button>`:''}</div></div>
-    <div class="sec"><h4>Comments <span style="font-weight:500;opacity:.7">${(t.cm||[]).length||''}</span></h4>${threadHtml(t,'tk')}</div>
+    <div class="sec">${(t.cm||[]).length?`<h4>Comments <span style="font-weight:500;opacity:.7">${t.cm.length}</span></h4>`:''}${threadHtml(t,'tk')}</div>
     <div class="acts">${can?`<button type="button" class="btn dark" id="tkdDone">${t.done?'Mark not done':'Mark done'}</button><button type="button" class="btn ghost danger" id="tkdDel">Delete</button>`:''}</div>`;
   const ta=$('#tkdTitle');ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';
 }
 const fmtSize=n=>n<1024?n+' B':n<1048576?Math.round(n/1024)+' KB':(n/1048576).toFixed(1)+' MB';
 function tkdSave(){const t=UI.tkEdit&&taskById(UI.tkEdit);if(!t||!tkCan(t)) return;
-  const title=$('#tkdTitle').value.trim();if(title) t.title=title;t.note=$('#tkdNote').value.trim();t.day=$('#tkdDay').value||null;t.time=(t.day&&$('#tkdTime').value)||null;if(t.time&&!t.tz) t.tz=home();save();render()}
+  const title=$('#tkdTitle').value.trim();if(title) t.title=title;
+  if($('#tkdNote')) t.note=$('#tkdNote').value.trim();
+  if($('#tkdDay')){const was=t.time;t.day=$('#tkdDay').value||null;t.time=(t.day&&$('#tkdTime').value)||null;if(t.time&&(!t.tz||t.time!==was)) t.tz=home()}
+  save();render()}
 async function tkUpload(t,files){
   const T=team(),big=files.filter(x=>x.size>10485760);if(big.length) toast(`${big.map(x=>x.name).join(', ')} is over 10 MB`);
   const ok=files.filter(x=>x.size<=10485760);if(!ok.length) return;
@@ -550,6 +538,9 @@ $('#fileIn').addEventListener('change',e=>{const files=[...e.target.files];e.tar
 $('#tkDetail').addEventListener('click',async e=>{
   const c=s=>e.target.closest(s);let b;const t=UI.tkEdit&&taskById(UI.tkEdit);if(!t) return;
   if(c('#tkdClose')){closeTask();return}
+  if(b=c('[data-tkd-edit]')){if(!tkCan(t)) return;UI.tkField=b.dataset.tkdEdit;renderTaskDetail();const f=$(UI.tkField==='note'?'#tkdNote':'#tkdDay');if(f){f.focus();if(f.id==='tkdNote') f.setSelectionRange(f.value.length,f.value.length)}return}
+  if(c('[data-tkd-save]')){tkdSave();UI.tkField=null;renderTaskDetail();toast('Saved');return}
+  if(c('[data-tkd-cancel]')){UI.tkField=null;renderTaskDetail();return}
   if(c('#tkdAddBtn')){UI.tkPick=!UI.tkPick;renderTaskDetail();return}
   if(b=c('[data-tkdadd]')){t.to.push(b.dataset.tkdadd);UI.tkPick=false;save();render();return}
   if(b=c('[data-tkdrm]')){if(!tkCan(t)) return;t.to=t.to.filter(id=>id!==b.dataset.tkdrm);save();render();return}
@@ -559,9 +550,9 @@ $('#tkDetail').addEventListener('click',async e=>{
   if(b=c('[data-tkfopen]')){const x=(t.files||[])[+b.dataset.tkfopen];if(!x||typeof sb==='undefined'||!sb) return;const w=window.open('','_blank');const {data,error}=await sb.storage.from('task-files').createSignedUrl(x.path,3600);if(error||!data){if(w) w.close();toast('Could not open '+x.name);return}if(w) w.location=data.signedUrl;else location.href=data.signedUrl;return}
   if(b=c('[data-tkfrm]')){const i=+b.dataset.tkfrm,x=(t.files||[])[i];if(!x) return;t.files.splice(i,1);save();render();if(typeof sb!=='undefined'&&sb) sb.storage.from('task-files').remove([x.path]);toast('File removed')}
 });
-$('#tkDetail').addEventListener('change',e=>{if(['tkdTitle','tkdNote','tkdDay','tkdTime'].includes(e.target.id)) tkdSave()});
+$('#tkDetail').addEventListener('change',e=>{if(e.target.id==='tkdTitle') tkdSave()});
 $('#tkDetail').addEventListener('input',e=>{if(e.target.id==='tkdTitle'){e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px'}});
-$('#tkDetail').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='tkdTitle'){e.preventDefault();e.target.blur()}});
+$('#tkDetail').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='tkdTitle'){e.preventDefault();e.target.blur()}if(e.key==='Escape'&&UI.tkField){e.preventDefault();e.stopPropagation();UI.tkField=null;renderTaskDetail()}if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&UI.tkField){e.preventDefault();tkdSave();UI.tkField=null;renderTaskDetail()}});
 $('#tkList').addEventListener('click',e=>{
   const c=s=>e.target.closest(s);let b;
   if(b=c('[data-tkdone]')){const t=taskById(b.dataset.tkdone);if(!t) return;if(!tkCan(t)){toast(`Only ${first(tkName(team(),t.by))} and the people it is for can tick this off`);return}const undo=snapshot();if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();save();render();toast(t.done?'Done. Nice.':'Back on the list',undo);return}
@@ -720,8 +711,7 @@ document.addEventListener('click',e=>{
   if(b=c('#agenda .ag[data-ev]')){if(c('a')) return;openEvent(b.dataset.ev,b.dataset.s,b.dataset.who);return}
   if(b=c('#wk .chip')){openEvent(b.dataset.ev,b.dataset.s,b.dataset.who);return}
   if(c('#wk .wk-draft')){const t=$('#pTitle');if(t) t.focus();return}
-  if(b=c('#wk [data-open-day]')){UI.cal='day';gotoDay(b.dataset.openDay);scrollToDay();return}
-  if(b=c('#wk .wk-tl')){const r=wkTimeAt(e);if(!r) return;const a=dayStart(r.d),s=a+Math.floor((r.t-a)/(15*MIN))*15*MIN;UI.day=r.d;openDraft({s,e:s+UI.dur*MIN,title:'',loc:'',kind:'meet',who:new Set([me().id])});return}
+  if(b=c('#wk .vg-col')){const r=wkTimeAt(e);if(!r) return;const a=dayStart(r.d),s=a+Math.floor((r.t-a)/(15*MIN))*15*MIN;UI.day=r.d;openDraft({s,e:s+UI.dur*MIN,title:'',loc:'',kind:'meet',who:new Set([me().id])});return}
 });
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){if(UI.inbox){openInbox(false);return}if(UI.draft&&!document.querySelector('dialog[open]')) closePop()}
@@ -753,4 +743,4 @@ addEventListener('load',()=>{const q=window.__hook;if(q){ // more hooks for scre
   if(q.get('dlg')==='auth') openAuth('login');
   if(q.get('dlg')==='invite') openInvite();
   if(q.get('hover')){tmHover(dayStart(today())+(+q.get('hover'))*HR)}}});
-setInterval(()=>{renderSide();if(UI.view==='team'&&!UI.hover) renderTeam();if(UI.view==='calendar'&&UI.cal!=='month'&&UI.win){const nl=$('#wk .wk-now');if(nl){const [w0,w1]=UI.win,x0=dayStart(today())+w0*HR;nl.style.left=clamp((Date.now()-x0)/((w1-w0)*HR)*100,0,100)+'%'}}},30000);
+setInterval(()=>{renderSide();if(UI.view==='team'&&!UI.hover) renderTeam();if(UI.view==='calendar'&&UI.hp){const nl=$('#wk .wk-now');if(nl) nl.style.top=clamp((Date.now()-dayStart(today()))/HR,0,24)*UI.hp+'px'}},30000);

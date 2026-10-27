@@ -1,4 +1,4 @@
-/* Noon · the first run after signing in: who you are and when you are online, then your team and the link that brings
+/* Noon · the first run after signing in: your name and where you are, then your team and the link that brings
    people into it. Someone who joined from an invite already has a team, so they only answer the first step. Finishing
    sets prefs.onboarded on the profile, so it shows once per account. */
 const OB={plan:['you'],step:0};
@@ -12,12 +12,10 @@ function renderOnb(){
   if(k==='you'){
     const T=S.teams.find(t=>t.cloud),nm=u.name;
     el.innerHTML=`${dots}<h1>${nm?`Hi ${esc(first(nm))}, where are you?`:'Where are you?'}</h1>
-      <p class="gate-sub">${T?`You are in ${esc(T.name)}. Your`:'Your'} team sees your hours in their own time, so they know when to reach you.</p>
+      <p class="gate-sub">${T?`You are in ${esc(T.name)}. Your`:'Your'} team sees your time next to theirs. You can set your online hours later in Settings.</p>
       <form id="fObYou" autocomplete="off">
         <label class="lbl">Your name <input name="name" required maxlength="60" autocomplete="name" value="${esc(nm)}"></label>
         <label class="lbl">Where you are <input name="tz" data-tzpick required placeholder="City, country, or a code like CET"></label>
-        <div class="grid2"><label class="lbl">Online from <input name="start" type="time" required value="${hhmm(num(pf.start_h)??9)}"></label><label class="lbl">Until <input name="end" type="time" required value="${hhmm(num(pf.end_h)??17)}"></label></div>
-        <label class="ck"><input type="checkbox" name="weekends" ${pf.weekends?'checked':''}><span></span>I work weekends</label>
         <p class="err" id="obErr" hidden></p>
         <button type="submit" class="btn dark full">Continue</button>
       </form>${foot}`;
@@ -49,8 +47,8 @@ $('#gateOnb').addEventListener('submit',async e=>{
   if(f.id==='fObYou'){
     const tz=f.tz.value.trim(),name=f.name.value.trim();
     if(!validTz(tz)){f.tz.setCustomValidity('We could not find that place. Try a city, a country, or a code like CET.');f.tz.reportValidity();return}
-    const d={name,tz,start:toH(f.start.value),end:toH(f.end.value),weekends:f.weekends.checked};
-    busyBtn(btn,true);const ok=await saveProfile({name,tz,start_h:d.start,end_h:d.end,weekends:d.weekends});busyBtn(btn,false);
+    const d={name,tz};
+    busyBtn(btn,true);const ok=await saveProfile({name,tz});busyBtn(btn,false);
     if(!ok){say('#obErr','That did not save. Check your connection and try again.');return}
     for(const z of myTeams()) Object.assign(z,d);if(S.teams.some(t=>t.cloud)) save();
     obNext();return}

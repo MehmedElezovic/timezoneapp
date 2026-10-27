@@ -926,3 +926,39 @@ html:not([data-auth=onb]) #gateOnb,html[data-auth=onb] #gateAuth{display:none}
   .gate-body{max-width:none;padding:28px 0 8px;margin-block:0}
   .gate-body h1{font-size:27px}
 }
+
+/* ---------- the week in columns: date cards on top, hours down the left ---------- */
+.wk{padding-top:8px}
+.vg{display:grid;grid-template-columns:44px repeat(var(--ncol,7),minmax(0,1fr)) 44px;column-gap:var(--colgap);height:calc(24 * var(--hp));position:relative}
+.vg.one{grid-template-columns:44px minmax(0,1fr)}
+.vg-hrs{position:relative}
+.vg-hrs span{position:absolute;right:4px;transform:translateY(-50%);font-size:11px;font-weight:500;color:var(--ink-3);white-space:nowrap}
+.vg-hrs .cur{right:0;background:var(--btn-bg);color:var(--btn-ink);font-weight:600;padding:2px 6px;border-radius:6px;z-index:3;pointer-events:none}
+.vg-col{position:relative;border-radius:14px;cursor:crosshair;min-width:0}
+.vg-col::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--hp) - 1px),var(--line) calc(var(--hp) - 1px),var(--line) var(--hp))}
+.vg-col.today{background:rgba(183,156,240,.07)}
+.vg-work{position:absolute;left:0;right:0;background:var(--panel);border-radius:12px}
+.vchip{height:auto;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:1px;padding:4px 8px;border-radius:9px;z-index:2;white-space:nowrap}
+.vchip > span{display:flex;align-items:center;gap:5px;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.vchip small{margin:0;padding:0;font-size:11px;overflow:hidden;text-overflow:ellipsis}
+.vchip .av{width:16px;height:16px;flex:none}
+.chip.vchip:hover{z-index:3}
+.vg .wk-draft{height:auto;min-width:0;z-index:2}
+.vg .wk-now{top:auto;bottom:auto;left:-3px;right:0;width:auto;height:2px;transform:translateY(-1px);z-index:3}
+.vg .wk-now::before{left:-3px;top:-4px}
+.vg .wk-hov{top:auto;bottom:auto;left:0;right:0;width:auto;height:1px;z-index:3}
+.cal-day .scroller{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);align-items:start}
+.cal-day .agenda{position:sticky;top:0;padding:8px var(--side-pad) 24px 0}
+@media (max-width:860px){.vg{grid-template-columns:36px repeat(var(--ncol,7),minmax(0,1fr)) 36px}.vg.one{grid-template-columns:36px minmax(0,1fr)}.vg-hrs span{font-size:10px}
+  .cal-day .scroller{display:block}.cal-day .agenda{position:static;padding:14px var(--side-pad) 24px}}
+/* task details read as text until the pencil opens them */
+.tk-detail .sec-h{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+.tk-detail .sec-h h4{margin:0}
+.tkd-pen{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;color:var(--ink-3)}
+.tkd-pen:hover{background:var(--chip);color:var(--ink)}
+.tkd-val{margin:0;font-size:14px;font-weight:500;color:var(--ink);line-height:1.5}
+.tkd-val.empty{color:var(--ink-3);font-weight:400}
+.tkd-note{white-space:pre-wrap;word-break:break-word;font-weight:400;font-size:13.5px;color:var(--ink-2)}
+.tkd-add{font-size:13.5px;font-weight:600;color:var(--ink-3);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--ink-4)}
+.tkd-add:hover{color:var(--ink)}
+.tkd-acts{display:flex;justify-content:flex-end;gap:6px;margin-top:8px}
