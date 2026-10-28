@@ -276,7 +276,9 @@ async function uploadTeam(T){
   const my=T.members.find(m=>m.isMe);
   const {data:seat}=await sb.from('members').select('id').eq('team_id',id).eq('user_id',CLOUD.user.id).maybeSingle();
   if(seat&&my){const was=my.id;my.id=seat.id;my.userId=CLOUD.user.id;remapMember(T,was,seat.id)}
-  CLOUD.last[T.id]={name:T.name,members:my?{[my.id]:{}}:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{}};
+  // you in that team are the account's you: take the profile's name and hours, and mark them saved so the push never writes the device's placeholder over the profile
+  const pf=CLOUD.profile||{};if(my){if(pf.name) my.name=pf.name;if(pf.tz) my.tz=pf.tz;if(pf.start_h!=null){my.start=+pf.start_h;my.end=+pf.end_h}if(pf.photo) my.photo=pf.photo}
+  CLOUD.last[T.id]={name:T.name,members:my?{[my.id]:toImage(T).members[my.id]}:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{}};
   if(typeof syncProjectFiles==='function') await syncProjectFiles(T);
   await pushTeam(T);
 }
@@ -326,7 +328,8 @@ async function cloudStart(u){
   const fresh=document.documentElement.dataset.auth!=='in';
   await pull();
   try{const {data}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle();if(data) CLOUD.profile={...(CLOUD.profile||{}),...data}}catch(e){}
-  for(const T of S.teams.filter(t=>!t.cloud&&t.members.some(m=>m.isMe)&&hasWork(t))){
+  const hadTeams=S.teams.some(t=>t.cloud);
+  for(const T of hadTeams?[]:S.teams.filter(t=>!t.cloud&&t.members.some(m=>m.isMe)&&hasWork(t))){
     try{await uploadTeam(T)}catch(e){console.warn('upload',e);toast('Could not move '+T.name+' to your account: '+((e&&e.message)||e))}
   }
   const code=heldCode();dropCode();
