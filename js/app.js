@@ -396,14 +396,14 @@ function renderTeam(){
   const pct=t=>clamp((t-a)/(b-a)*100,0,100);
   let ruler='';for(let h=0;h<24;h++) ruler+=`<span style="left:${h/24*100}%" data-h="${h}">${fmtHr(a+h*HR,H)}</span>`;
   const row=z=>{
-    const parts_=[...c.sleep[z.id].map(([s,e])=>[s,e,'sleep']),...c.work[z.id].map(([s,e])=>[s,e,'work'])].map(([s,e,k])=>[Math.max(s,a),Math.min(e,b),k]).filter(x=>x[1]>x[0]).sort((x,y)=>x[0]-y[0]);
-    const blocks=[];let at=a;for(const [s,e,k] of parts_){if(s>at) blocks.push([at,s,'off']);if(e>at){blocks.push([Math.max(s,at),e,k]);at=e}}if(at<b) blocks.push([at,b,'off']);
-    const segs=blocks.map(([s,e,k])=>{const w=pct(e)-pct(s),L=k==='sleep'?'Asleep':k==='work'?'Online':'Off';return `<div class="seg s-${k}" style="left:calc(${pct(s)}% + 2px);width:calc(${w}% - 4px)" title="${L} · ${fmtT(s,z.tz)} – ${fmtT(e,z.tz)} ${esc(z.isMe?'your time':first(z.name)+"'s time")}">${k==='sleep'&&w>6?`<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 8.3A4.8 4.8 0 0 1 3.9 2a4.8 4.8 0 1 0 6.1 6.3z"/></svg>`:''}</div>`});
-    const evs=c.busy[z.id].filter(x=>x[1]>a&&x[0]<b).map(x=>{const l=pct(x[0]),wd=pct(x[1])-l,col=colorOf(x);return `<div class="s-ev ${col}" style="left:${l}%;width:${Math.max(wd,.8)}%;--bg:var(--ev-${col==='pend'||col==='cal'?'white':col})" data-ev="${x[3]||''}" data-s="${x[0]}" data-who="${z.id}" title="${esc(x[2])} · ${fmtT(x[0],z.tz)} – ${fmtT(x[1],z.tz)} ${esc(z.isMe?'':first(z.name)+"'s time")}">${wd>5?esc(x[2]):''}</div>`});
+    const parts_=[...c.sleep[z.id].map(([s,e])=>[s,e,'sleep']),...c.work[z.id].map(([s,e])=>[s,e,'work'])].map(([s,e,k])=>[Math.max(s,a),Math.min(e,b),k,s,e]).filter(x=>x[1]>x[0]).sort((x,y)=>x[0]-y[0]);
+    const blocks=[];let at=a;for(const [s,e,k,s0,e0] of parts_){if(s>at) blocks.push([at,s,'off',at,s]);if(e>at){blocks.push([Math.max(s,at),e,k,Math.max(s0,at),e0]);at=e}}if(at<b) blocks.push([at,b,'off',at,b]);
+    const segs=blocks.map(([s,e,k,s0,e0])=>{const w=pct(e)-pct(s);return `<div class="seg s-${k}" style="left:calc(${pct(s)}% + 2px);width:calc(${w}% - 4px)" data-k="${k}" data-s="${s0}" data-e="${e0}" data-who="${z.id}">${k==='sleep'&&w>6?`<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 8.3A4.8 4.8 0 0 1 3.9 2a4.8 4.8 0 1 0 6.1 6.3z"/></svg>`:''}</div>`});
+    const evs=c.busy[z.id].filter(x=>x[1]>a&&x[0]<b).map(x=>{const l=pct(x[0]),wd=pct(x[1])-l,col=colorOf(x);return `<div class="s-ev ${col}" style="left:${l}%;width:${Math.max(wd,.8)}%;--bg:var(--ev-${col==='pend'||col==='cal'?'white':col})" data-ev="${x[3]||''}" data-s="${x[0]}" data-e="${x[1]}" data-who="${z.id}" data-t="${esc(x[2])}">${wd>5?esc(x[2]):''}</div>`});
     // their midnight, so a day change is visible on the row
     const mids=[];for(const D of localDates(z.tz,a,b)){const t=zonedToUtc(z.tz,D.y,D.m,D.d,0,0);if(t>a&&t<b) mids.push(`<div class="mid" style="left:${pct(t)}%"><i>${fmtDate(t,z.tz)}</i></div>`)}
-    const k=statusAt(z,now,c),cur=UI.hover||now;
-    return `<div class="tm-row${z.isMe?' me':''}" data-m="${z.id}"><div class="tm-who" data-member="${z.id}" title="${esc(KIND_LABEL[kindOf(z)])}">${avatar(z,'',k[0])}<span class="nm"><b>${esc(z.isMe?'You':z.name)}</b><small>${esc(tzLabel(z.tz))} · ${offLabel(z.tz,now)}${kindOf(z)==='invited'?' · invited':''}</small></span><span class="lt${UI.hover?' hov':''}" data-lt="${z.id}">${fmtT(cur,z.tz)}<small>${UI.hover?dayMark(cur,z.tz)||'at cursor':k[1]}</small></span></div>
+    const k=statusAt(z,now,c);
+    return `<div class="tm-row${z.isMe?' me':''}" data-m="${z.id}"><div class="tm-who" data-member="${z.id}" title="${esc(KIND_LABEL[kindOf(z)])}">${avatar(z,'',k[0])}<span class="nm"><b>${esc(z.isMe?'You':z.name)}</b><small>${esc(tzLabel(z.tz))} · ${offLabel(z.tz,now)}${kindOf(z)==='invited'?' · invited':''}</small></span><span class="lt" data-lt="${z.id}">${fmtT(now,z.tz)}<small>${k[1]}</small></span></div>
       <div class="tl" data-tl="${z.id}">${segs.join('')}${mids.join('')}${evs.join('')}</div></div>`};
   const mid=a+12*HR,offOf=z=>tzOffset(z.tz,mid),mine=offOf(me()),groups=new Map();
   for(const z of M){const o=offOf(z);if(!groups.has(o)) groups.set(o,[]);groups.get(o).push(z)}
@@ -414,30 +414,41 @@ function renderTeam(){
     return `<div class="tm-zbar" data-tz="${esc(tz)}"><div class="zl"><b>${esc(cities.join(', '))}</b><small>${offLabel(tz,now)} · ${fmtT(now,tz)} now</small></div><div class="rl">${hrs}</div></div>`};
   const rows=order.map(o=>(o===mine?'':zbar(groups.get(o)))+groups.get(o).sort((x,y)=>(y.isMe?1:0)-(x.isMe?1:0)).map(row).join('')).join('');
   const wins=w.list.map(x=>`<div class="win${w.max<w.total?' part':''}" style="left:${pct(x.start)}%;width:${pct(x.end)-pct(x.start)}%"></div>`).join('');
-  $('#tmWrap').innerHTML=`<div class="tm-ruler"><div></div><div class="rl" id="tmRuler">${ruler}${UI.hover?`<span class="cur" style="left:${pct(UI.hover)}%">${fmtT(UI.hover,H)}</span>`:''}</div></div>
-    <div class="tm-rows" id="tmRows"><div class="tm-layer">${M.length>1?wins:''}${day===today()?`<div class="now" style="left:${pct(now)}%"></div>`:''}${UI.hover?`<div class="hov" style="left:${pct(UI.hover)}%"></div>`:''}</div>${rows}</div>
+  $('#tmWrap').innerHTML=`<div class="tm-ruler"><div></div><div class="rl" id="tmRuler">${ruler}</div></div>
+    <div class="tm-rows" id="tmRows"><div class="tm-layer">${M.length>1?wins:''}${day===today()?`<div class="now" style="left:${pct(now)}%"></div>`:''}</div>${rows}</div>
     ${M.length<2?`<p class="tm-empty"><b>It is just you so far.</b> Add the people you work with, with their city and online hours, and this page shows who is awake, who is free and the hours you all share.</p>`:''}`;
   fitRuler();
 }
 function fitRuler(){const rl=$('#tmRuler');if(!rl) return;const w=rl.clientWidth,step=w/24,need=S.hour12?40:36,every=[1,2,3,4,6,8,12].find(e=>step*e>=need)||12;$$('#tmRuler span[data-h],#tmRows .tm-zbar span[data-h]').forEach(s=>s.classList.toggle('hide',(+s.dataset.h)%every!==0))}
 let rsT=0;addEventListener('resize',()=>{if(UI.view==='team') fitRuler();if(UI.draft) placePop();clearTimeout(rsT);rsT=setTimeout(()=>{if(UI.view==='calendar') renderCal()},150)});
-// hover: the cursor column shows each person's local time
-function tmHover(t){
-  const prev=UI.hover;UI.hover=t;if(!!prev===!!t&&t&&Math.abs(prev-t)<MIN) return;
-  const [a,b]=dayRange(UI.day),now=Date.now(),cur=t||now,pct=x=>clamp((x-a)/(b-a)*100,0,100);
-  for(const z of team().members){const el=$(`[data-lt="${z.id}"]`);if(!el) continue;const k=statusAt(z,now,ctx(UI.day));el.classList.toggle('hov',!!t);el.innerHTML=`${fmtT(cur,z.tz)}<small>${t?(dayMark(cur,z.tz)||'at cursor'):k[1]}</small>`}
-  const rl=$('#tmRuler');if(rl){let c=rl.querySelector('.cur');if(t){if(!c){c=document.createElement('span');c.className='cur';rl.append(c)}c.style.left=pct(t)+'%';c.textContent=fmtT(t,home())}else if(c) c.remove()}
-  for(const zb of $$('#tmRows .tm-zbar')){const rl2=zb.querySelector('.rl');let c2=rl2.querySelector('.cur');if(t){if(!c2){c2=document.createElement('span');c2.className='cur';rl2.append(c2)}c2.style.left=pct(t)+'%';c2.textContent=fmtT(t,zb.dataset.tz)}else if(c2) c2.remove()}
-  const layer=$('#tmRows .tm-layer');if(layer){let h=layer.querySelector('.hov');if(t){if(!h){h=document.createElement('div');h.className='hov';layer.append(h)}h.style.left=pct(t)+'%'}else if(h) h.remove()}
+// hover a block (asleep, off, online or a meeting): it lights up and a card says what it is, its hours and how long
+const tmTip=document.createElement('div');tmTip.className='tm-tip';tmTip.hidden=true;document.body.append(tmTip);
+let tmHot=null;
+function tmTipText(el){
+  const z=findM(el.dataset.who);if(!z) return null;const s=+el.dataset.s,e=+el.dataset.e,H=home(),k=el.dataset.k;
+  const what=el.dataset.t||(k==='sleep'?'Asleep':k==='work'?'Online':'Off'),sameTz=tzOffset(z.tz,s)===tzOffset(H,s);
+  const who=z.isMe?'':(sameTz?first(z.name):`${first(z.name)}, in ${tzLabel(z.tz)}`);
+  return {what,sub:`${fmtDur(Math.round((e-s)/MIN))}${who?' · '+who:''}`,when:`${fmtT(s,z.tz)} – ${fmtT(e,z.tz)}`,mine:sameTz?'':`${fmtT(s,H)} – ${fmtT(e,H)} for you`,
+    hint:el.dataset.ev!=null?'Click to open':k==='work'?'Click to book a meeting':''};
 }
-function tmTimeAt(e){const tl=e.target.closest('.tl')||$('#tmRows .tl');if(!tl) return null;const r=tl.getBoundingClientRect(),[a,b]=dayRange(UI.day);return Math.round((a+(clamp((e.clientX-r.left)/r.width,0,1))*(b-a))/(5*MIN))*5*MIN}
-$('#tmWrap').addEventListener('mousemove',e=>{if(!e.target.closest('.tl,.tm-ruler .rl,.tm-zbar .rl')) return;const t=tmTimeAt(e);if(t!=null) tmHover(t)});
-$('#tmWrap').addEventListener('mouseleave',()=>tmHover(null));
+function tmTipHide(){tmTip.hidden=true;if(tmHot){tmHot.classList.remove('hot');tmHot=null}}
+$('#tmWrap').addEventListener('pointermove',e=>{
+  if(e.pointerType==='touch') return;
+  const el=e.target.closest('#tmRows .seg,#tmRows .s-ev');if(!el){tmTipHide();return}
+  if(el!==tmHot){
+    if(tmHot) tmHot.classList.remove('hot');tmHot=el;el.classList.add('hot');
+    const t=tmTipText(el);if(!t){tmTipHide();return}
+    tmTip.innerHTML=`<b>${esc(t.what)}</b><span>${esc(t.sub)}</span><span class="when">${esc(t.when)}</span>${t.mine?`<span>${esc(t.mine)}</span>`:''}${t.hint?`<small>${t.hint}</small>`:''}`;tmTip.hidden=false;
+  }
+  const w=tmTip.offsetWidth,h=tmTip.offsetHeight,x=e.clientX,y=e.clientY;
+  tmTip.style.left=Math.max(8,x+14+w>innerWidth-8?x-w-14:x+14)+'px';tmTip.style.top=(y+18+h>innerHeight-8?Math.max(8,y-h-12):y+18)+'px';
+});
+$('#tmWrap').addEventListener('pointerleave',tmTipHide);
+addEventListener('scroll',tmTipHide,{passive:true,capture:true});
 $('#tmWrap').addEventListener('click',e=>{
   const ev=e.target.closest('.s-ev');if(ev){openEvent(ev.dataset.ev,ev.dataset.s,ev.dataset.who);return}
   const who=e.target.closest('[data-member]');if(who){const z=findM(who.dataset.member);if(z.isMe) openSettings('schedule');else openMember(z.id);return}
-  const tl=e.target.closest('.tl');if(tl){const t=r15(tmTimeAt(e)),z=findM(tl.dataset.tl),who=new Set([me().id]);if(z&&!z.isMe) who.add(z.id);openDraft({s:t,e:t+UI.dur*MIN,title:'',loc:'',kind:'meet',who});return}
-  if(e.target.closest('.tm-ruler .rl')){const t=r15(tmTimeAt(e));openDraft({s:t,e:t+UI.dur*MIN,title:'',loc:'',kind:'meet',who:new Set(team().members.map(z=>z.id))})}
+  const blk=e.target.closest('.tl .s-work');if(blk){tmTipHide();const q=15*MIN,s0=+blk.dataset.s,now=Date.now(),t=now>s0&&now<+blk.dataset.e?Math.ceil(now/q)*q:s0,z=findM(blk.dataset.who),who=new Set([me().id]);if(z&&!z.isMe) who.add(z.id);openDraft({s:t,e:t+UI.dur*MIN,title:'',loc:'',kind:'meet',who})}
 });
 $('#tmStrip').addEventListener('click',e=>{const b=e.target.closest('[data-book]');if(!b) return;const s=+b.dataset.book;openDraft({s,e:s+UI.dur*MIN,title:'',loc:'',kind:'meet',who:new Set(team().members.map(z=>z.id))})});
 $('#durSeg').addEventListener('click',e=>{const b=e.target.closest('[data-dur]');if(!b) return;UI.dur=+b.dataset.dur;if(typeof savePrefs==='function') savePrefs();renderTeam()});
@@ -777,6 +788,5 @@ addEventListener('load',()=>{const q=window.__hook;if(q){ // more hooks for scre
   if(q.get('dlg')==='settings') openSettings(q.get('page')||'account');
   if(q.get('dlg')==='member'){const z=team().members.find(x=>!x.isMe);openMember(z?z.id:null)}
   if(q.get('dlg')==='auth') openAuth('login');
-  if(q.get('dlg')==='invite') openInvite();
-  if(q.get('hover')){tmHover(dayStart(today())+(+q.get('hover'))*HR)}}});
-setInterval(()=>{renderSide();if(UI.view==='team'&&!UI.hover) renderTeam();if(UI.view==='calendar'&&UI.hp){const nl=$('#wk .wk-now');if(nl) nl.style.top=clamp((Date.now()-dayStart(today()))/HR,0,24)*UI.hp+'px'}},30000);
+  if(q.get('dlg')==='invite') openInvite();}});
+setInterval(()=>{renderSide();if(UI.view==='team'&&!tmHot) renderTeam();if(UI.view==='calendar'&&UI.hp){const nl=$('#wk .wk-now');if(nl) nl.style.top=clamp((Date.now()-dayStart(today()))/HR,0,24)*UI.hp+'px'}},30000);
