@@ -725,7 +725,7 @@ document.addEventListener('click',e=>{
   if(c('#themeSwitch')){setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');return}
   if(c('#bellBtn')||c('[data-tab-inbox]')){openInbox();return}
   if(b=c('[data-auth-open]')){if(!b.closest('#dSettings')) openAuth(b.dataset.authOpen);return}
-  if(b=c('[data-auth]')){authTab(b.dataset.auth);return}
+  if(b=c('button[data-auth]')){authTab(b.dataset.auth);return} // a button: <html data-auth> would match any click
   if(b=c('[data-open-ev]')){if(UI.view==='tasks') setView('calendar',true);gotoDay(dayOf(+b.dataset.s),true);openEvent(b.dataset.openEv||'',b.dataset.s);return}
   if(b=c('[data-filter]')){const id=b.dataset.filter;UI.filter.has(id)?UI.filter.delete(id):UI.filter.add(id);renderCal();return}
   if(b=c('#calSeg [data-cal]')){UI.cal=b.dataset.cal;if(UI.draft&&UI.cal==='month') closePop();render();scrollToDay();return}

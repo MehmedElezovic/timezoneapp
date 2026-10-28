@@ -33,7 +33,9 @@ $('#fRegister').addEventListener('submit',async e=>{
   say('#regErr','');if(!sb){say('#regErr','Accounts are not reachable right now. Check your connection and try again.');return}
   busyBtn(btn,true);const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{name,...(heldCode()?{invite:heldCode()}:{})},emailRedirectTo:siteUrl()}});busyBtn(btn,false);
   if(error){say('#regErr',authMsg(error));return}
-  if(data.session) f.reset(); else say('#regErr',`Almost there. We sent a link to ${email}. Open it to confirm, then log in here.`,true);
+  // an email that already has an account comes back as a user with no identities, and no email is sent
+  if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length){authTab('login');$('#fLogin').email.value=email;say('#logErr','That email already has an account. Log in, or use the sign-in link below.');return}
+  if(data.session) f.reset(); else say('#regErr',`Almost there. We sent a link to ${email}. Open it to confirm your email and you are in.`,true);
 });
 $('#fLogin').addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,email=f.email.value.trim().toLowerCase(),pw=f.pass.value,btn=f.querySelector('button[type=submit]');
@@ -51,7 +53,8 @@ $('#btnMagic').onclick=async()=>{
   say('#logErr',`Sent. Open the link we emailed to ${email} and you are in.`,true);
 };
 // Google needs switching on in Supabase (Authentication › Providers); until then the button says so
-AUTH.gp=SHARE?null:fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(j=>{AUTH.google=!!(j.external||{}).google}).catch(()=>{});
+// until Google is switched on the button and its divider stay hidden, so nobody meets a button that does nothing
+AUTH.gp=SHARE?null:fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(j=>{AUTH.google=!!(j.external||{}).google;$('#btnGoogle').hidden=!AUTH.google;$('.gate-or').hidden=!AUTH.google}).catch(()=>{});
 $('#btnGoogle').onclick=async()=>{
   const err=$('#fLogin').hidden?'#regErr':'#logErr',b=$('#btnGoogle');say(err,'');
   if(!sb){say(err,'Accounts are not reachable right now. Check your connection and try again.');return}
