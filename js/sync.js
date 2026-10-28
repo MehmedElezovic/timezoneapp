@@ -241,10 +241,10 @@ async function pull(){
     {const pf=(CLOUD.profile&&CLOUD.profile.prefs)||{};if(pf.hour12!=null) S.hour12=!!pf.hour12;if(pf.dur) UI.dur=+pf.dur;if(pf.weekStart!=null) S.weekStart=+pf.weekStart;if(pf.theme&&pf.theme!==document.documentElement.dataset.theme) setTheme(pf.theme,true)}
     for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.tkThread={};
     const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas,projects,pas,versions,vcm,vre},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
-    S.teams=[...built,...local];
+    S.teams=[...built,...local];if(!S.teams.length) S.teams=seed().teams; // a new account with no team yet still needs one to show
     CLOUD.last={};for(const T of built) CLOUD.last[T.id]=toImage(T);
     if(CLOUD.invOn){const {data}=await sb.rpc('my_invites');CLOUD.invites=Array.isArray(data)?data:[]}
-    if(!S.teams.find(t=>t.id===S.active)) S.active=(built[0]||local[0]).id;
+    if(!S.teams.find(t=>t.id===S.active)) S.active=S.teams[0].id;
     try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
     ctxMap.clear();winMap.clear();render();
   }catch(e){console.warn('pull',e);toast('Could not load your teams: '+((e&&e.message)||e))}
@@ -319,6 +319,12 @@ function listen(){
   CLOUD.chan.subscribe();
 }
 async function cloudStart(u){
+  try{await startAccount(u)}catch(e){console.warn('sign-in',e);toast('Signing in did not finish: '+((e&&e.message)||e)+'. Reload the page to try again.')}
+}
+async function startAccount(u){
+  // this browser held another account's teams (a confirm link opened where someone else is signed in): put them away first
+  if(S.uid&&S.uid!==u.id){for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.last={};S.teams=S.teams.filter(t=>!t.cloud);if(!S.teams.length) S.teams=seed().teams;S.active=S.teams[0].id;setAuthState('wait')}
+  S.uid=u.id;
   CLOUD.user=u;CLOUD.ready=false;renderSide();
   try{const {error}=await sb.from('events').select('location,kind').limit(1);CLOUD.evCols=!error}catch(e){CLOUD.evCols=false}
   try{const {error}=await sb.from('projects').select('id').limit(1);CLOUD.pjOn=!error}catch(e){CLOUD.pjOn=false} // the 2026-10-27 projects migration
@@ -346,7 +352,7 @@ async function cloudStart(u){
 function cloudStop(){
   if(CLOUD.chan){sb.removeChannel(CLOUD.chan);CLOUD.chan=null}
   for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.tkThread={};CLOUD.last={};
-  CLOUD.user=null;CLOUD.profile=null;CLOUD.ready=false;CLOUD.invites=[];
+  CLOUD.user=null;CLOUD.profile=null;CLOUD.ready=false;CLOUD.invites=[];S.uid=null;
   S.teams=S.teams.filter(t=>!t.cloud);
   if(!S.teams.length){const sd=seed();S.teams=sd.teams;S.active=sd.active}else if(!S.teams.find(t=>t.id===S.active)) S.active=S.teams[0].id;
   $$('dialog[open]').forEach(d=>d.close());
