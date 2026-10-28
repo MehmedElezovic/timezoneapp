@@ -54,7 +54,8 @@ function confirmDlg(title,text,ok='Remove'){
     const done=v=>{d.removeEventListener('close',onClose);res(v)};const onClose=()=>done(false);
     b.onclick=()=>{d.removeEventListener('close',onClose);d.close();res(true)};d.addEventListener('close',onClose);d.showModal()});
 }
-function setTheme(t,quiet){document.documentElement.dataset.theme=t;try{localStorage.setItem('noon.theme',t)}catch(e){}if(!quiet&&typeof savePrefs==='function') savePrefs();if($('#dSettings').open) renderSettings()}
+function setTheme(t,quiet){document.documentElement.dataset.theme=t;syncThemeSwitch();try{localStorage.setItem('noon.theme',t)}catch(e){}if(!quiet&&typeof savePrefs==='function') savePrefs();if($('#dSettings').open) renderSettings()}
+function syncThemeSwitch(){const b=$('#themeSwitch');if(b) b.setAttribute('aria-checked',document.documentElement.dataset.theme==='dark')}
 function setSyncState(s){const el=$('#syncState');if(!el) return;el.textContent=s==='saving'?'Saving…':s==='error'?'Not saved':''}
 const dayStart=day=>dayRange(day)[0];
 const dayTitle=day=>{const {y,m}=dayParts(day);return MONTHS[m-1]+', '+y};
@@ -391,19 +392,19 @@ function renderTeam(){
   const w=windowsFor(day,M,UI.dur,15);
   const upcoming=w.list.filter(x=>x.end>now||day!==today());
   $('#tmStrip').innerHTML=`<span class="lbl">${M.length>1?`Best for ${UI.dur} min:`:'Add teammates to find a shared time.'}</span>`+(M.length>1?(upcoming.length?upcoming.slice(0,5).map(x=>{const st=day===today()?Math.max(x.start,r15(now)):x.start;return `<button type="button" class="bw${w.max<w.total?' part':''}" data-book="${st}" title="Book ${fmtT(st,H)} for everyone">${fmtT(st,H)}${x.end-x.start>UI.dur*MIN?` – ${fmtT(x.end,H)}`:''} <small>${w.max===w.total?'everyone':`${w.max} of ${w.total}`}</small></button>`}).join(''):'<span class="lbl">No shared window today.</span>'):'')
-    +`<div class="legend"><span><i style="background:var(--work)"></i>Online</span><span><i style="background:var(--off)"></i>Off</span><span><i style="background:repeating-linear-gradient(135deg,#d6d7dc 0 3px,#e6e7ec 3px 6px)"></i>Asleep</span><span><i style="background:var(--ev-purple)"></i>Booked</span><span><i style="background:rgba(183,156,240,.35);border:1px solid var(--lav)"></i>Best window</span></div>`;
+    +`<div class="legend"><span><i class="lg-work"></i>Online</span><span><i class="lg-off"></i>Off</span><span><i class="lg-sleep"></i>Asleep</span><span><i style="background:var(--ev-purple)"></i>Booked</span><span><i style="background:rgba(183,156,240,.35);border:1px solid var(--lav)"></i>Best window</span></div>`;
   const pct=t=>clamp((t-a)/(b-a)*100,0,100);
   let ruler='';for(let h=0;h<24;h++) ruler+=`<span style="left:${h/24*100}%" data-h="${h}">${fmtHr(a+h*HR,H)}</span>`;
   const row=z=>{
-    const segs=[];
-    for(const [s,e] of c.sleep[z.id]) if(e>a&&s<b) segs.push(`<div class="seg s-sleep" style="left:${pct(s)}%;width:${pct(e)-pct(s)}%"></div>`);
-    for(const [s,e] of c.work[z.id]) if(e>a&&s<b) segs.push(`<div class="seg s-work" style="left:${pct(s)}%;width:${pct(e)-pct(s)}%"></div>`);
+    const parts_=[...c.sleep[z.id].map(([s,e])=>[s,e,'sleep']),...c.work[z.id].map(([s,e])=>[s,e,'work'])].map(([s,e,k])=>[Math.max(s,a),Math.min(e,b),k]).filter(x=>x[1]>x[0]).sort((x,y)=>x[0]-y[0]);
+    const blocks=[];let at=a;for(const [s,e,k] of parts_){if(s>at) blocks.push([at,s,'off']);if(e>at){blocks.push([Math.max(s,at),e,k]);at=e}}if(at<b) blocks.push([at,b,'off']);
+    const segs=blocks.map(([s,e,k])=>{const w=pct(e)-pct(s),L=k==='sleep'?'Asleep':k==='work'?'Online':'Off';return `<div class="seg s-${k}" style="left:calc(${pct(s)}% + 2px);width:calc(${w}% - 4px)" title="${L} · ${fmtT(s,z.tz)} – ${fmtT(e,z.tz)} ${esc(z.isMe?'your time':first(z.name)+"'s time")}">${k==='sleep'&&w>6?`<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M10 8.3A4.8 4.8 0 0 1 3.9 2a4.8 4.8 0 1 0 6.1 6.3z"/></svg>`:''}</div>`});
     const evs=c.busy[z.id].filter(x=>x[1]>a&&x[0]<b).map(x=>{const l=pct(x[0]),wd=pct(x[1])-l,col=colorOf(x);return `<div class="s-ev ${col}" style="left:${l}%;width:${Math.max(wd,.8)}%;--bg:var(--ev-${col==='pend'||col==='cal'?'white':col})" data-ev="${x[3]||''}" data-s="${x[0]}" data-who="${z.id}" title="${esc(x[2])} · ${fmtT(x[0],z.tz)} – ${fmtT(x[1],z.tz)} ${esc(z.isMe?'':first(z.name)+"'s time")}">${wd>5?esc(x[2]):''}</div>`});
     // their midnight, so a day change is visible on the row
     const mids=[];for(const D of localDates(z.tz,a,b)){const t=zonedToUtc(z.tz,D.y,D.m,D.d,0,0);if(t>a&&t<b) mids.push(`<div class="mid" style="left:${pct(t)}%"><i>${fmtDate(t,z.tz)}</i></div>`)}
     const k=statusAt(z,now,c),cur=UI.hover||now;
     return `<div class="tm-row${z.isMe?' me':''}" data-m="${z.id}"><div class="tm-who" data-member="${z.id}" title="${esc(KIND_LABEL[kindOf(z)])}">${avatar(z,'',k[0])}<span class="nm"><b>${esc(z.isMe?'You':z.name)}</b><small>${esc(tzLabel(z.tz))} · ${offLabel(z.tz,now)}${kindOf(z)==='invited'?' · invited':''}</small></span><span class="lt${UI.hover?' hov':''}" data-lt="${z.id}">${fmtT(cur,z.tz)}<small>${UI.hover?dayMark(cur,z.tz)||'at cursor':k[1]}</small></span></div>
-      <div class="tl" data-tl="${z.id}"><div class="seg s-off" style="left:0;width:100%"></div>${segs.join('')}${mids.join('')}${evs.join('')}</div></div>`};
+      <div class="tl" data-tl="${z.id}">${segs.join('')}${mids.join('')}${evs.join('')}</div></div>`};
   const mid=a+12*HR,offOf=z=>tzOffset(z.tz,mid),mine=offOf(me()),groups=new Map();
   for(const z of M){const o=offOf(z);if(!groups.has(o)) groups.set(o,[]);groups.get(o).push(z)}
   const order=[...groups.keys()].sort((x,y)=>(x===mine?-1:y===mine?1:x-y));
@@ -721,6 +722,7 @@ document.addEventListener('click',e=>{
   if(b=c('[data-close]')){const d=b.closest('dialog');if(d) d.close();return}
   if(b=c('[data-nav]')){const k=b.dataset.nav;if(k==='settings') openSettings();else setView(k);return}
   if(b=c('[data-open-settings]')){if(typeof user==='function'&&!user()) openAuth('login');else openSettings(b.dataset.openSettings);return}
+  if(c('#themeSwitch')){setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');return}
   if(c('#bellBtn')||c('[data-tab-inbox]')){openInbox();return}
   if(b=c('[data-auth-open]')){if(!b.closest('#dSettings')) openAuth(b.dataset.authOpen);return}
   if(b=c('[data-auth]')){authTab(b.dataset.auth);return}
@@ -765,7 +767,7 @@ function startJoin(J,boot){
     try{localStorage.setItem('noon.join',J.code)}catch(e){}if(boot) history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>{if(!(typeof CLOUD!=='undefined'&&CLOUD.user)){openAuth('register','join');peekInvite(J.code)}},boot?900:0);return}
   window.__join=J;$('#joinTitle').textContent='Join '+J.n;setTz($('#fJoin').tz,Intl.DateTimeFormat().resolvedOptions().timeZone);$('#dJoin').showModal()}
 if(J) startJoin(J,true);
-render();scrollToDay();
+render();scrollToDay();syncThemeSwitch();
 addEventListener('load',()=>{const q=window.__hook;if(q){ // more hooks for screenshots, run once every module is in: ?pop=first|new opens the event panel, ?task=first opens a task, ?inbox=1 the inbox
   if(q.get('pop')==='first'){const x=itemsOn(me(),today()).find(x=>x[3]);if(x) openEvent(x[3],x[0])}
   if(q.get('pop')==='new'){const s=dayStart(today())+10*HR;openDraft({s,e:s+UI.dur*MIN,title:'',loc:'',kind:'meet',who:new Set(team().members.map(z=>z.id))})}
