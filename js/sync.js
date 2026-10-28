@@ -4,9 +4,9 @@ const SB_URL='https://boielhshrswqdqkxiupz.supabase.co',SB_KEY='sb_publishable_B
 const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY,SHARE?{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}:undefined):null;
 const AUTH={why:null};
 SYNC_ON=true;
-const CLOUD={user:null,profile:null,last:{},evThread:{},tkThread:{},metaKeys:new Set(),busy:false,dirty:false,pushing:false,pushAgain:false,chan:null,pullT:0,pushT:0,ready:false};
+const CLOUD={user:null,profile:null,last:{},evThread:{},tkThread:{},metaKeys:new Set(),busy:false,dirty:false,pushing:false,pushAgain:false,chan:null,pullT:0,pushT:0,ready:false,invites:[],invOn:false};
 const user=()=>CLOUD.user?{name:(CLOUD.profile&&CLOUD.profile.name)||(CLOUD.user.user_metadata||{}).name||(CLOUD.user.email||'').split('@')[0],email:CLOUD.user.email}:null;
-const GATE={share:['Share with a client','A client link puts the project online, so it needs your account.'],claude:['Connect Claude','Claude works in your projects as you, so it needs your account.'],files:['Attach files','Files are kept in your account, so everyone on the task can open them.'],book:['Book a time','Booking sends an invite under your name, so Noon needs to know who you are.'],comment:['Join the thread','Comments and reactions are posted as you.'],invite:['Invite people','Invites go out from your account, and people join your team.'],integ:['Connect a calendar','Calendar connections are tied to an account.'],team:['Another team','Extra teams are saved to your account.'],request:['Answer a request','Answers are sent as you.'],save:['Keep this on every device','Your team, timezones and threads are saved to your account.'],join:['Join the team','Log in, or create an account, to take your seat in this team.']};
+const GATE={share:['Share with a client','A client link puts the project online, so it needs your account.'],claude:['Connect Claude','Claude works in your projects as you, so it needs your account.'],files:['Attach files','Files are kept in your account, so everyone on the task can open them.'],book:['Book a time','Booking sends an invite under your name, so Noon needs to know who you are.'],comment:['Join the thread','Comments and reactions are posted as you.'],invite:['Invite people','Invites go out from your account, and people join your team.'],integ:['Connect a calendar','Calendar connections are tied to an account.'],team:['Another team','Extra teams are saved to your account.'],request:['Answer a request','Answers are sent as you.'],save:['Keep this on every device','Your team, timezones and threads are saved to your account.'],join:['You are invited to a team','Create an account or log in. The invite waits in your inbox, and you join when you accept.']};
 const setAuthState=k=>{if(!SHARE) document.documentElement.dataset.auth=k};
 // teams kept on this device that hold real work move to the account; an empty starter team does not
 const hasWork=t=>t.members.length>1||!!(t.tasks||[]).length||!!(t.projects||[]).length||t.members.some(m=>(m.events||[]).length||(m.threads||[]).length);
@@ -31,7 +31,7 @@ const busyBtn=(b,on)=>{if(!b) return;b.disabled=on;if(on){b.dataset.l=b.textCont
 $('#fRegister').addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target,name=f.name.value.trim(),email=f.email.value.trim().toLowerCase(),pw=f.pass.value,btn=f.querySelector('button[type=submit]');
   say('#regErr','');if(!sb){say('#regErr','Accounts are not reachable right now. Check your connection and try again.');return}
-  busyBtn(btn,true);const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{name},emailRedirectTo:siteUrl()}});busyBtn(btn,false);
+  busyBtn(btn,true);const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{name,...(heldCode()?{invite:heldCode()}:{})},emailRedirectTo:siteUrl()}});busyBtn(btn,false);
   if(error){say('#regErr',authMsg(error));return}
   if(data.session) f.reset(); else say('#regErr',`Almost there. We sent a link to ${email}. Open it to confirm, then log in here.`,true);
 });
@@ -100,7 +100,7 @@ function rowMember(r,uidMe){return {id:r.id,name:r.name||'',email:r.email||'',tz
 function buildTeams(R,uidMe){
   const out=[];
   for(const t of R.teams){
-    const T={id:t.id,name:t.name,cloud:true,code:t.invite_code,createdBy:t.created_by,sample:false,members:[]},mem={};
+    const T={id:t.id,name:t.name,cloud:true,code:t.invite_code,createdBy:t.created_by,at:msOf(t.created_at),sample:false,members:[]},mem={};
     for(const r of R.members) if(r.team_id===t.id){const m=rowMember(r,uidMe);mem[m.id]=m;T.members.push(m)}
     if(!T.members.some(m=>m.isMe)) continue;
     T.members.sort((a,b)=>(b.isMe?1:0)-(a.isMe?1:0)||msOf(R.members.find(r=>r.id===a.id).created_at)-msOf(R.members.find(r=>r.id===b.id).created_at));
@@ -116,7 +116,7 @@ function buildTeams(R,uidMe){
     }
     T.tasks=(R.tasks||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,title:x.title,note:x.note||'',to:(R.tas||[]).filter(y=>y.task_id===x.id).map(y=>y.member_id),by:x.created_by||null,day:x.due_day||null,time:x.due_time||null,tz:x.due_tz||null,at:msOf(x.created_at),done:msOf(x.done_at),cleared:!!x.cleared,files:Array.isArray(x.files)?x.files:[],re:{},cm:[]}));
     T.projects=(R.projects||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,due:x.due_day||null,to:(R.pas||[]).filter(y=>y.project_id===x.id).map(y=>y.member_id),by:x.created_by||null,who:x.changed_by||null,whoGuest:x.changed_guest||null,share:x.share_token?{on:!!x.share_on,token:x.share_token}:null,at:msOf(x.changed_at)||msOf(x.created_at),
-      versions:(R.versions||[]).filter(v=>v.project_id===x.id).sort((a,b)=>a.n-b.n).map(v=>({id:v.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:Array.isArray(v.assets)?v.assets:[],by:v.created_by||null,at:msOf(v.created_at),
+      versions:(R.versions||[]).filter(v=>v.project_id===x.id).sort((a,b)=>a.n-b.n).map(v=>({id:v.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:Array.isArray(v.assets)?v.assets:[],by:v.created_by||null,at:msOf(v.created_at),...(v.share_token?{share:{on:!!v.share_on,token:v.share_token}}:{}),
         cm:(R.vcm||[]).filter(c=>c.version_id===v.id).sort((a,b)=>a.n-b.n).map(c=>({id:c.id,n:c.n,sel:c.sel||'',rx:c.rx??.5,ry:c.ry??.5,px:c.px||0,py:c.py||0,dev:c.dev||'desktop',text:c.body,by:c.guest_name||nameOf(c.author_id),byId:c.author_id||null,...(c.guest_name?{guest:true}:{}),...(c.layer==='client'?{layer:'client'}:{}),...(c.snippet?{snip:c.snippet}:{}),at:msOf(c.created_at),status:c.status||'open',...(c.from_version?{from:{v:c.from_version,c:c.from_comment}}:{}),
           re:(R.vre||[]).filter(r=>r.comment_id===c.id).sort((a,b)=>msOf(a.created_at)-msOf(b.created_at)).map(r=>({id:r.id,by:r.guest_name||nameOf(r.author_id),byId:r.author_id||null,...(r.guest_name?{guest:true}:{}),text:r.body,at:msOf(r.created_at)}))}))}))}));
     const cmsBy={};for(const c of R.comments)(cmsBy[c.thread_id]=cmsBy[c.thread_id]||[]).push(c);
@@ -134,7 +134,7 @@ function buildTeams(R,uidMe){
 function toImage(T){
   const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{},projects:{},pas:{},versions:{},vcm:{},vre:{}};
   if(CLOUD.pjOn) for(const p of T.projects||[]){I.projects[p.id]={id:p.id,name:p.name,due:p.due||null,by:p.by||null,who:p.who||null,at:p.at||Date.now(),...(CLOUD.shareCols?{share_on:!!(p.share&&p.share.on),share_token:(p.share&&p.share.token)||null,guest:p.who?null:(p.whoGuest||null)}:{})};for(const mid of p.to||[]) I.pas[p.id+':'+mid]={project_id:p.id,member_id:mid};
-    for(const v of p.versions||[]){I.versions[v.id]={id:v.id,project_id:p.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:(v.assets||[]).map(a=>({id:a.id,path:a.path,size:a.size||0,type:a.type||'',file:a.file||null})),by:v.by||null};
+    for(const v of p.versions||[]){I.versions[v.id]={id:v.id,project_id:p.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:(v.assets||[]).map(a=>({id:a.id,path:a.path,size:a.size||0,type:a.type||'',file:a.file||null})),by:v.by||null,...(CLOUD.vShare?{share_on:!!(v.share&&v.share.on),share_token:(v.share&&v.share.token)||null}:{})};
       for(const c of v.cm||[]){I.vcm[c.id]={id:c.id,version_id:v.id,n:c.n,sel:c.sel||null,rx:c.rx??null,ry:c.ry??null,px:c.px??null,py:c.py??null,dev:c.dev||null,body:c.text,author_id:c.byId||null,status:c.status||'open',from_version:c.from?c.from.v:null,from_comment:c.from?c.from.c:null,snippet:c.snip||null,layer:c.layer==='client'?'client':'team',at:c.at||null};
         for(const r of c.re||[]) I.vre[r.id]={id:r.id,comment_id:c.id,author_id:r.byId||null,body:r.text,at:r.at||null}}}}
   for(const t of T.tasks||[]){I.tasks[t.id]={id:t.id,title:t.title,note:t.note||'',day:t.day||null,time:t.time||null,tz:t.tz||null,done:t.done||null,cleared:!!t.cleared,by:t.by||null,files:t.files||[]};for(const mid of t.to||[]) I.tkas[t.id+':'+mid]={task_id:t.id,member_id:mid}}
@@ -195,7 +195,7 @@ async function pushTeam(T){
     if(pjIns.length) await run(sb.from('projects').insert(pjIns));
     const paIns=[];for(const k in N.pas) if(!LPA[k]) paIns.push(N.pas[k]);if(paIns.length) await run(sb.from('project_assignees').upsert(paIns,{onConflict:'project_id,member_id'}));
     for(const k in LPA) if(!N.pas[k]) await run(sb.from('project_assignees').delete().match(LPA[k]));
-    const vRow=n=>({n:n.n,name:n.name,path:n.path,size:n.size,file:n.file,assets:n.assets});
+    const vRow=n=>({n:n.n,name:n.name,path:n.path,size:n.size,file:n.file,assets:n.assets,...(CLOUD.vShare?{share_on:n.share_on,share_token:n.share_token}:{})});
     const vIns=[];for(const id in N.versions){const n=N.versions[id],o=LV[id];if(!o) vIns.push({id,project_id:n.project_id,team_id:T.id,created_by:n.by||myId,...vRow(n)});else if(!sameJ(n,o)) await run(sb.from('versions').update(vRow(n)).eq('id',id))}
     if(vIns.length) await run(sb.from('versions').insert(vIns));
     const cIns=[];for(const id in N.vcm){const n=N.vcm[id],o=LC[id];if(!o) cIns.push({id,version_id:n.version_id,team_id:T.id,n:n.n,sel:n.sel,rx:n.rx,ry:n.ry,px:n.px,py:n.py,dev:n.dev,body:n.body,author_id:n.author_id||myId,status:n.status,from_version:n.from_version,from_comment:n.from_comment,...(CLOUD.shareCols?{snippet:n.snippet,layer:n.layer}:{}),created_at:isoOf(n.at||Date.now())});else if(n.status!==o.status) await run(sb.from('version_comments').update({status:n.status}).eq('id',id))}
@@ -240,6 +240,7 @@ async function pull(){
     const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas,projects,pas,versions,vcm,vre},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
     S.teams=[...built,...local];
     CLOUD.last={};for(const T of built) CLOUD.last[T.id]=toImage(T);
+    if(CLOUD.invOn){const {data}=await sb.rpc('my_invites');CLOUD.invites=Array.isArray(data)?data:[]}
     if(!S.teams.find(t=>t.id===S.active)) S.active=(built[0]||local[0]).id;
     try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}
     ctxMap.clear();winMap.clear();render();
@@ -280,6 +281,29 @@ async function createCloudTeam(name){
   const {data,error}=await sb.rpc('create_team',{team_name:name});if(error){toast('Could not create the team: '+error.message);return null}
   await pull();S.active=data;save();UI.day=today();render();return data;
 }
+// an invite link opened while signed in leaves a request in the inbox; you are in the team only once you accept
+async function holdInvite(code){
+  const {data,error}=await sb.rpc('invite_hold',{code});if(error){toast(error.message||'That invite link did not work.');return}
+  if(data&&data.member){S.active=data.team_id;toast('You are already in '+data.name);return}
+  CLOUD.invHeld=true;
+}
+function showInvites(){
+  const v=CLOUD.invites[0];CLOUD.invHeld=false;if(!v) return;
+  openInbox(true);toast(`${v.by?first(v.by):'Someone'} invited you to ${v.name}`);
+}
+async function answerTeamInvite(id,yes){
+  const {data,error}=await sb.rpc('invite_answer',{p_id:id,p_accept:yes});
+  if(error){toast(error.message||'That did not go through. Try again.');pullSoon();return}
+  CLOUD.invites=CLOUD.invites.filter(x=>x.id!==id);
+  if(!yes){render();toast('Invite declined');return}
+  await pull();if(S.teams.some(t=>t.id===data)) S.active=data;
+  S.teams=S.teams.filter(t=>t.cloud||hasWork(t));save();UI.day=today();openInbox(false);setView('team',true);render();toast('Welcome to '+team().name);
+}
+// the team's name for the sign-in screen, before there is an account
+async function peekInvite(code){
+  if(!sb) return;try{const {data}=await sb.rpc('invite_peek',{code});
+    if(data&&data.name&&!CLOUD.user&&AUTH.why==='join'){const w=$('#authWhy');w.hidden=false;w.innerHTML=`<b>You are invited to ${esc(data.name)}.</b> Create an account or log in. The invite waits in your inbox, and you join when you accept.`}}catch(e){}
+}
 async function joinByCode(code){
   const {data,error}=await sb.rpc('join_team',{code});if(error){toast(error.message||'That invite link did not work.');return}
   await pull();S.active=data;save();UI.day=today();render();toast('Welcome to '+team().name);
@@ -294,26 +318,29 @@ async function cloudStart(u){
   try{const {error}=await sb.from('events').select('location,kind').limit(1);CLOUD.evCols=!error}catch(e){CLOUD.evCols=false}
   try{const {error}=await sb.from('projects').select('id').limit(1);CLOUD.pjOn=!error}catch(e){CLOUD.pjOn=false} // the 2026-10-27 projects migration
   try{const {error}=await sb.from('version_comments').select('layer').limit(1);CLOUD.shareCols=CLOUD.pjOn&&!error}catch(e){CLOUD.shareCols=false} // client links, connector and comment layers
+  try{const {error}=await sb.from('versions').select('share_on').limit(1);CLOUD.vShare=CLOUD.shareCols&&!error}catch(e){CLOUD.vShare=false} // a client link per version
+  try{const {error}=await sb.rpc('my_invites');CLOUD.invOn=!error}catch(e){CLOUD.invOn=false} // invites wait as requests (2026-10-28 migration)
   const fresh=document.documentElement.dataset.auth!=='in';
   await pull();
   try{const {data}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle();if(data) CLOUD.profile={...(CLOUD.profile||{}),...data}}catch(e){}
   for(const T of S.teams.filter(t=>!t.cloud&&t.members.some(m=>m.isMe)&&hasWork(t))){
     try{await uploadTeam(T)}catch(e){console.warn('upload',e);toast('Could not move '+T.name+' to your account: '+((e&&e.message)||e))}
   }
-  let code=null;try{code=sessionStorage.getItem('noon.join');sessionStorage.removeItem('noon.join')}catch(e){}
-  if(code) await joinByCode(code);
+  const code=heldCode();dropCode();
+  if(code){if(CLOUD.invOn) await holdInvite(code);else await joinByCode(code)}
   if(!S.teams.find(t=>t.id===S.active)||!team().cloud){const c=S.teams.find(t=>t.cloud);if(c) S.active=c.id}
   listen();CLOUD.ready=true;await pull();
   AUTH.why=null;if(S.teams.some(t=>t.cloud)) S.teams=S.teams.filter(t=>t.cloud||hasWork(t));
   save();UI.day=today();
   if(needsOnboarding()){startOnboarding();return}
   setAuthState('in');render();
-  if(fresh) toast(`Welcome back, ${first(user().name)}.`);
+  if(CLOUD.invHeld||(fresh&&CLOUD.invites.length)) showInvites();
+  else if(fresh) toast(`Welcome back, ${first(user().name)}.`);
 }
 function cloudStop(){
   if(CLOUD.chan){sb.removeChannel(CLOUD.chan);CLOUD.chan=null}
   for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.tkThread={};CLOUD.last={};
-  CLOUD.user=null;CLOUD.profile=null;CLOUD.ready=false;
+  CLOUD.user=null;CLOUD.profile=null;CLOUD.ready=false;CLOUD.invites=[];
   S.teams=S.teams.filter(t=>!t.cloud);
   if(!S.teams.length){const sd=seed();S.teams=sd.teams;S.active=sd.active}else if(!S.teams.find(t=>t.id===S.active)) S.active=S.teams[0].id;
   $$('dialog[open]').forEach(d=>d.close());

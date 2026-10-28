@@ -580,7 +580,7 @@ function openInbox(on){UI.inbox=on??!UI.inbox;$('#inbox').hidden=!UI.inbox;if(UI
 $('#inboxClose').onclick=()=>openInbox(false);
 function renderInbox(){
   const ib=inbox(),H=home();
-  const rq=ib.rq.map(n=>`<div class="ib${n.act?' act':''}" role="button" tabindex="0" data-ib="${n.kind}" data-id="${n.id||''}" data-task="${n.task||''}">${avatar(n.who)}<span><b>${esc(n.t)}</b><small>${esc(n.sub)}</small>${n.kind==='inv'&&!n.missed?`<span class="acts"><button type="button" class="btn sm dark" data-acc="${n.id}">Accept</button><button type="button" class="btn sm ghost" data-dec="${n.id}">Decline</button></span>`:n.kind==='inv'?`<span class="acts"><button type="button" class="btn sm ghost" data-dec="${n.id}">Dismiss</button></span>`:''}</span></div>`).join('');
+  const rq=ib.rq.map(n=>`<div class="ib${n.act?' act':''}" role="button" tabindex="0" data-ib="${n.kind}" data-id="${n.id||''}" data-task="${n.task||''}">${avatar(n.who)}<span><b>${esc(n.t)}</b><small>${esc(n.sub)}</small>${n.kind==='team'?`<span class="acts"><button type="button" class="btn sm dark" data-tacc="${n.id}">Accept</button><button type="button" class="btn sm ghost" data-tdec="${n.id}">Decline</button></span>`:n.kind==='inv'&&!n.missed?`<span class="acts"><button type="button" class="btn sm dark" data-acc="${n.id}">Accept</button><button type="button" class="btn sm ghost" data-dec="${n.id}">Decline</button></span>`:n.kind==='inv'?`<span class="acts"><button type="button" class="btn sm ghost" data-dec="${n.id}">Dismiss</button></span>`:''}</span></div>`).join('');
   const th=ib.th.map(n=>`<div class="ib${n.act?' act':''}" role="button" tabindex="0" data-ib="th" data-id="${n.id||''}" data-task="${n.task||''}">${avatar(n.who)}<span><b>${esc(n.t)}${n.mention?' · mentions you':n.reply?' · new reply':''}</b><small>${esc(n.sub)}</small></span></div>`).join('');
   $('#ibList').innerHTML=(rq?`<h4>Waiting on you</h4>${rq}`:'')+(th?`<h4>Threads</h4>${th}`:'')+(!rq&&!th?'<p class="ib-empty">All clear. Invites, requests and threads that need you show up here.</p>':'');
 }
@@ -589,6 +589,9 @@ $('#ibList').addEventListener('click',e=>{
   const c=s=>e.target.closest(s);let b;
   if(b=c('[data-acc]')){answerInvite(b.dataset.acc,true);toast('Accepted');render();return}
   if(b=c('[data-dec]')){answerInvite(b.dataset.dec,false);toast('Declined');render();return}
+  if(b=c('[data-tacc]')){b.disabled=true;answerTeamInvite(b.dataset.tacc,true);return}
+  if(b=c('[data-tdec]')){b.disabled=true;answerTeamInvite(b.dataset.tdec,false);return}
+  if(c('[data-ib="team"]')) return;
   if(b=c('[data-ib]')){openInbox(false);if(b.dataset.task) openTask(b.dataset.task);else if(b.dataset.id){const r=evById(b.dataset.id);if(r){if(UI.view==='tasks') setView('calendar',true);gotoDay(dayOf(r.e.s),true);openEvent(b.dataset.id)}}}
 });
 
@@ -611,9 +614,24 @@ function renderSettings(page){
   $$('#wsSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.ws===(S.weekStart??1)));
   $$('#themeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.theme===(document.documentElement.dataset.theme||'light')));
   $('#prefDur').value=String(UI.dur);
-  $('#setTeam').innerHTML=`<h2>Team</h2><p class="hint">Switch between teams, rename the one you are in, or start another.</p>
-    ${S.teams.map(t=>`<div class="teamrow${t.id===T.id?' on':''}"><b>${esc(t.name)}${t.id===T.id?' <span class="cur">current</span>':''}</b><small style="color:var(--ink-3)">${t.members.length} ${t.members.length===1?'person':'people'}${t.cloud?'':' · this device'}</small>${t.id===T.id?'':`<button type="button" class="btn sm" data-switch="${t.id}">Switch</button>`}</div>`).join('')}
-    <div class="dlg-acts" style="justify-content:flex-start;margin-top:14px"><button type="button" class="btn" id="stNew">New team</button><button type="button" class="btn" id="stInvite">Invite link</button><button type="button" class="btn" id="stAdd">Add a person</button></div>`;
+  // each team is a card: click it for who is in it, when it started, and the ways to bring people in
+  if(UI.tOpen===undefined||(UI.tOpen&&!S.teams.some(t=>t.id===UI.tOpen))) UI.tOpen=T.id;
+  const now=Date.now(),tcard=t=>{const open=UI.tOpen===t.id,cur=t.id===T.id,n=t.members.length,owner=t.createdBy&&t.members.find(z=>z.uid===t.createdBy||z.id===t.createdBy);
+    return `<div class="tcard${open?' open':''}${cur?' cur':''}"><button type="button" class="thead" data-topen="${t.id}" aria-expanded="${open}">
+        <span class="tstack">${t.members.slice(0,3).map(z=>avatar(z,'xs')).join('')}</span><span class="tname"><b>${esc(t.name)}${cur?' <span class="cur">current</span>':''}</b><small>${plural(n,'person').replace('persons','people')}${t.at?` · since ${esc(fmtDate(t.at,me().tz).replace(/^\w+, /,''))}`:''} · ${t.cloud?'on your account':'only on this device'}</small></span><span class="tchev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></button>
+      ${open?`<div class="tbody">
+        <div class="tmeta"><div><label>Created</label><b>${t.at?esc(fmtDate(t.at,me().tz)):'Before dates were kept'}</b></div><div><label>Started by</label><b>${owner?esc(owner.isMe?'You':owner.name):t.cloud?'Someone who left':'You'}</b></div><div><label>Kept</label><b>${t.cloud?'On your account, for everyone in it':'On this device only'}</b></div></div>
+        <label class="tlbl">People · ${n}</label>
+        <div class="tpeople">${t.members.map(z=>`<button type="button" class="tperson" data-tperson="${t.id}:${z.id}">${avatar(z,'sm')}<span class="n"><b>${esc(z.name||'Someone')}${z.isMe?' <i>you</i>':''}</b><small>${esc(tzLabel(z.tz))} · ${fmtT(now,z.tz)} now${z.email&&!z.isMe?` · ${esc(z.email)}`:''}</small></span></button>`).join('')}</div>
+        <div class="tacts"><button type="button" class="btn dark sm" data-tadd="${t.id}">${I.plus}Add a person</button>${cur?'':`<button type="button" class="btn sm" data-switch="${t.id}">Switch to this team</button>`}</div>
+        <label class="tlbl">Invite link</label>
+        <div class="copyrow"><input readonly value="${esc(inviteUrl(t))}" aria-label="Invite link for ${esc(t.name)}"><button type="button" class="btn dark" data-tcopy="${t.id}">Copy</button></div>
+        <p class="hint">${t.cloud?'Anyone who opens it gets an invite in their Noon inbox and joins when they accept. The same link keeps working.':'The link carries a snapshot of the team, so send a fresh one after big changes. Sign in to get a permanent link.'}</p>
+      </div>`:''}</div>`};
+  $('#setTeam').innerHTML=`<h2>Teams</h2><p class="hint">Click a team to see who is in it and to bring people in.</p>
+    <div class="tlist">${S.teams.map(tcard).join('')}</div>
+    <div class="tmore"><div><h3>Start a new team</h3><p class="hint">Another group you plan with. You can be in as many as you like.</p><button type="button" class="btn" id="stNew">${I.plus}New team</button></div>
+      <form id="fJoinLink"><h3>Join a team</h3><p class="hint">Someone sent you an invite link? Paste it here.</p><div class="copyrow"><input name="link" required placeholder="Paste an invite link" aria-label="Invite link" autocomplete="off"><button type="submit" class="btn dark">Join</button></div><p class="err" id="joinErr" hidden></p></form></div>`;
   if(typeof renderClaude==='function') renderClaude();
   $('#integList').innerHTML=[['google','Google Calendar','G'],['outlook','Outlook Calendar','O'],['slack','Slack','S']].map(([k,n,l])=>`<div class="integ"><div class="ico">${l}</div><div><b>${n}</b><small>${k==='slack'?'Get invites and mentions in Slack.':'Show your real meetings on your row.'}</small></div><span class="soon">Coming soon</span></div>`).join('');
 }
@@ -626,15 +644,17 @@ $('#dSettings').addEventListener('click',async e=>{
   if(c('#acDelete')){if(await confirmDlg('Delete your account?','Your profile, your seat in every team and everything you posted are removed for good. This cannot be undone.','Delete account')){if(await deleteAccount()) $('#dSettings').close()}return}
   if(b=c('[data-clock]')){S.hour12=b.dataset.clock==='12';save();render();renderSettings();if(typeof savePrefs==='function') savePrefs();return}
   if(b=c('[data-ws]')){S.weekStart=+b.dataset.ws;save();render();renderSettings();if(typeof savePrefs==='function') savePrefs();return}
-  if(b=c('[data-theme]')){setTheme(b.dataset.theme);return}
+  if(b=c('#themeSeg [data-theme]')){setTheme(b.dataset.theme);return}
   if(b=c('[data-switch]')){S.active=b.dataset.switch;UI.filter=new Set();UI.tkEdit=null;closePop();save();gotoDay(today());renderSettings();toast('Showing '+team().name);return}
   if(c('#stNew')){if(typeof gate==='function'&&gate('team')) return;$('#fTeam').reset();$('#dTeam').showModal();return}
-  if(c('#stInvite')){$('#dSettings').close();openInvite();return}
-  if(c('#stAdd')){$('#dSettings').close();openMember(null);return}
+  if(b=c('[data-topen]')){UI.tOpen=UI.tOpen===b.dataset.topen?null:b.dataset.topen;renderSettings();return}
+  if(b=c('[data-tcopy]')){const t=S.teams.find(x=>x.id===b.dataset.tcopy);if(!t) return;const i=b.parentElement.querySelector('input');i.select();navigator.clipboard.writeText(inviteUrl(t)).then(()=>toast('Invite link copied'),()=>toast('Press Ctrl+C to copy'));return}
+  if((b=c('[data-tadd]'))||(b=c('[data-tperson]'))){const [tid,zid]=(b.dataset.tadd||b.dataset.tperson).split(':');if(S.active!==tid){S.active=tid;UI.filter=new Set();UI.tkEdit=null;closePop();save();gotoDay(today());toast('Showing '+team().name)}$('#dSettings').close();openMember(zid||null);return}
   if(b=c('[data-auth-open]')){$('#dSettings').close();openAuth(b.dataset.authOpen);return}
 });
 $('#dSettings').addEventListener('submit',async e=>{
   e.preventDefault();const f=e.target;
+  if(f.id==='fJoinLink'){const J=readJoin(f.link.value);say('#joinErr','');if(!J){say('#joinErr','That is not a Noon invite link. It ends in #join= followed by a code.');return}$('#dSettings').close();startJoin(J);return}
   if(f.id==='fSched'){const tz=f.tz.value.trim();if(!validTz(tz)){f.tz.setCustomValidity('We could not find that place. Try a city, a country, or a code like CET.');f.tz.reportValidity();return}
     const two=f.start2.value&&f.end2.value,d={tz,start:toH(f.start.value),end:toH(f.end.value),start2:two?toH(f.start2.value):null,end2:two?toH(f.end2.value):null,weekends:f.weekends.checked,sleepStart:toH(f.sleepStart.value),sleepEnd:toH(f.sleepEnd.value)};
     const mine=typeof myTeams==='function'?myTeams():[];(mine.length?mine:[]).forEach(z=>Object.assign(z,d));Object.assign(me(),d);save();ctxMap.clear();winMap.clear();gotoDay(today());toast('Schedule saved');return}
@@ -648,7 +668,7 @@ $('#photoIn').addEventListener('change',e=>{const f=e.target.files[0];e.target.v
 $('#fTeam').addEventListener('submit',e=>{
   const name=e.target.name.value.trim();if(!name){e.preventDefault();return}
   if(typeof CLOUD!=='undefined'&&CLOUD.user){createCloudTeam(name).then(id=>{if(id){toast('Team created');renderSettings()}});return}
-  const t={id:uid(),name,members:[{...me(),id:uid(),events:[],threads:[]}],tasks:[]};S.teams.push(t);S.active=t.id;save();gotoDay(today());renderSettings();toast('Team created');
+  const t={id:uid(),name,at:Date.now(),members:[{...me(),id:uid(),events:[],threads:[]}],tasks:[]};S.teams.push(t);S.active=t.id;save();gotoDay(today());renderSettings();toast('Team created');
 });
 
 /* ---------- people ---------- */
@@ -684,7 +704,7 @@ $('#mDelete').onclick=async()=>{
   const undo=snapshot();(T.gone=T.gone||{})[z.id]={name:z.name,photo:z.photo||'',tz:z.tz};T.members=T.members.filter(x=>x!==z);for(const t of T.tasks||[]) t.to=t.to.filter(id=>id!==z.id);UI.filter.delete(z.id);
   $('#dMember').close();ctxMap.clear();winMap.clear();save();render();toast(`${first(z.name)} removed from the team`,undo);
 };
-function openInvite(){if(team().cloud&&typeof gate==='function'&&gate('invite')) return;$('#inviteLink').value=inviteUrl();$('#inviteNote').textContent=team().cloud?'Anyone who opens it signs in and takes a seat in this team. The same link keeps working.':'The link carries a snapshot of the team, so send a fresh one after big changes. Sign in to get a permanent link.';$('#dInvite').showModal()}
+function openInvite(){if(team().cloud&&typeof gate==='function'&&gate('invite')) return;$('#inviteLink').value=inviteUrl();$('#inviteNote').textContent=team().cloud?'Anyone who opens it gets an invite in their Noon inbox and joins when they accept. The same link keeps working.':'The link carries a snapshot of the team, so send a fresh one after big changes. Sign in to get a permanent link.';$('#dInvite').showModal()}
 $('#copyInvite').onclick=()=>{$('#inviteLink').select();navigator.clipboard.writeText($('#inviteLink').value).then(()=>toast('Invite link copied'),()=>toast('Press Ctrl+C to copy'))};
 $('#inviteAdd').onclick=()=>{$('#dInvite').close();openMember(null)};
 $('#fJoin').addEventListener('submit',e=>{
@@ -738,8 +758,13 @@ if(!document.documentElement.dataset.theme) document.documentElement.dataset.the
   if(['week','month','day'].includes(q.get('cal'))) UI.cal=q.get('cal');
   window.__hook=q;}
 const J=SHARE?null:readJoin();
-if(J&&J.code){try{sessionStorage.setItem('noon.join',J.code)}catch(e){}history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>{if(!(typeof CLOUD!=='undefined'&&CLOUD.user)) openAuth('login','join')},900)}
-else if(J){window.__join=J;$('#joinTitle').textContent='Join '+J.n;setTz($('#fJoin').tz,Intl.DateTimeFormat().resolvedOptions().timeZone);$('#dJoin').showModal()}
+// an invite link: for a team on someone's account, opening it leaves an invite in your inbox once you are signed in
+// (pasting it in Settings joins straight away); a device team comes as a snapshot
+function startJoin(J,boot){
+  if(J.code){const signed=typeof CLOUD!=='undefined'&&CLOUD.user;if(signed&&!boot){if(S.teams.some(t=>t.code===J.code)){toast('You are already in that team');return}joinByCode(J.code);return}
+    try{localStorage.setItem('noon.join',J.code)}catch(e){}if(boot) history.replaceState(null,'',location.pathname+location.search);setTimeout(()=>{if(!(typeof CLOUD!=='undefined'&&CLOUD.user)){openAuth('register','join');peekInvite(J.code)}},boot?900:0);return}
+  window.__join=J;$('#joinTitle').textContent='Join '+J.n;setTz($('#fJoin').tz,Intl.DateTimeFormat().resolvedOptions().timeZone);$('#dJoin').showModal()}
+if(J) startJoin(J,true);
 render();scrollToDay();
 addEventListener('load',()=>{const q=window.__hook;if(q){ // more hooks for screenshots, run once every module is in: ?pop=first|new opens the event panel, ?task=first opens a task, ?inbox=1 the inbox
   if(q.get('pop')==='first'){const x=itemsOn(me(),today()).find(x=>x[3]);if(x) openEvent(x[3],x[0])}

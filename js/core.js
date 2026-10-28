@@ -278,6 +278,9 @@ const mentionsMe=text=>{const n=first(me().name).toLowerCase();return (String(te
 const mentionHtml=text=>esc(text).replace(/@([\p{L}]+)/gu,(all,n)=>{const z=team().members.find(q=>first(q.name).toLowerCase()===n.toLowerCase());return z?`<span class="men ${z.isMe?'me':''}">@${esc(first(z.name))}</span>`:all});
 
 /* ---------- inbox: everything waiting on you ---------- */
+// the invite code from a link opened before signing in; localStorage so it survives the confirm-your-email tab
+const heldCode=()=>{try{return localStorage.getItem('noon.join')||sessionStorage.getItem('noon.join')}catch(e){return null}};
+const dropCode=()=>{try{localStorage.removeItem('noon.join');sessionStorage.removeItem('noon.join')}catch(e){}};
 function inbox(){
   const T=team(),m=me(),H=home(),now=Date.now(),my=m.id,rq=[],th=[],find=id=>findM(id,T);
   for(const x of m.events||[]){
@@ -304,6 +307,8 @@ function inbox(){
     n.sub=n.last?`${n.last.byId===my?'You':first(n.who.name)}: ${n.last.text}`:'Reactions only';
     n.act=n.mention||n.reply;
   }
+  // a team invite waits on the account, whichever team is on screen
+  for(const v of (typeof CLOUD!=='undefined'&&CLOUD.invites)||[]) rq.push({kind:'team',s:0,who:{name:v.by||v.name,photo:v.photo||''},t:`${v.by?first(v.by):'Someone'} invited you to join ${v.name}`,sub:`${v.people} ${v.people==1?'person is':'people are'} in it. You see the team once you accept.`,id:v.id,act:true});
   rq.sort((a,b)=>(b.act?1:0)-(a.act?1:0)||a.s-b.s);
   th.sort((a,b)=>(b.act?1:0)-(a.act?1:0)||((b.last&&b.last.at)||0)-((a.last&&a.last.at)||0));
   return {rq,th,count:rq.filter(n=>n.act).length+th.filter(n=>n.act).length};
@@ -330,14 +335,14 @@ function downloadIcs(title,s,e,people,loc){
 }
 
 /* ---------- invite link ---------- */
-function inviteUrl(){
-  const T=team();if(T.cloud&&T.code) return location.href.split('#')[0]+'#join=c:'+T.code;
+function inviteUrl(T=team()){
+  if(T.cloud&&T.code) return location.href.split('#')[0]+'#join=c:'+T.code;
   const snap={n:T.name,m:T.members.map(m=>({n:m.name,e:m.email,z:m.tz,s:m.start,f:m.end,k:m.cal?1:0,q:sleepOf(m),b:[m.start2??null,m.end2??null],w:m.weekends?1:0,p:m.photo||''}))};
   const b=btoa(unescape(encodeURIComponent(JSON.stringify(snap)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
   return location.href.split('#')[0]+'#join='+b;
 }
-function readJoin(){
-  const m=location.hash.match(/^#join=(.+)$/);if(!m)return null;
+function readJoin(h=location.hash){
+  const m=String(h||'').trim().match(/#join=([A-Za-z0-9_:-]+)/);if(!m)return null;
   if(/^c:[0-9a-f]{16}$/.test(m[1])) return {code:m[1].slice(2)};
   try{return JSON.parse(decodeURIComponent(escape(atob(m[1].replace(/-/g,'+').replace(/_/g,'/')))))}catch(e){return null}
 }

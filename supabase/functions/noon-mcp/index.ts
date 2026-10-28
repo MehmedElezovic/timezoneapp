@@ -89,7 +89,10 @@ async function findProject(ctx: Ctx, ref: unknown) {
   const share = r.match(/[?&]share=([A-Za-z0-9_-]{20,64})/);
   let sel = db.from("projects").select("*").in("team_id", teams);
   if (id) sel = sel.eq("id", id[0].toLowerCase());
-  else if (share) sel = sel.eq("share_token", share[1]);
+  else if (share) { // a client link opens one version; find the project it belongs to
+    const sv = await q<any[]>(db.from("versions").select("project_id").eq("share_token", share[1]).in("team_id", teams));
+    sel = sel.eq("id", sv[0]?.project_id ?? "00000000-0000-0000-0000-000000000000");
+  }
   else sel = sel.ilike("name", `%${r.replace(/[\\%_]/g, (c) => "\\" + c)}%`);
   const found = await q<any[]>(sel);
   if (!found.length) throw new Oops(`No project matches "${r}". Call list_projects to see them all.`);
@@ -257,17 +260,17 @@ To apply feedback: get_version (latest version, open comments, full HTML) → ed
 async function callTool(ctx: Ctx, name: string, a: any): Promise<string | { type: string; text: string }[]> {
   if (name === "list_projects") {
     const teams = ctx.seats.map((s) => s.team_id);
-    let sel = db.from("projects").select("id,name,team_id,due_day,changed_at,changed_by,changed_guest,share_on").in("team_id", teams).order("changed_at", { ascending: false });
+    let sel = db.from("projects").select("id,name,team_id,due_day,changed_at,changed_by,changed_guest").in("team_id", teams).order("changed_at", { ascending: false });
     if (a?.search) sel = sel.ilike("name", `%${String(a.search).replace(/[\\%_]/g, (c) => "\\" + c)}%`);
     const ps = await q<any[]>(sel);
     if (!ps.length) return a?.search ? `No project name contains "${a.search}".` : "No projects yet.";
-    const vs = await q<any[]>(db.from("versions").select("id,project_id,n").in("project_id", ps.map((p) => p.id)));
+    const vs = await q<any[]>(db.from("versions").select("id,project_id,n,share_on").in("project_id", ps.map((p) => p.id)));
     const open = vs.length ? await q<any[]>(db.from("version_comments").select("version_id,layer").eq("status", "open").in("version_id", vs.map((v) => v.id))) : [];
     const team = Object.fromEntries(ctx.seats.map((s) => [s.team_id, s.team]));
     return ps.map((p) => {
       const mine = vs.filter((v) => v.project_id === p.id), cur = mine.reduce((m, v) => Math.max(m, v.n), 0);
       const curId = mine.find((v) => v.n === cur)?.id, here = open.filter((o) => o.version_id === curId), openCur = here.filter((o) => o.layer !== "client").length, openCl = here.length - openCur;
-      return `• ${p.name} (${team[p.team_id]})\n  id ${p.id} · ${cur ? `v${cur} is current, ${openCur} open team comment${openCur === 1 ? "" : "s"}${openCl ? ` and ${openCl} from the client link` : ""} on it` : "no versions yet"} · changed ${ago(p.changed_at)}${p.due_day ? ` · deadline ${p.due_day}` : ""}${p.share_on ? " · client link on" : ""}`;
+      return `• ${p.name} (${team[p.team_id]})\n  id ${p.id} · ${cur ? `v${cur} is current, ${openCur} open team comment${openCur === 1 ? "" : "s"}${openCl ? ` and ${openCl} from the client link` : ""} on it` : "no versions yet"} · changed ${ago(p.changed_at)}${p.due_day ? ` · deadline ${p.due_day}` : ""}${mine.some((v) => v.share_on) ? ` · client link on for ${mine.filter((v) => v.share_on).sort((x, y) => x.n - y.n).map((v) => "v" + v.n).join(", ")}` : ""}`;
     }).join("\n");
   }
 
@@ -281,7 +284,7 @@ async function callTool(ctx: Ctx, name: string, a: any): Promise<string | { type
     return [
       `Project: ${p.name} (team ${seat.team})`,
       `id ${p.id}${projLink(p.id) ? ` · ${projLink(p.id)}` : ""}`,
-      `Deadline: ${p.due_day || "none"} · Assigned to: ${who.map((w) => people[w.member_id]).filter(Boolean).join(", ") || "nobody"} · Client link: ${p.share_on ? "on" : "off"}`,
+      `Deadline: ${p.due_day || "none"} · Assigned to: ${who.map((w) => people[w.member_id]).filter(Boolean).join(", ") || "nobody"} · Client links: ${vs.filter((v) => v.share_on).map((v) => "v" + v.n).join(", ") || "none"}`,
       `Last change ${ago(p.changed_at)}${p.changed_guest ? ` by ${p.changed_guest} (client)` : p.changed_by && people[p.changed_by] ? ` by ${people[p.changed_by]}` : ""}`,
       "",
       vs.length ? "Versions (newest last):" : "No versions yet.",

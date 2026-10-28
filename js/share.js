@@ -1,5 +1,5 @@
-/* Noon · client links. An owner turns a link on per project (Share, in the project header). A client who opens it gets
-   that one project and nothing else: every version, the comments, Compare, and their own comments and replies under the
+/* Noon · client links. An owner turns a link on per version (Share, on the version). A client who opens it gets that
+   one version and nothing else: the page, the comments left on the link, and their own comments and replies under the
    name they type. No account: their browser keeps a random key so they can remove what they wrote, and every read and
    write goes through the share_* functions in Supabase, which check the link each time. Nothing is saved locally. */
 const GUEST_LS='noon.guest',GUEST_ID='guest-me';
@@ -10,31 +10,31 @@ function setGuestName(name){const g=guestMe();g.name=name;try{localStorage.setIt
 const shareUrl=t=>`${location.origin}${location.pathname}?share=${t}`;
 
 /* ---------- the owner's side: the Share dialog ---------- */
-const SHD={p:null};
-function openShare(p){if(!p) return;SHD.p=p.id;renderShare();const d=$('#dShare');if(!d.open) d.showModal()}
+const SHD={p:null,v:null};
+function openShare(p,v){if(!p||!v) return;SHD.p=p.id;SHD.v=v.id;renderShare();const d=$('#dShare');if(!d.open) d.showModal()}
 function renderShare(){
-  const T=team(),p=projById(SHD.p),box=$('#shareBody');if(!p||!box) return;
-  const signed=typeof CLOUD!=='undefined'&&!!CLOUD.user;$('#shareTitle').textContent='Share '+p.name;
-  if(!signed){box.innerHTML=`<p class="hint">A client link lets anyone who has it see this project and comment on it, with no account. Your pages and comments have to be online for that, so sharing needs your account.</p><div class="dlg-acts"><button type="button" class="btn ghost" data-close>Not now</button><button type="button" class="btn dark" data-share-auth>Log in to share</button></div>`;return}
+  const T=team(),p=projById(SHD.p),v=p&&verById(p,SHD.v),box=$('#shareBody');if(!v||!box) return;
+  const signed=typeof CLOUD!=='undefined'&&!!CLOUD.user,L=vLabel(v);$('#shareTitle').textContent=`Share ${L} of ${p.name}`;
+  if(!signed){box.innerHTML=`<p class="hint">A client link lets anyone who has it see ${L} and comment on it, with no account. Your pages and comments have to be online for that, so sharing needs your account.</p><div class="dlg-acts"><button type="button" class="btn ghost" data-close>Not now</button><button type="button" class="btn dark" data-share-auth>Log in to share</button></div>`;return}
   if(!T.cloud){box.innerHTML=`<p class="hint">This team lives only on this device. Projects in the teams on your account can be shared: switch team under Settings › Team.</p><div class="dlg-acts"><button type="button" class="btn dark" data-close>OK</button></div>`;return}
-  if(!CLOUD.shareCols){box.innerHTML=`<p class="hint">Client links need the latest database update, and it is not there yet. Reload the page; if this stays, the update has not run.</p>`;return}
-  const on=shareOn(p),miss=versOf(p).filter(v=>!v.file);
-  const warn=miss.length?`<p class="note">${esc(miss.map(vLabel).join(', '))} ${miss.length===1?'is':'are'} only on this device, so a client cannot open ${miss.length===1?'it':'them'}. Upload the file again as a new version.</p>`:'';
-  const what=`<ul class="sh-list"><li>They see every version and Compare, and only the comments left on the link. Your team's comments stay in Noon.</li><li>They comment and reply under a name they type. No account, no password. A teammate who opens the link comments there the same way.</li><li>In Noon those comments sit in their own Client link layer, next to Team in each version's comments. Post there and the client sees it too.</li><li>They see nothing else in Noon: no calendar, team or tasks.</li></ul>`;
-  if(!on){box.innerHTML=`<p class="hint">Make a link for your client.</p>${what}${warn}<div class="dlg-acts"><button type="button" class="btn ghost" data-close>Not now</button><button type="button" class="btn dark" data-share-on>Turn on the link</button></div>`;return}
-  box.innerHTML=`<p class="hint">Anyone with this link can review <b>${esc(p.name)}</b>.</p>
-    <div class="copyrow"><input id="shareLink" readonly value="${esc(shareUrl(p.share.token))}" aria-label="Client link"><button type="button" class="btn dark" data-share-copy>Copy</button></div>
+  if(!CLOUD.vShare){box.innerHTML=`<p class="hint">Client links need the latest database update, and it is not there yet. Reload the page; if this stays, the update has not run.</p>`;return}
+  const on=verShared(v),others=versOf(p).filter(x=>x!==v&&verShared(x));
+  const warn=(!v.file?`<p class="note">${L} is only on this device, so a client cannot open it. Upload the file again as a new version.</p>`:'')+(others.length?`<p class="hint">${esc(others.map(vLabel).join(', '))} ${others.length===1?'has its':'have their'} own link, still on.</p>`:'');
+  const what=`<ul class="sh-list"><li>They see ${L} only: no other versions, and only the comments left on the link. Your team's comments stay in Noon.</li><li>When you upload the next version, it gets its own link. This one keeps showing ${L}.</li><li>They comment and reply under a name they type. No account, no password. A teammate who opens the link comments there the same way.</li><li>In Noon those comments sit in their own Client link layer, next to Team in each version's comments. Post there and the client sees it too.</li><li>They see nothing else in Noon: no calendar, team or tasks.</li></ul>`;
+  if(!on){box.innerHTML=`<p class="hint">Make a link to ${L} · ${esc(v.name)} for your client.</p>${what}${warn}<div class="dlg-acts"><button type="button" class="btn ghost" data-close>Not now</button><button type="button" class="btn dark" data-share-on>Turn on the link</button></div>`;return}
+  box.innerHTML=`<p class="hint">Anyone with this link can review <b>${L} · ${esc(v.name)}</b>.</p>
+    <div class="copyrow"><input id="shareLink" readonly value="${esc(shareUrl(v.share.token))}" aria-label="Client link"><button type="button" class="btn dark" data-share-copy>Copy</button></div>
     ${what}${warn}
     <div class="dlg-acts"><button type="button" class="btn ghost danger" data-share-off>Turn off</button><span class="sp"></span><button type="button" class="btn ghost" data-share-new title="Make a new link: the old one stops working">New link</button><button type="button" class="btn" data-share-open>Open as a client</button></div>`;
 }
 $('#dShare').addEventListener('click',async e=>{
-  const c=s=>e.target.closest(s),p=projById(SHD.p);if(!p) return;
+  const c=s=>e.target.closest(s),p=projById(SHD.p),v=p&&verById(p,SHD.v);if(!v) return;
   if(c('[data-share-auth]')){$('#dShare').close();openAuth('login','share');return}
-  if(c('[data-share-on]')){p.share={on:true,token:(p.share&&p.share.token)||randKey(24)};touch(p);save();render();renderShare();toast('Link is on. Copy it and send it to your client.');return}
-  if(c('[data-share-off]')){p.share.on=false;touch(p);save();render();renderShare();toast('Link turned off. It no longer opens.');return}
-  if(c('[data-share-new]')){if(!await confirmDlg('Make a new link?','The link you sent before stops working. Comments already left stay.','New link')) return;p.share={on:true,token:randKey(24)};touch(p);save();render();renderShare();toast('New link made. The old one no longer opens.');return}
+  if(c('[data-share-on]')){v.share={on:true,token:(v.share&&v.share.token)||randKey(24)};touch(p);save();render();renderShare();toast('Link is on. Copy it and send it to your client.');return}
+  if(c('[data-share-off]')){v.share.on=false;touch(p);save();render();renderShare();toast('Link turned off. It no longer opens.');return}
+  if(c('[data-share-new]')){if(!await confirmDlg('Make a new link?','The link you sent before stops working. Comments already left stay.','New link')) return;v.share={on:true,token:randKey(24)};touch(p);save();render();renderShare();toast('New link made. The old one no longer opens.');return}
   if(c('[data-share-copy]')){const i=$('#shareLink');i.select();navigator.clipboard.writeText(i.value).then(()=>toast('Client link copied'),()=>toast('Press Ctrl+C to copy'));return}
-  if(c('[data-share-open]')){window.open(shareUrl(p.share.token),'_blank','noopener');return}
+  if(c('[data-share-open]')){window.open(shareUrl(v.share.token),'_blank','noopener');return}
 });
 
 /* ---------- the client's side ---------- */
@@ -57,10 +57,9 @@ function shareApply(d,isFirst){
   const vers=d.versions.map(v=>({id:v.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:Array.isArray(v.assets)?v.assets:[],at:msOf(v.created_at),by:null,
     cm:d.comments.filter(c=>c.version_id===v.id).map(c=>({id:c.id,n:c.n,sel:c.sel||'',rx:c.rx??.5,ry:c.ry??.5,px:c.px||0,py:c.py||0,dev:c.dev||'desktop',text:c.body,...who(c),layer:'client',at:msOf(c.created_at),status:c.status||'open',...(c.from_version?{from:{v:c.from_version,c:null}}:{}),
       re:d.replies.filter(r=>r.comment_id===c.id).map(r=>({id:r.id,text:r.body,...who(r),at:msOf(r.created_at)}))}))}));
-  T.projects=[{id:d.project.id,name:d.project.name,at:msOf(d.project.changed_at),to:[],versions:vers,share:{on:true,token:SHARE}}];
+  T.projects=[{id:d.project.id,name:d.project.name,at:msOf(d.project.changed_at),to:[],versions:vers}];
   if(!vers.length){PV.built=null;shareMsg(`${d.project.name} has nothing to review yet.`,'Come back once the first version is up.');return}
-  if(isFirst){PV.proj=d.project.id;PV.ver=vers[vers.length-1].id;PV.mode='comment';PV.layer='client';document.title=`${d.project.name} · Review`}
-  else if(SH.vers&&vers.length>SH.vers) toast(`${vLabel(vers[vers.length-1])} is up. Pick it in the version menu.`);
+  if(isFirst){PV.proj=d.project.id;PV.ver=vers[0].id;PV.mode='comment';PV.layer='client';document.title=`${d.project.name} ${vLabel(vers[0])} · Review`}
   SH.vers=vers.length;render();
 }
 // what changed here goes up: new comments and replies of mine, and the ones of mine I deleted
