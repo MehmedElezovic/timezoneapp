@@ -267,11 +267,10 @@ function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.r
 async function pvBuild(p,v,cmp){
   pvTeardown();const key=v.id+'|'+(cmp?cmp.id:'');PV.built=key;
   const vers=versOf(p);
-  $('#vProj').innerHTML=`<div class="pv"><div class="pv-bar"><button type="button" class="chev" id="pvBack" aria-label="Back to ${esc(p.name)}">${PI.back}</button><div class="pv-ttl" id="pvTtl"></div>
-      <select class="vsel" id="pvVer" aria-label="Version">${vers.map(x=>`<option value="${x.id}" ${x===v?'selected':''}>${vLabel(x)} · ${esc(x.name)}${x===curVer(p)?' · current':''}</option>`).join('')}</select>
-      <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div>
-      <div class="seg sm" id="pvMode" aria-label="Mode"><button type="button" data-mode="comment">${PI.bubble}<span>Comment</span></button><button type="button" data-mode="browse">${PI.cursor}<span>Browse</span></button><button type="button" data-mode="compare" ${prevVer(p,v)?'':'disabled title="Nothing before this version yet"'}>${PI.cmp}<span>Compare</span></button></div>
-      <div class="topnav"><button type="button" class="lbtn quiet" id="pvUpload" title="Upload version ${curVer(p).n+1}">${PI.up}<span>Upload v${curVer(p).n+1}</span></button><button type="button" class="lbtn quiet icon" id="pvDownload" aria-label="Download this version" title="Download this version">${PI.dl}</button><button type="button" class="lbtn quiet icon" id="pvDel" aria-label="Delete this version" title="Delete this version">${I.trash}</button></div></div>
+  $('#vProj').innerHTML=`<div class="pv"><div class="pv-bar"><div class="pv-bl"><div class="pv-left"><button type="button" class="chev" id="pvBack" aria-label="Back to ${esc(p.name)}">${PI.back}</button>
+      <div class="vpick-wrap"><button type="button" class="vpick" id="pvVerBtn" aria-haspopup="menu" aria-expanded="false" title="Switch version"><span class="pv-ttl" id="pvTtl"></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd vmenu" id="pvVerMenu" role="menu" hidden></div></div></div>
+      <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div><span></span></div>
+      <div class="pv-br"><div class="seg sm" id="pvMode" aria-label="Mode"><button type="button" data-mode="comment">${PI.bubble}<span>Comment</span></button><button type="button" data-mode="browse">${PI.cursor}<span>Browse</span></button><button type="button" data-mode="compare" ${prevVer(p,v)?'':'disabled title="Nothing before this version yet"'}>${PI.cmp}<span>Compare</span></button></div></div></div>
     <div class="pv-main"><div class="pv-stage${cmp?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div><div class="pv-cap" id="pvCapB"></div>`:''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div><div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>`;
   pvLayout();pvUpdate();
   const [hb,ha]=await Promise.all([pageHtml(v),cmp?pageHtml(cmp):null]);
@@ -400,9 +399,18 @@ function cmpFocus(c){
     else if(side==='B'){const a=frameOf('A');PV.syncUntil=performance.now()+400;setTimeout(()=>{if(a.win&&win) win.scrollTo(a.win.scrollX,a.win.scrollY)},30)}}
   pvUpdate();const card=$(`#pvSide .pc[data-cc="${c.id}"]`);if(card) card.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
+// the version menu: every version, newest first, and what can be done with the one on screen
+function pvMenu(){
+  const p=projById(PV.proj),v=p&&verById(p,PV.ver),m=$('#pvVerMenu'),btn=$('#pvVerBtn');if(!m||!v) return;
+  m.hidden=!PV.vmenu;btn.setAttribute('aria-expanded',!!PV.vmenu);if(!PV.vmenu){m.innerHTML='';return}
+  const T=team(),cur=curVer(p);
+  m.innerHTML=`<div class="dd-list">${[...versOf(p)].reverse().map(x=>{const o=openIn(x).length;return `<button type="button" class="opt${x===v?' on':''}" role="menuitemradio" aria-checked="${x===v}" data-vpick="${x.id}"><span class="vn">${esc(vLabel(x))}</span><span class="n">${esc(x.name)}${x===cur?' <i>current</i>':''}<small>${esc(agoLabel(x.at||Date.now()))}${SHARE?'':` by ${esc(whoName(T,x.by))}`} · ${o?`${o} open`:'nothing open'}</small></span>${x===v?`<span class="tick">${I.check}</span>`:''}</button>`}).join('')}</div>
+    ${SHARE?'':`<div class="vmenu-acts"><button type="button" class="opt" data-vact="up">${PI.up}<span class="n">Upload v${cur.n+1}</span></button><button type="button" class="opt" data-vact="dl">${PI.dl}<span class="n">Download ${esc(vLabel(v))}</span></button><button type="button" class="opt danger" data-vact="del">${I.trash}<span class="n">Delete ${esc(vLabel(v))}</span></button></div>`}`;
+}
 function pvUpdate(){
   const p=projById(PV.proj),v=p&&verById(p,PV.ver);if(!v||!$('#pvTtl')) return;
   const cmp=PV.mode==='compare'?(verById(p,PV.cmp)||prevVer(p,v)):null,open=openIn(v).length,res=allIn(v).length-open;
+  if(PV.vmenu) pvMenu();
   $('#pvTtl').innerHTML=`<b>${esc(vLabel(v))} · ${esc(v.name)}</b><small>${esc(p.name)} · ${v===curVer(p)?'current':'older version'} · ${open?`${open} open`:'nothing open'}${res?` · ${res} resolved`:''}</small>`;
   $$('#pvDev button').forEach(b=>b.classList.toggle('on',b.dataset.dev===PV.dev));
   $$('#pvMode button').forEach(b=>b.classList.toggle('on',b.dataset.mode===PV.mode));
@@ -453,7 +461,7 @@ function pvCmpSide(p,v,cmp){
     <div class="pv-list">${list.length?list.map(card).join(''):`<p class="pv-empty">${allIn(cmp).length?PV.filter==='open'?`Everything on ${vLabel(cmp)} is resolved.`:'Nothing resolved yet.':`No comments on ${vLabel(cmp)}. Scroll either side and the other follows.`}</p>`}</div>`;
   side.querySelector('.pv-list').scrollTop=top;
 }
-function openVer(id,mode){const p=projById(PV.proj),v=p&&verById(p,id);if(!v) return;PV.ver=id;PV.sel=null;PV.draft=null;PV.reply=null;PV.filter='open';PV.cmp=null;if(mode) PV.mode=mode;if(PV.mode==='compare'&&!prevVer(p,v)) PV.mode='comment';renderProjects()}
+function openVer(id,mode){const p=projById(PV.proj),v=p&&verById(p,id);if(!v) return;PV.ver=id;PV.vmenu=false;PV.sel=null;PV.draft=null;PV.reply=null;PV.filter='open';PV.cmp=null;if(mode) PV.mode=mode;if(PV.mode==='compare'&&!prevVer(p,v)) PV.mode='comment';renderProjects()}
 function pvEscape(){
   if(PV.draft){PV.draft=null;pvUpdate();return true}
   if(PV.reply){PV.reply=null;pvUpdate();return true}
@@ -478,21 +486,23 @@ function cmById(v,id){return v.cm.find(c=>c.id===id)}
 $('#vProj').addEventListener('click',async e=>{
   const c=s=>e.target.closest(s);let b;const T=team(),p=PV.proj&&projById(PV.proj),v=p&&PV.ver&&verById(p,PV.ver);
   if(c('#pjNew')||c('#pjNew2')){$('#fProject').reset();$('#dProject').showModal();return}
-  if(c('#pjUpload')||c('#pvUpload')||c('[data-pick="files"]')){$('#pjFiles').click();return}
+  if(c('#pjUpload')||c('[data-pick="files"]')){$('#pjFiles').click();return}
   if(c('#pjUploadDir')||c('[data-pick="folder"]')){$('#pjFolder').click();return}
   if(c('#pjBack')){PV.proj=null;PV.ver=null;PV.pick=false;renderProjects();return}
   if(c('#pjShare')){if(typeof openShare==='function') openShare(p);return}
   if(c('#pjLink')){const u=`${location.origin}${location.pathname}?view=projects&proj=${p.id}`;navigator.clipboard.writeText(u).then(()=>toast(T.cloud?'Link copied. Teammates open it straight here, and Claude can find the project from it.':'Link copied. It opens here on this device; sign in so teammates and Claude can use it.'),()=>toast('Could not copy'));return}
-  if(c('#pvBack')){PV.ver=null;renderProjects();return}
+  if(c('#pvVerBtn')){PV.vmenu=!PV.vmenu;pvMenu();return}
+  if(b=c('[data-vpick]')){PV.vmenu=false;if(b.dataset.vpick!==PV.ver) openVer(b.dataset.vpick);else pvMenu();return}
+  if(b=c('[data-vact]')){const k=b.dataset.vact;PV.vmenu=false;pvMenu();if(k==='up'){$('#pjFiles').click();return}if(k==='dl'){if(v) downloadVersion(p,v);return}}
+  if(c('#pvBack')){PV.ver=null;PV.vmenu=false;renderProjects();return}
   if(b=c('[data-proj-del]')){const q=projById(b.dataset.projDel);if(!q) return;const n=versOf(q).length;
     if(!await confirmDlg(`Delete ${q.name}?`,`${n?`Its ${plural(n,'version')} and every comment on them go too.`:'It has no versions yet.'} This cannot be undone.`,'Delete project')) return;
     const ids=[],paths=[];for(const x of versOf(q)){dropUrls(x);ids.push(x.id);if(x.file) paths.push(x.file);for(const a of x.assets){ids.push(a.id);if(a.file) paths.push(a.file)}}
     T.projects=projectsOf(T).filter(x=>x!==q);if(PV.proj===q.id){PV.proj=null;PV.ver=null}save();render();fdbDel([...new Set(ids)]);removeFiles([...new Set(paths)]);toast('Project deleted');return}
-  if((b=c('[data-ver-del]'))||c('#pvDel')){const id=b?b.dataset.verDel:null,q=id?verById(p,id):v;if(!q||!p) return;
+  if((b=c('[data-ver-del]'))||c('[data-vact="del"]')){const id=b?b.dataset.verDel:null,q=id?verById(p,id):v;if(!q||!p) return;
     if(!await confirmDlg(`Delete ${vLabel(q)}?`,`${q.cm.length?`Its ${plural(q.cm.length,'comment')} go too. `:''}${q===curVer(p)&&prevVer(p,q)?`${vLabel(prevVer(p,q))} becomes the current version. `:''}This cannot be undone.`,'Delete version')) return;
     const orphan=orphanFiles(p,q);dropUrls(q);p.versions=versOf(p).filter(x=>x!==q);if(PV.ver===q.id){PV.ver=null;PV.built=null}if(PV.cmp===q.id) PV.cmp=null;touch(p);save();render();fdbDel(orphan.ids);removeFiles(orphan.paths);toast(`${vLabel(q)} deleted`);return}
   if(b=c('[data-ver-dl]')){const q=verById(p,b.dataset.verDl);if(q) downloadVersion(p,q);return}
-  if(c('#pvDownload')){if(v) downloadVersion(p,v);return}
   if(b=c('[data-proj-open]')){if(c('.tk-x')) return;PV.proj=b.dataset.projOpen;PV.ver=null;PV.pick=false;renderProjects();return}
   if(b=c('[data-ver-cmp]')){openVer(b.dataset.verCmp,'compare');return}
   if(b=c('[data-ver-open]')){if(c('.tk-x')||c('[data-ver-cmp]')||c('[data-ver-dl]')) return;openVer(b.dataset.verOpen,PV.mode==='compare'?'comment':null);return}
@@ -527,7 +537,6 @@ $('#vProj').addEventListener('click',async e=>{
 });
 $('#vProj').addEventListener('change',e=>{
   const p=PV.proj&&projById(PV.proj);
-  if(e.target.id==='pvVer'){openVer(e.target.value);return}
   if(e.target.id==='pvCmp'){PV.cmp=e.target.value;PV.sel=null;renderProjects();return}
   if(e.target.id==='pjDue'&&p){const d=e.target.value||null;if(d===p.due) return;p.due=d;touch(p);save();render();toast(d?`Deadline ${dayLabel(d).replace(/^(Today|Tomorrow|Yesterday)$/,m=>m.toLowerCase())}`:'Deadline removed')}
 });
@@ -548,7 +557,8 @@ document.addEventListener('pointerdown',e=>{if(PV.pick&&!(e.target.closest&&e.ta
   el.addEventListener('drop',e=>{if(!hasFiles(e)) return;e.preventDefault();depth=0;const d=$('#pjDrop');if(d) d.classList.remove('over');dropFiles(e.dataTransfer)});
 }
 $('#fProject').addEventListener('submit',e=>{const name=e.target.name.value.trim();if(!name){e.preventDefault();return}const p={id:uid(),name,at:Date.now(),by:me().id,who:me().id,to:[],versions:[]};projectsOf(team()).push(p);PV.proj=p.id;PV.ver=null;save();if(UI.view!=='projects') setView('projects',true);render();toast('Project created. Drop the first HTML file in for version 1.')});
-document.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.view!=='projects'||document.querySelector('dialog[open]')) return;if(e.target.matches&&e.target.matches('textarea,input,select,[contenteditable]')){e.target.blur();return}pvEscape()});
+document.addEventListener('pointerdown',e=>{if(PV.vmenu&&!(e.target.closest&&e.target.closest('.vpick-wrap'))){PV.vmenu=false;pvMenu()}});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.view!=='projects'||document.querySelector('dialog[open]')) return;if(PV.vmenu){PV.vmenu=false;pvMenu();$('#pvVerBtn').focus();return}if(e.target.matches&&e.target.matches('textarea,input,select,[contenteditable]')){e.target.blur();return}pvEscape()});
 addEventListener('resize',()=>{if(UI.view!=='projects') return;if(PV.ver) pvLayout();else fitThumbs()});
 
 upgradeProjects();

@@ -394,7 +394,7 @@ function renderTeam(){
     +`<div class="legend"><span><i style="background:var(--work)"></i>Online</span><span><i style="background:var(--off)"></i>Off</span><span><i style="background:repeating-linear-gradient(135deg,#d6d7dc 0 3px,#e6e7ec 3px 6px)"></i>Asleep</span><span><i style="background:var(--ev-purple)"></i>Booked</span><span><i style="background:rgba(183,156,240,.35);border:1px solid var(--lav)"></i>Best window</span></div>`;
   const pct=t=>clamp((t-a)/(b-a)*100,0,100);
   let ruler='';for(let h=0;h<24;h++) ruler+=`<span style="left:${h/24*100}%" data-h="${h}">${fmtHr(a+h*HR,H)}</span>`;
-  const rows=M.map(z=>{
+  const row=z=>{
     const segs=[];
     for(const [s,e] of c.sleep[z.id]) if(e>a&&s<b) segs.push(`<div class="seg s-sleep" style="left:${pct(s)}%;width:${pct(e)-pct(s)}%"></div>`);
     for(const [s,e] of c.work[z.id]) if(e>a&&s<b) segs.push(`<div class="seg s-work" style="left:${pct(s)}%;width:${pct(e)-pct(s)}%"></div>`);
@@ -403,14 +403,22 @@ function renderTeam(){
     const mids=[];for(const D of localDates(z.tz,a,b)){const t=zonedToUtc(z.tz,D.y,D.m,D.d,0,0);if(t>a&&t<b) mids.push(`<div class="mid" style="left:${pct(t)}%"><i>${fmtDate(t,z.tz)}</i></div>`)}
     const k=statusAt(z,now,c),cur=UI.hover||now;
     return `<div class="tm-row${z.isMe?' me':''}" data-m="${z.id}"><div class="tm-who" data-member="${z.id}" title="${esc(KIND_LABEL[kindOf(z)])}">${avatar(z,'',k[0])}<span class="nm"><b>${esc(z.isMe?'You':z.name)}</b><small>${esc(tzLabel(z.tz))} · ${offLabel(z.tz,now)}${kindOf(z)==='invited'?' · invited':''}</small></span><span class="lt${UI.hover?' hov':''}" data-lt="${z.id}">${fmtT(cur,z.tz)}<small>${UI.hover?dayMark(cur,z.tz)||'at cursor':k[1]}</small></span></div>
-      <div class="tl" data-tl="${z.id}"><div class="seg s-off" style="left:0;width:100%"></div>${segs.join('')}${mids.join('')}${evs.join('')}</div></div>`}).join('');
+      <div class="tl" data-tl="${z.id}"><div class="seg s-off" style="left:0;width:100%"></div>${segs.join('')}${mids.join('')}${evs.join('')}</div></div>`};
+  const mid=a+12*HR,offOf=z=>tzOffset(z.tz,mid),mine=offOf(me()),groups=new Map();
+  for(const z of M){const o=offOf(z);if(!groups.has(o)) groups.set(o,[]);groups.get(o).push(z)}
+  const order=[...groups.keys()].sort((x,y)=>(x===mine?-1:y===mine?1:x-y));
+  const zbar=list=>{
+    const tz=list[0].tz,cities=[...new Set(list.map(z=>tzLabel(z.tz)))],p0=parts(tz,a),first=a+((60-p0.mi)%60)*MIN;
+    let hrs='';for(let t=first;t<b;t+=HR){const h=parts(tz,t).h;hrs+=`<span style="left:${pct(t)}%" data-h="${h}"${h===0?' class="day"':''}>${h===0?esc(fmtDate(t,tz).replace(/,.*$/,'')):fmtHr(t,tz)}</span>`}
+    return `<div class="tm-zbar" data-tz="${esc(tz)}"><div class="zl"><b>${esc(cities.join(', '))}</b><small>${offLabel(tz,now)} · ${fmtT(now,tz)} now</small></div><div class="rl">${hrs}</div></div>`};
+  const rows=order.map(o=>(o===mine?'':zbar(groups.get(o)))+groups.get(o).sort((x,y)=>(y.isMe?1:0)-(x.isMe?1:0)).map(row).join('')).join('');
   const wins=w.list.map(x=>`<div class="win${w.max<w.total?' part':''}" style="left:${pct(x.start)}%;width:${pct(x.end)-pct(x.start)}%"></div>`).join('');
   $('#tmWrap').innerHTML=`<div class="tm-ruler"><div></div><div class="rl" id="tmRuler">${ruler}${UI.hover?`<span class="cur" style="left:${pct(UI.hover)}%">${fmtT(UI.hover,H)}</span>`:''}</div></div>
     <div class="tm-rows" id="tmRows"><div class="tm-layer">${M.length>1?wins:''}${day===today()?`<div class="now" style="left:${pct(now)}%"></div>`:''}${UI.hover?`<div class="hov" style="left:${pct(UI.hover)}%"></div>`:''}</div>${rows}</div>
     ${M.length<2?`<p class="tm-empty"><b>It is just you so far.</b> Add the people you work with, with their city and online hours, and this page shows who is awake, who is free and the hours you all share.</p>`:''}`;
   fitRuler();
 }
-function fitRuler(){const rl=$('#tmRuler');if(!rl) return;const w=rl.clientWidth,step=w/24,need=S.hour12?40:36,every=[1,2,3,4,6,8,12].find(e=>step*e>=need)||12;$$('#tmRuler span[data-h]').forEach(s=>s.classList.toggle('hide',(+s.dataset.h)%every!==0))}
+function fitRuler(){const rl=$('#tmRuler');if(!rl) return;const w=rl.clientWidth,step=w/24,need=S.hour12?40:36,every=[1,2,3,4,6,8,12].find(e=>step*e>=need)||12;$$('#tmRuler span[data-h],#tmRows .tm-zbar span[data-h]').forEach(s=>s.classList.toggle('hide',(+s.dataset.h)%every!==0))}
 let rsT=0;addEventListener('resize',()=>{if(UI.view==='team') fitRuler();if(UI.draft) placePop();clearTimeout(rsT);rsT=setTimeout(()=>{if(UI.view==='calendar') renderCal()},150)});
 // hover: the cursor column shows each person's local time
 function tmHover(t){
@@ -418,10 +426,11 @@ function tmHover(t){
   const [a,b]=dayRange(UI.day),now=Date.now(),cur=t||now,pct=x=>clamp((x-a)/(b-a)*100,0,100);
   for(const z of team().members){const el=$(`[data-lt="${z.id}"]`);if(!el) continue;const k=statusAt(z,now,ctx(UI.day));el.classList.toggle('hov',!!t);el.innerHTML=`${fmtT(cur,z.tz)}<small>${t?(dayMark(cur,z.tz)||'at cursor'):k[1]}</small>`}
   const rl=$('#tmRuler');if(rl){let c=rl.querySelector('.cur');if(t){if(!c){c=document.createElement('span');c.className='cur';rl.append(c)}c.style.left=pct(t)+'%';c.textContent=fmtT(t,home())}else if(c) c.remove()}
+  for(const zb of $$('#tmRows .tm-zbar')){const rl2=zb.querySelector('.rl');let c2=rl2.querySelector('.cur');if(t){if(!c2){c2=document.createElement('span');c2.className='cur';rl2.append(c2)}c2.style.left=pct(t)+'%';c2.textContent=fmtT(t,zb.dataset.tz)}else if(c2) c2.remove()}
   const layer=$('#tmRows .tm-layer');if(layer){let h=layer.querySelector('.hov');if(t){if(!h){h=document.createElement('div');h.className='hov';layer.append(h)}h.style.left=pct(t)+'%'}else if(h) h.remove()}
 }
 function tmTimeAt(e){const tl=e.target.closest('.tl')||$('#tmRows .tl');if(!tl) return null;const r=tl.getBoundingClientRect(),[a,b]=dayRange(UI.day);return Math.round((a+(clamp((e.clientX-r.left)/r.width,0,1))*(b-a))/(5*MIN))*5*MIN}
-$('#tmWrap').addEventListener('mousemove',e=>{if(!e.target.closest('.tl,.tm-ruler .rl')) return;const t=tmTimeAt(e);if(t!=null) tmHover(t)});
+$('#tmWrap').addEventListener('mousemove',e=>{if(!e.target.closest('.tl,.tm-ruler .rl,.tm-zbar .rl')) return;const t=tmTimeAt(e);if(t!=null) tmHover(t)});
 $('#tmWrap').addEventListener('mouseleave',()=>tmHover(null));
 $('#tmWrap').addEventListener('click',e=>{
   const ev=e.target.closest('.s-ev');if(ev){openEvent(ev.dataset.ev,ev.dataset.s,ev.dataset.who);return}
