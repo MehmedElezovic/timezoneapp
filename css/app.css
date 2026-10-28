@@ -1083,3 +1083,17 @@ html:not([data-auth=onb]) #gateOnb,html[data-auth=onb] #gateAuth{display:none}
 .tmore h3{margin-top:0}
 .tmore .copyrow{margin-top:4px}
 @media (max-width:700px){.tmore{grid-template-columns:1fr}.tmeta{grid-template-columns:1fr}}
+
+/* text you click, hover or drag across is not selectable, so a click or a drag never paints a highlight; what you
+   read and may copy (meeting comments, task details, notes, everything you type) stays selectable */
+button,[role=button],[role=menuitem],[role=menuitemradio],[role=tab],label,summary,
+.chip,.tag,.tchip,.mchip,.vchip,.chipbtn,.av,.avs,.seg,.people,.legend,
+.side,.tabbar,.top,.topnav,.daynav,.set-nav,.ib-head,.ib,.dlg-head,.pop-head,
+.cal-week,.wk,.wk-ruler,.wk-row,.wk-lbl,.wk-tl,.dcard,.allday,.cal-month,.month,.mdow,.mcell,.cal-day,.agenda,.ag,.vg,
+.tm-wrap,.tm-ruler,.tm-zbar,.tm-row,.tm-who,.tm-strip,.tm-nav,.tl,
+.tk-list,.tk,.tk-grp,
+.pj-rows,.pj-row,.pj-grid,.pj-card,.pg-card,.pj-dz,.ver-head,.ver-acts,
+.pv-bar,.pv-cap,.pv-slot,.pv-pins,.pin,.pc,
+.dd,.vmenu,.smenu,.menu,.opt,.tcard .thead,.tperson,.integ,
+.gate-side,.gate-art,.ob-steps{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+input,textarea,select,[contenteditable=true],.copyrow input{-webkit-user-select:text;user-select:text;-webkit-touch-callout:default}
