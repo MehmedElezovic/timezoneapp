@@ -3,6 +3,9 @@
 const SB_URL='https://boielhshrswqdqkxiupz.supabase.co',SB_KEY='sb_publishable_BIHw_FeIef2fp13DdihMCg_lQ6nVdbg';
 const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY,SHARE?{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}}:undefined):null;
 const AUTH={why:null};
+// version 1 sends no email: Supabase's confirm-email is off and accounts work straight away. The email sign-in link,
+// changing your email and email notifications stay hidden until a real email provider is connected; then flip this on.
+const EMAIL_ON=false;
 SYNC_ON=true;
 const CLOUD={user:null,profile:null,last:{},evThread:{},tkThread:{},metaKeys:new Set(),busy:false,dirty:false,pushing:false,pushAgain:false,chan:null,pullT:0,pushT:0,ready:false,invites:[],invOn:false};
 const user=()=>CLOUD.user?{name:(CLOUD.profile&&CLOUD.profile.name)||(CLOUD.user.user_metadata||{}).name||(CLOUD.user.email||'').split('@')[0],email:CLOUD.user.email}:null;
@@ -11,12 +14,21 @@ const setAuthState=k=>{if(!SHARE) document.documentElement.dataset.auth=k};
 // teams kept on this device that hold real work move to the account; an empty starter team does not
 const hasWork=t=>t.members.length>1||!!(t.tasks||[]).length||!!(t.projects||[]).length||t.members.some(m=>(m.events||[]).length||(m.threads||[]).length);
 function gate(k){if(user()) return false;openAuth('register',k);return true}
+// the sign-in screen's four forms: log in, create an account, ask for a reset link, and choose a new password from that link
+const AUTH_TABS={
+  login:['#fLogin','Welcome back','Log in to your team, calendar, tasks and projects.','New to Noon? <button type="button" data-auth="register">Create an account</button>'],
+  register:['#fRegister','Create your account','Noon shows when everyone on your team is around, in your own time. Setup takes a minute.','Already have an account? <button type="button" data-auth="login">Log in</button>'],
+  forgot:['#fForgot','Reset your password','Enter the email you signed up with and we will send you a link to choose a new one.','Remembered it? <button type="button" data-auth="login">Log in</button>'],
+  newpass:['#fNewPass','Choose a new password','Pick a new password for your account, and you are back in.','']};
+// Google shows only on log in and create an account, and only once it is switched on in Supabase
+const googleVis=()=>{const on=!!AUTH.google&&(!$('#fLogin').hidden||!$('#fRegister').hidden);$('#btnGoogle').hidden=!on;$('.gate-or').hidden=!on};
 function authTab(kind){
-  const reg=kind==='register';$('#fRegister').hidden=!reg;$('#fLogin').hidden=reg;
-  $('#gateTitle').textContent=reg?'Create your account':'Welcome back';
-  $('#gateSub').textContent=reg?'Noon shows when everyone on your team is around, in your own time. Setup takes a minute.':'Log in to your team, calendar, tasks and projects.';
-  $('#gateSwitch').innerHTML=reg?'Already have an account? <button type="button" data-auth="login">Log in</button>':'New to Noon? <button type="button" data-auth="register">Create an account</button>';
-  say('#regErr','');say('#logErr','');
+  if(!AUTH_TABS[kind]) kind='login';const [form,title,sub,sw]=AUTH_TABS[kind];
+  for(const k in AUTH_TABS) $(AUTH_TABS[k][0]).hidden=k!==kind;
+  $('#gateTitle').textContent=title;$('#gateSub').textContent=sub;$('#gateSwitch').innerHTML=sw;
+  if(kind==='forgot'&&!$('#fForgot').email.value) $('#fForgot').email.value=$('#fLogin').email.value;
+  googleVis();
+  say('#regErr','');say('#logErr','');say('#fgErr','');say('#npErr','');
 }
 function openAuth(kind,why){
   AUTH.why=why||null;const w=$('#authWhy');
@@ -25,7 +37,7 @@ function openAuth(kind,why){
   if(innerWidth>860) setTimeout(()=>{const i=$(kind==='register'?'#fRegister':'#fLogin').querySelector('input');if(i) i.focus()},60);
 }
 const siteUrl=()=>location.origin+location.pathname;
-const authMsg=e=>{const m=(e&&e.message)||String(e);return /invalid login credentials/i.test(m)?'Wrong email or password.':/not confirmed/i.test(m)?'Confirm your email first: the link is in your inbox.':/rate limit/i.test(m)?'Too many emails sent for now. Try again in a little while.':/already registered/i.test(m)?'That email already has an account. Log in instead.':m};
+const authMsg=e=>{const m=(e&&e.message)||String(e);return /invalid login credentials/i.test(m)?'Wrong email or password.':/not confirmed/i.test(m)?'Confirm your email first: the link is in your inbox.':/rate limit/i.test(m)?'Too many emails sent for now. Try again in an hour.':/should be different/i.test(m)?'That is your current password. Pick a new one.':/already registered/i.test(m)?'That email already has an account. Log in instead.':m};
 const say=(id,text,ok)=>{const el=$(id);if(!el) return;el.hidden=!text;el.textContent=text||'';el.classList.toggle('ok',!!ok)};
 const busyBtn=(b,on)=>{if(!b) return;b.disabled=on;if(on){b.dataset.l=b.textContent;b.textContent='One moment'}else if(b.dataset.l) b.textContent=b.dataset.l};
 $('#fRegister').addEventListener('submit',async e=>{
@@ -34,7 +46,7 @@ $('#fRegister').addEventListener('submit',async e=>{
   busyBtn(btn,true);const {data,error}=await sb.auth.signUp({email,password:pw,options:{data:{name,...(heldCode()?{invite:heldCode()}:{})},emailRedirectTo:siteUrl()}});busyBtn(btn,false);
   if(error){say('#regErr',authMsg(error));return}
   // an email that already has an account comes back as a user with no identities, and no email is sent
-  if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length){authTab('login');$('#fLogin').email.value=email;say('#logErr','That email already has an account. Log in, or use the sign-in link below.');return}
+  if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length){authTab('login');$('#fLogin').email.value=email;say('#logErr',EMAIL_ON?'That email already has an account. Log in, or use the sign-in link below.':'That email already has an account. Log in instead.');return}
   if(data.session) f.reset(); else say('#regErr',`Almost there. We sent a link to ${email}. Open it to confirm your email and you are in.`,true);
 });
 $('#fLogin').addEventListener('submit',async e=>{
@@ -43,6 +55,24 @@ $('#fLogin').addEventListener('submit',async e=>{
   busyBtn(btn,true);const {error}=await sb.auth.signInWithPassword({email,password:pw});busyBtn(btn,false);
   if(error){say('#logErr',authMsg(error));f.pass.focus();return}
   f.reset();
+});
+$('#btnMagic').hidden=!EMAIL_ON;
+// forgot your password: the one email version 1 sends. The link comes back here signed in, to choose a new password
+AUTH.recovery=/[#&]type=recovery\b/.test(location.hash);
+$('#fForgot').addEventListener('submit',async e=>{
+  e.preventDefault();const f=e.target,email=f.email.value.trim().toLowerCase(),btn=f.querySelector('button[type=submit]');
+  say('#fgErr','');if(!sb){say('#fgErr','Accounts are not reachable right now. Check your connection and try again.');return}
+  busyBtn(btn,true);const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:siteUrl()});busyBtn(btn,false);
+  if(error){say('#fgErr',authMsg(error));return}
+  say('#fgErr',`If ${email} has a Noon account, a reset link is on its way. Open it to choose a new password.`,true);
+});
+$('#fNewPass').addEventListener('submit',async e=>{
+  e.preventDefault();const f=e.target,pw=f.pass.value,btn=f.querySelector('button[type=submit]');
+  say('#npErr','');if(pw!==f.pass2.value){say('#npErr','The two passwords do not match.');return}
+  busyBtn(btn,true);const {error}=await sb.auth.updateUser({password:pw});busyBtn(btn,false);
+  if(error){say('#npErr',authMsg(error));return}
+  const u=AUTH.recUser;AUTH.recovery=false;AUTH.recUser=null;f.reset();toast('Password changed');
+  if(u) cloudStart(u);
 });
 $('#btnMagic').onclick=async()=>{
   const f=$('#fLogin'),email=f.email.value.trim().toLowerCase();say('#logErr','');
@@ -54,7 +84,7 @@ $('#btnMagic').onclick=async()=>{
 };
 // Google needs switching on in Supabase (Authentication › Providers); until then the button says so
 // until Google is switched on the button and its divider stay hidden, so nobody meets a button that does nothing
-AUTH.gp=SHARE?null:fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(j=>{AUTH.google=!!(j.external||{}).google;$('#btnGoogle').hidden=!AUTH.google;$('.gate-or').hidden=!AUTH.google}).catch(()=>{});
+AUTH.gp=SHARE?null:fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(j=>{AUTH.google=!!(j.external||{}).google;googleVis()}).catch(()=>{});
 $('#btnGoogle').onclick=async()=>{
   const err=$('#fLogin').hidden?'#regErr':'#logErr',b=$('#btnGoogle');say(err,'');
   if(!sb){say(err,'Accounts are not reachable right now. Check your connection and try again.');return}
@@ -360,6 +390,8 @@ function cloudStop(){
 }
 if(sb&&!SHARE) sb.auth.onAuthStateChange((ev,session)=>{
   const u=session&&session.user;
+  // arriving from a reset link: choose the new password first, then the account loads
+  if(u&&(AUTH.recovery||ev==='PASSWORD_RECOVERY')&&!CLOUD.user){AUTH.recovery=true;AUTH.recUser=u;authTab('newpass');setAuthState('out');return}
   if(u){if(!CLOUD.user||CLOUD.user.id!==u.id) cloudStart(u);else CLOUD.user=u}
   else if(CLOUD.user){cloudStop();toast('Logged out. Your teams are safe in your account.')}
   else{renderSide();setAuthState('out')}

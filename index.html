@@ -27,6 +27,7 @@
       <form id="fLogin" autocomplete="on">
         <label class="lbl">Email <input name="email" type="email" required autocomplete="email"></label>
         <label class="lbl">Password <input name="pass" type="password" required autocomplete="current-password"></label>
+        <button type="button" class="gate-link" data-auth="forgot">Forgot password?</button>
         <p class="err" id="logErr" hidden></p>
         <button type="submit" class="btn dark full">Log in</button>
         <button type="button" class="btn ghost full" id="btnMagic">Email me a sign-in link instead</button>
@@ -37,6 +38,17 @@
         <label class="lbl">Password <small>8 characters or more</small><input name="pass" type="password" required minlength="8" autocomplete="new-password"></label>
         <p class="err" id="regErr" hidden></p>
         <button type="submit" class="btn dark full">Create account</button>
+      </form>
+      <form id="fForgot" autocomplete="on" hidden>
+        <label class="lbl">Email <input name="email" type="email" required autocomplete="email"></label>
+        <p class="err" id="fgErr" hidden></p>
+        <button type="submit" class="btn dark full">Send reset link</button>
+      </form>
+      <form id="fNewPass" hidden>
+        <label class="lbl">New password <small>8 characters or more</small><input name="pass" type="password" required minlength="8" autocomplete="new-password"></label>
+        <label class="lbl">Again <input name="pass2" type="password" required minlength="8" autocomplete="new-password"></label>
+        <p class="err" id="npErr" hidden></p>
+        <button type="submit" class="btn dark full">Save and continue</button>
       </form>
       <p class="gate-switch" id="gateSwitch"></p>
     </div>

@@ -1127,3 +1127,7 @@ input,textarea,select,[contenteditable=true],.copyrow input{-webkit-user-select:
 .theme-sw i::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .theme-sw[aria-checked=true] i{background:var(--lav)}
 .theme-sw[aria-checked=true] i::after{transform:translateX(16px)}
+
+/* "Forgot password?" sits under the password field, on the right */
+.gate-link{align-self:flex-end;margin-top:-4px;font-size:12.5px;font-weight:600;color:var(--ink-2);text-decoration:underline;text-underline-offset:3px}
+.gate-link:hover{color:var(--ink)}
