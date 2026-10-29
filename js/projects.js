@@ -18,12 +18,13 @@ const PI={
   page:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="3.5"/><path d="M3.5 9h17M7.5 6.5h.01M10.5 6.5h.01"/></svg>',
   back:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
   share:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4"/></svg>',
+  spark:'<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 6.1 6.1 1.9-6.1 1.9L12 18.5l-1.9-6.1L4 10.5l6.1-1.9z"/><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z"/></svg>',
   arrow:'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>',
 };
 
 /* ---------- state ---------- */
 const PJ={urls:{},html:{}};
-const PV={proj:null,ver:null,dev:'desktop',mode:'comment',layer:'team',filter:'open',sel:null,draft:null,built:null,ro:[],hov:null,reply:null,scale:1,cmp:null,cl:null,cr:null,smenu:null,syncUntil:0,loaded:{A:false,B:false},pick:false};
+const PV={proj:null,ver:null,dev:'desktop',mode:'comment',layer:'team',filter:'open',sel:null,draft:null,built:null,ro:[],hov:null,reply:null,scale:1,cmp:null,cl:null,cr:null,smenu:null,lead:null,dy:0,align:null,loaded:{A:false,B:false},pick:false};
 const DEVS={desktop:[1280,'Desktop'],tablet:[820,'Tablet'],phone:[390,'Phone']};
 const MAXF=25*1048576,BUCKET='project-files';
 const projectsOf=T=>(T.projects=T.projects||[]);
@@ -268,7 +269,7 @@ function renderProject(p){
       <div class="pj-meta-i"><label>Last change</label><div class="pj-last"><b>${esc(agoLabel(p.at||Date.now()))}</b><small>by ${esc(changedBy(T,p))}</small></div></div>
     </div>
     <div class="pj-body pj-drop" id="pjDrop">${vs.length?`<div class="ver-list">${vs.map(card).join('')}</div>`:''}
-      <div class="pj-dz${vs.length?'':' big'}"><span class="ic">${PI.up}</span><b>${vs.length?`Drop the next version here, it becomes v${cv.n+1}`:'Drop the first HTML file here, it becomes version 1'}</b><small>${vs.length?'A new version starts with no comments. Compare puts any two versions side by side, and Share sends one version to a client. A lone HTML file reuses the previous version\'s images and styles; drop a folder to bring new ones.':'Drop the folder it lives in and the images, styles and scripts come along. A single HTML file works too; its absolute links still load.'}</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-pick="files">Choose files</button><button type="button" class="btn" data-pick="folder">Choose a folder</button></span></div>
+      <div class="pj-dz${vs.length?'':' big'}"><span class="ic">${PI.up}</span><b>${vs.length?`Drop the next version here, it becomes v${cv.n+1}`:'Drop the first HTML file here, it becomes version 1'}</b>${vs.length?'<small>A new version starts with no comments. Compare puts any two versions side by side, and Share sends one version to a client. A lone HTML file reuses the previous version\'s images and styles; drop a folder to bring new ones.</small>':`<ul class="pj-need"><li><b>The page's HTML file</b>, such as index.html. Every HTML file you add becomes its own version.</li><li><b>The images, styles, scripts and fonts it uses.</b> Drop or choose the whole folder, so links like images/hero.jpg keep working.</li><li><b>Only the HTML file</b> is enough when its images and styles load from web addresses (https://…).</li></ul><small>Files up to 25 MB each. Unzip a .zip first.</small>`}<span class="pj-dz-acts"><button type="button" class="btn dark" data-pick="files">Choose files</button><button type="button" class="btn" data-pick="folder">Choose a folder</button>${vs.length?'':`<button type="button" class="btn claude" data-pick="claude">${PI.spark}Upload with Claude</button>`}</span></div>
       <div class="pj-over">${PI.up}<b>Drop to add ${cv?'version '+(cv.n+1):'version 1'} to ${esc(p.name)}</b></div></div>`;
   fitThumbs();fillThumbs(vs);
 }
@@ -277,7 +278,7 @@ function renderProject(p){
 const SB='allow-same-origin allow-scripts allow-forms allow-popups allow-modals';
 // a frame counts only once its page has loaded: the blank document it starts with has a body too
 function frameOf(side){const f=$(side==='A'?'#pvIfA':'#pvIf'),ok=f&&PV.loaded[side];return {f,doc:ok?f.contentDocument:null,win:ok?f.contentWindow:null}}
-function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.ro=[];PV.built=null;PV.draft=null;PV.sel=null;PV.reply=null;PV.hov=null;PV.loaded={A:false,B:false}}
+function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.ro=[];PV.built=null;PV.draft=null;PV.sel=null;PV.reply=null;PV.hov=null;PV.loaded={A:false,B:false};PV.lead=null;PV.dy=0;PV.align=null}
 async function pvBuild(p,v,cmp){
   pvTeardown();const key=pvKey(v);PV.built=key;
   const vers=versOf(p),cm=PV.mode==='compare';
@@ -285,7 +286,7 @@ async function pvBuild(p,v,cmp){
       <div class="vpick-wrap"><button type="button" class="vpick" id="pvVerBtn" aria-haspopup="menu" aria-expanded="false" title="Switch version"><span class="pv-ttl" id="pvTtl"></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd vmenu" id="pvVerMenu" role="menu" hidden></div></div></div>
       <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div><span></span></div>
       <div class="pv-br"><div class="seg sm" id="pvMode" aria-label="Mode"><button type="button" data-mode="comment">${PI.bubble}<span>Comment</span></button><button type="button" data-mode="browse">${PI.cursor}<span>Browse</span></button><button type="button" data-mode="compare" ${vers.length>1?'':'disabled title="Upload a second version to compare"'}>${PI.cmp}<span>Compare</span></button></div></div></div>
-    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div><div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>`;
+    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div>${cm?'<div class="pv-align" id="pvAlign" hidden></div>':''}<div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>`;
   pvLayout();pvUpdate();
   const [hb,ha]=await Promise.all([pageHtml(v),cmp?pageHtml(cmp):null]);
   if(PV.built!==key||!$('#pvIf')) return;
@@ -305,10 +306,11 @@ function pvLayout(){
     [PV.cl,PV.cr].forEach((id,i)=>{const [l,t]=at(i);
       if(!id){const e=$('#pvSlotE'),c=$('#pvCapE');if(e) e.style.cssText=`left:${l}px;top:${t}px;width:${Math.round(w)}px;height:${Math.max(0,h)}px`;if(c) c.style.cssText=`left:${l}px;top:${t-capH}px;width:${Math.round(w)}px`}
       else if(id===PV.cmp) place($('#pvFrameA'),$('#pvPinsA'),$('#pvCapA'),l,t,w,h,sc);
-      else place(fr,box,$('#pvCapB'),l,t,w,h,sc)})}
+      else place(fr,box,$('#pvCapB'),l,t,w,h,sc)})
+    if(PV.align) requestAnimationFrame(()=>{const a=PV.align;if(a&&a.A.isConnected&&a.B.isConnected) cmpLine(a.A,a.B,'A')})}
   pvPins();
 }
-const INJECT='html{scrollbar-width:none}html::-webkit-scrollbar{width:0;height:0}[data-noon-hov]{outline:2px solid #b79cf0!important;outline-offset:-2px!important;box-shadow:0 0 0 4px rgba(183,156,240,.25)!important}[data-noon-focus]{outline:3px solid #b79cf0!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(183,156,240,.28)!important}html[data-noon-mode=comment],html[data-noon-mode=comment] *{cursor:crosshair!important;user-select:none!important;-webkit-user-select:none!important}';
+const INJECT='html{scrollbar-width:none}html::-webkit-scrollbar{width:0;height:0}[data-noon-hov]{outline:2px solid #b79cf0!important;outline-offset:-2px!important;box-shadow:0 0 0 4px rgba(183,156,240,.25)!important}[data-noon-focus]{outline:3px solid #b79cf0!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(183,156,240,.28)!important}html[data-noon-mode=comment],html[data-noon-mode=comment] *{cursor:crosshair!important;user-select:none!important;-webkit-user-select:none!important}html[data-noon-mode=compare],html[data-noon-mode=compare] body{scroll-behavior:auto!important}html[data-noon-mode=compare] [data-noon-hov]:not([data-noon-focus]){outline:1.5px dashed rgba(124,92,214,.75)!important;outline-offset:-1px!important;box-shadow:none!important}';
 function pvHook(side){
   PV.loaded[side]=true;const {f,doc,win}=frameOf(side);if(!f||!doc||!doc.documentElement) return;
   if(side==='B'){const ld=$('#pvLoad');if(ld) ld.remove()}
@@ -316,8 +318,12 @@ function pvHook(side){
   const cmp=PV.mode==='compare';
   doc.documentElement.dataset.noonMode=cmp?'compare':PV.mode;
   if(cmp){
-    doc.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(a&&!/^#/.test(a.getAttribute('href')||'')) e.preventDefault()},true);
-    win.addEventListener('scroll',()=>{pvPins();if(performance.now()<PV.syncUntil) return;const o=frameOf(side==='A'?'B':'A');if(o.win){PV.syncUntil=performance.now()+150;o.win.scrollTo(win.scrollX,win.scrollY)}},{passive:true});
+    doc.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(a){if(!/^#/.test(a.getAttribute('href')||'')) e.preventDefault();return}cmpPick(side,e.target)},true);
+    // the side under the mouse (or finger, or keyboard) leads and the other follows in the same frame, so the two never pull at each other
+    const lead=()=>{PV.lead=side};for(const k of ['pointermove','pointerdown','wheel','touchstart','keydown']) doc.addEventListener(k,lead,{capture:true,passive:true});
+    win.addEventListener('scroll',()=>{pvPinsSoon();if(PV.lead===side) cmpFollow(side)},{passive:true});
+    doc.addEventListener('mousemove',e=>{const t=cmpBlock(e.target,win);if(t===PV.hov) return;pvUnhov();if(t){t.dataset.noonHov='1';PV.hov=t}},true);
+    doc.documentElement.addEventListener('mouseleave',pvUnhov);
   }else{
     doc.addEventListener('click',pvClick,true);
     doc.addEventListener('mousemove',e=>{if(PV.mode!=='comment') return;const t=e.target;if(t===PV.hov||!t||!t.dataset) return;pvUnhov();if(t!==doc.documentElement&&t!==doc.body){t.dataset.noonHov='1';PV.hov=t}},true);
@@ -331,6 +337,60 @@ function pvHook(side){
   pvUpdate();
 }
 function pvUnhov(){if(PV.hov){try{delete PV.hov.dataset.noonHov}catch(e){}PV.hov=null}}
+let pinsRaf=0;function pvPinsSoon(){if(!pinsRaf) pinsRaf=requestAnimationFrame(()=>{pinsRaf=0;pvPins()})}
+// compare: the follower takes the leader's scroll, shifted by however far apart the lined-up parts sit (none until something is lined up)
+function cmpFollow(side){const a=frameOf(side),o=frameOf(side==='A'?'B':'A');if(!a.win||!o.win) return;o.win.scrollTo({left:a.win.scrollX,top:a.win.scrollY+(side==='A'?PV.dy:-PV.dy),behavior:'instant'})}
+// a click in compare picks the part under it: the nearest picture, or the nearest box with something in it
+const MEDIA=/^(img|picture|video|svg|canvas|iframe)$/i;
+function cmpBlock(t,win){
+  for(let el=t&&t.nodeType===1?t:t&&t.parentElement;el&&el.tagName!=='BODY'&&el.tagName!=='HTML';el=el.parentElement){
+    const h=el.getBoundingClientRect().height;
+    if(MEDIA.test(el.tagName)){if(h>=16) return el;continue}
+    const d=win.getComputedStyle(el).display;if(d==='inline'||d==='contents'||d==='none') continue;
+    if(h>=16&&(normTxt(el)||el.querySelector('img,picture,video,svg,canvas'))) return el;
+  }
+  return null;
+}
+// the same part on the other version: its id if it kept one, otherwise the element of the same kind that scores best on its words, the words around it, the heading above it, its classes and its place in the page
+const wordsOf=el=>new Set((normTxt(el).toLowerCase().match(/[\p{L}\p{N}]+/gu)||[]).slice(0,600));
+const jacc=(a,b)=>{if(!a.size&&!b.size) return 1;let n=0;for(const x of a) if(b.has(x)) n++;return n/(a.size+b.size-n)};
+// the nearest heading above an element: its own section's, or the last one before it
+const headOf=el=>{for(let x=el;x&&x.tagName!=='BODY';x=x.parentElement) for(let y=x.previousElementSibling;y;y=y.previousElementSibling){if(/^H[1-6]$/.test(y.tagName)) return y;const hs=y.querySelectorAll('h1,h2,h3,h4,h5,h6');if(hs.length) return hs[hs.length-1]}return null};
+const docY=(el,win)=>(el.getBoundingClientRect().top+win.scrollY)/Math.max(1,win.document.documentElement.scrollHeight);
+function cmpMatch(el,from,to){
+  const {doc,win}=to;if(!doc||!doc.body||!from.doc) return null;
+  if(el.id){const x=doc.getElementById(el.id);if(x&&x.tagName===el.tagName) return x}
+  const mine=[...from.doc.getElementsByTagName(el.tagName)],r0=mine.length>1?mine.indexOf(el)/(mine.length-1):0,y0=docY(el,from.win);
+  const media=MEDIA.test(el.tagName),tw=media?null:wordsOf(el),cl=new Set(el.classList),alt=el.getAttribute('alt')||'',pw=el.parentElement?wordsOf(el.parentElement):new Set(),ctx=c=>c.parentElement?jacc(pw,wordsOf(c.parentElement)):0,h0=headOf(el),hw=h0?wordsOf(h0):new Set(),hd=c=>{const h=headOf(c);return jacc(hw,h?wordsOf(h):new Set())};
+  let viaSel=null;try{viaSel=doc.querySelector(selOf(el))}catch(e){}
+  const all=doc.getElementsByTagName(el.tagName),n=all.length;let best=null,bs=0;
+  for(let i=0;i<n;i++){const c=all[i];
+    const ts=media?(alt&&alt===(c.getAttribute('alt')||'')?1:.5):jacc(tw,wordsOf(c));if(!ts) continue;
+    const sc=.4*ts+.15*ctx(c)+.15*hd(c)+.1*jacc(cl,new Set(c.classList))+.1*(1-Math.abs(r0-(n>1?i/(n-1):0)))+.1*(1-Math.min(1,Math.abs(y0-docY(c,win))))+(c===viaSel?.1:0);
+    if(sc>bs){bs=sc;best=c}}
+  return bs>=.45?best:null;
+}
+// line two parts up: the other side scrolls until its part sits at the same height as this one (this side moves too when the other runs out of page), and the sync keeps that offset from then on
+function cmpLine(mineEl,theirEl,side){
+  const me=frameOf(side),ot=frameOf(side==='A'?'B':'A');if(!me.win||!ot.win) return;
+  PV.lead=null;const gap=()=>theirEl.getBoundingClientRect().top-mineEl.getBoundingClientRect().top;
+  ot.win.scrollTo({left:me.win.scrollX,top:ot.win.scrollY+gap(),behavior:'instant'});
+  const left=gap();if(Math.abs(left)>1) me.win.scrollTo({left:me.win.scrollX,top:me.win.scrollY-left,behavior:'instant'});
+  PV.dy=frameOf('B').win.scrollY-frameOf('A').win.scrollY;
+}
+function cmpMark(a,b){for(const side of ['A','B']){const {doc}=frameOf(side);if(doc) for(const x of doc.querySelectorAll('[data-noon-focus]')) delete x.dataset.noonFocus}for(const x of [a,b]) if(x) x.dataset.noonFocus='1'}
+const partLabel=el=>{if(MEDIA.test(el.tagName)) return el.getAttribute('alt')||'the image';const h=/^H[1-6]$/.test(el.tagName)?el:el.querySelector('h1,h2,h3,h4,h5,h6'),t=normTxt(h||el)||'this part';return t.length>48?t.slice(0,46).trim()+'…':t};
+function cmpAlignChip(){const ch=$('#pvAlign');if(!ch) return;const a=PV.align;ch.hidden=!a;ch.innerHTML=a?`${PI.cmp}<span>Lined up at <b>${esc(a.label)}</b></span><button type="button" id="pvAlignX" title="Scroll both pages together from the top again">Reset</button>`:''}
+function cmpPick(side,t){
+  const me=frameOf(side),other=side==='A'?'B':'A',ot=frameOf(other),p=projById(PV.proj);if(!me.doc||!ot.doc||!p) return;
+  const el=cmpBlock(t,me.win);if(!el) return;
+  const m=cmpMatch(el,me,ot);
+  if(PV.sel){PV.sel=null;pvUpdate()}
+  cmpMark(el,m);
+  if(!m){PV.align=null;cmpAlignChip();toast(`Could not find that part on ${vLabel(verById(p,other==='A'?PV.cmp:PV.ver))}`);return}
+  cmpLine(el,m,side);PV.align={[side]:el,[other]:m,label:partLabel(el)};cmpAlignChip();
+}
+function cmpReset(){PV.align=null;PV.dy=0;cmpMark(null,null);cmpAlignChip();if(frameOf('A').win){PV.lead='A';cmpFollow('A')}}
 function selOf(el){
   const parts=[];
   while(el&&el.nodeType===1&&el.tagName!=='HTML'){
@@ -412,10 +472,10 @@ function cmpStatus(c){
   return {k:'same',label:'Unchanged'};
 }
 function cmpFocus(c){
-  PV.sel=c.id;PV.reply=null;
-  for(const side of ['A','B']){const {doc,win}=frameOf(side);if(!doc) continue;for(const x of doc.querySelectorAll('[data-noon-focus]')) delete x.dataset.noonFocus;
-    const el=elOf(c,side);if(el){el.dataset.noonFocus='1';PV.syncUntil=performance.now()+400;el.scrollIntoView({block:'center'})}
-    else if(side==='B'){const a=frameOf('A');PV.syncUntil=performance.now()+400;setTimeout(()=>{if(a.win&&win) win.scrollTo(a.win.scrollX,a.win.scrollY)},30)}}
+  PV.sel=c.id;PV.reply=null;PV.align=null;cmpAlignChip();
+  const A=frameOf('A'),B=frameOf('B'),ea=elOf(c,'A'),eb=elOf(c,'B')||(ea&&cmpMatch(ea,A,B));
+  cmpMark(ea,eb);
+  if(ea&&A.win){PV.lead=null;ea.scrollIntoView({block:'center',behavior:'instant'});if(eb) cmpLine(ea,eb,'A');else if(B.win) B.win.scrollTo({left:A.win.scrollX,top:A.win.scrollY+PV.dy,behavior:'instant'})}
   pvUpdate();const card=$(`#pvSide .pc[data-cc="${c.id}"]`);if(card) card.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 // the version menu: every version, newest first, and what can be done with the one on screen
@@ -490,8 +550,8 @@ function pvCmpSide(p,v,cmp){
       <p>${mentionHtml(c.text)}</p>${diff}
       <div class="pc-acts"><button type="button" data-cmp-resolve="${c.id}">${c.status==='resolved'?`Reopen on ${vLabel(cmp)}`:`Resolve on ${vLabel(cmp)}`}</button>${carried?`<span class="pc-note">On ${vLabel(v)} too</span>`:`<button type="button" data-cmp-carry="${c.id}">Carry to ${vLabel(v)}</button>`}</div></div>`};
   const keep=side.querySelector('.pv-list'),top=keep?keep.scrollTop:0;
-  side.innerHTML=`<div class="pv-sh"><h3>${vLabel(cmp)} comments, answered by ${vLabel(v)}</h3><p class="pv-sub">Click one to see that part of both versions. Resolve what was done, carry what is still open forward to ${vLabel(v)}. Comments never move back to a lower version.</p>${layerSeg(p,cmp)}<div class="seg sm" id="pvFilter"><button type="button" data-pfilter="open" class="${PV.filter==='open'?'on':''}">Open<i>${open||''}</i></button><button type="button" data-pfilter="resolved" class="${PV.filter==='resolved'?'on':''}">Resolved<i>${res||''}</i></button><button type="button" data-pfilter="all" class="${PV.filter==='all'?'on':''}">All</button></div></div>
-    <div class="pv-list">${list.length?list.map(card).join(''):`<p class="pv-empty">${allIn(cmp).length?PV.filter==='open'?`Everything on ${vLabel(cmp)} is resolved.`:'Nothing resolved yet.':`No comments on ${vLabel(cmp)}. Scroll either side and the other follows.`}</p>`}</div>`;
+  side.innerHTML=`<div class="pv-sh"><h3>${vLabel(cmp)} comments, answered by ${vLabel(v)}</h3><p class="pv-sub">Click one to see that part of both versions. Resolve what was done, carry what is still open forward to ${vLabel(v)}. Comments never move back to a lower version. Click any part of either page to line it up with the same part on the other.</p>${layerSeg(p,cmp)}<div class="seg sm" id="pvFilter"><button type="button" data-pfilter="open" class="${PV.filter==='open'?'on':''}">Open<i>${open||''}</i></button><button type="button" data-pfilter="resolved" class="${PV.filter==='resolved'?'on':''}">Resolved<i>${res||''}</i></button><button type="button" data-pfilter="all" class="${PV.filter==='all'?'on':''}">All</button></div></div>
+    <div class="pv-list">${list.length?list.map(card).join(''):`<p class="pv-empty">${allIn(cmp).length?PV.filter==='open'?`Everything on ${vLabel(cmp)} is resolved.`:'Nothing resolved yet.':`No comments on ${vLabel(cmp)}. Scroll either side and the other follows. Click any part of either page to line it up with the same part on the other.`}</p>`}</div>`;
   side.querySelector('.pv-list').scrollTop=top;
 }
 function openVer(id){const p=projById(PV.proj),v=p&&verById(p,id);if(!v) return;if(PV.mode==='compare') endCompare();PV.ver=id;PV.vmenu=false;PV.sel=null;PV.draft=null;PV.reply=null;PV.filter='open';renderProjects()}
@@ -500,6 +560,7 @@ function pvEscape(){
   if(PV.reply){PV.reply=null;pvUpdate();return true}
   if(PV.sel){PV.sel=null;for(const s of ['A','B']){const {doc}=frameOf(s);if(doc) for(const x of doc.querySelectorAll('[data-noon-focus]')) delete x.dataset.noonFocus}pvUpdate();return true}
   if(PV.smenu){PV.smenu=null;pvCaps(projById(PV.proj));return true}
+  if(PV.align){cmpReset();return true}
   if(PV.mode==='compare'){endCompare();renderProjects();return true}
   if(PV.ver){PV.ver=null;renderProjects();return true}
   if(PV.pick){PV.pick=false;renderProjects();return true}
@@ -516,6 +577,31 @@ function pvPost(){
 }
 function cmById(v,id){return v.cm.find(c=>c.id===id)}
 
+/* ---------- version 1 through Claude: the prompt goes to the clipboard, and a dialog says where to paste it and what to fill in ---------- */
+const projUrl=p=>`${location.origin}${location.pathname}?view=projects&proj=${p.id}`;
+const CLAUDE_FILL='[the page to upload: its folder or HTML file on my computer]';
+const claudePrompt=p=>`Upload ${CLAUDE_FILL} to my Noon project "${p.name}" as version 1. Use the Noon connector's upload_version tool, and include every image, style sheet, script and font the page uses, with their paths relative to the HTML file. Project link: ${projUrl(p)}`;
+function claudeBody(p,copied){
+  const keys=typeof CL!=='undefined'?CL.keys:[],none=Array.isArray(keys)&&!keys.length;
+  $('#claudeTitle').textContent=copied?'Prompt copied':'Copy this prompt';
+  $('#claudeBody').innerHTML=`<p class="hint">${copied?'It is on your clipboard.':'Copy it with the button below.'} Paste it into Claude and swap the part in brackets for the page you want here. Claude uploads it through the Noon connector, and it shows up in ${esc(p.name)} as version 1.</p>
+    <div class="cl-prompt">${esc(claudePrompt(p)).replace(esc(CLAUDE_FILL),`<mark>${esc(CLAUDE_FILL)}</mark>`)}</div>
+    <ol class="cl-steps"><li><b>Open Claude where it can see your files</b><small>The Code tab in the Claude desktop app, or Claude Code. In a Claude chat, attach the files instead.</small></li><li><b>Paste, then fill in the brackets</b><small>Name the folder or file, for example "the hair menopause page in my Downloads".</small></li><li><b>Claude uploads it as version 1</b><small>With its images and styles. Open it here to comment, as with any upload.</small></li></ol>
+    ${none?`<div class="cl-need"><div><b>Connect Claude to Noon first</b><small>Once per computer: make a key in Settings › Claude and add the connector it shows.</small></div><button type="button" class="btn sm" data-cl-setup>Set up</button></div>`:''}
+    <div class="dlg-acts"><button type="button" class="btn ghost" data-cl-setup>Connector settings</button><button type="button" class="btn dark" id="claudeCopy">${copied?'Copy again':'Copy prompt'}</button></div>`;
+}
+function claudeUpload(p){
+  const d=$('#dClaude');d.dataset.proj=p.id;
+  const show=ok=>{claudeBody(p,ok);if(!d.open) d.showModal()};
+  navigator.clipboard.writeText(claudePrompt(p)).then(()=>show(true),()=>show(false));
+  if(typeof CL!=='undefined'&&CL.keys===null&&!CL.loading&&cloudOn()) loadKeys().then(()=>{if(d.open&&d.dataset.proj===p.id) claudeBody(p,$('#claudeTitle').textContent==='Prompt copied')});
+}
+$('#dClaude').addEventListener('click',e=>{
+  const p=projById(e.currentTarget.dataset.proj);if(!p) return;
+  if(e.target.closest('[data-cl-setup]')){e.currentTarget.close();openSettings('claude');return}
+  if(e.target.closest('#claudeCopy')) navigator.clipboard.writeText(claudePrompt(p)).then(()=>{claudeBody(p,true);toast('Prompt copied')},()=>toast('Select the prompt and press Ctrl+C'));
+});
+
 /* ---------- clicks in the projects view ---------- */
 $('#vProj').addEventListener('click',async e=>{
   const c=s=>e.target.closest(s);let b;const T=team(),p=PV.proj&&projById(PV.proj),v=p&&PV.ver&&verById(p,PV.ver);
@@ -523,7 +609,9 @@ $('#vProj').addEventListener('click',async e=>{
   if(c('#pjUpload')||c('[data-pick="files"]')){$('#pjFiles').click();return}
   if(c('#pjUploadDir')||c('[data-pick="folder"]')){$('#pjFolder').click();return}
   if(c('#pjBack')){PV.proj=null;PV.ver=null;PV.pick=false;renderProjects();return}
-  if(c('#pjLink')){const u=`${location.origin}${location.pathname}?view=projects&proj=${p.id}`;navigator.clipboard.writeText(u).then(()=>toast(T.cloud?'Link copied. Teammates open it straight here, and Claude can find the project from it.':'Link copied. It opens here on this device; sign in so teammates and Claude can use it.'),()=>toast('Could not copy'));return}
+  if(c('[data-pick="claude"]')){claudeUpload(p);return}
+  if(c('#pjLink')){const u=projUrl(p);navigator.clipboard.writeText(u).then(()=>toast(T.cloud?'Link copied. Teammates open it straight here, and Claude can find the project from it.':'Link copied. It opens here on this device; sign in so teammates and Claude can use it.'),()=>toast('Could not copy'));return}
+  if(c('#pvAlignX')){cmpReset();return}
   if(c('#pvVerBtn')){PV.vmenu=!PV.vmenu;pvMenu();return}
   if(b=c('[data-vpick]')){PV.vmenu=false;if(b.dataset.vpick!==PV.ver) openVer(b.dataset.vpick);else pvMenu();return}
   if(b=c('[data-vact]')){const k=b.dataset.vact;PV.vmenu=false;pvMenu();if(k==='up'){$('#pjFiles').click();return}if(k==='dl'){if(v) downloadVersion(p,v);return}if(k==='share'){if(v) openShare(p,v);return}}
