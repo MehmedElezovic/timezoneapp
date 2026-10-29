@@ -414,12 +414,13 @@ function renderTeam(){
     return `<div class="tm-zbar" data-tz="${esc(tz)}"><div class="zl"><b>${esc(cities.join(', '))}</b><small>${offLabel(tz,now)} · ${fmtT(now,tz)} now</small></div><div class="rl">${hrs}</div></div>`};
   const rows=order.map(o=>(o===mine?'':zbar(groups.get(o)))+groups.get(o).sort((x,y)=>(y.isMe?1:0)-(x.isMe?1:0)).map(row).join('')).join('');
   const wins=w.list.map(x=>`<div class="win${w.max<w.total?' part':''}" style="left:${pct(x.start)}%;width:${pct(x.end)-pct(x.start)}%"></div>`).join('');
-  $('#tmWrap').innerHTML=`<div class="tm-ruler"><div></div><div class="rl" id="tmRuler">${ruler}</div></div>
-    <div class="tm-rows" id="tmRows"><div class="tm-layer">${M.length>1?wins:''}${day===today()?`<div class="now" style="left:${pct(now)}%"></div>`:''}</div>${rows}</div>
+  $('#tmWrap').innerHTML=`<div class="tm-ruler"><div></div><div class="rl" id="tmRuler">${ruler}${day===today()?`<span class="nowc" style="left:${pct(now)}%">${fmtT(now,H)}</span>`:''}</div></div>
+    <div class="tm-rows" id="tmRows"><div class="tm-layer">${M.length>1?wins:''}</div>${rows}${day===today()?`<div class="tm-nowl"><i style="left:${pct(now)}%"></i></div>`:''}</div>
     ${M.length<2?`<p class="tm-empty"><b>It is just you so far.</b> Add the people you work with, with their city and online hours, and this page shows who is awake, who is free and the hours you all share.</p>`:''}`;
   fitRuler();
 }
-function fitRuler(){const rl=$('#tmRuler');if(!rl) return;const w=rl.clientWidth,step=w/24,need=S.hour12?40:36,every=[1,2,3,4,6,8,12].find(e=>step*e>=need)||12;$$('#tmRuler span[data-h],#tmRows .tm-zbar span[data-h]').forEach(s=>s.classList.toggle('hide',(+s.dataset.h)%every!==0))}
+function fitRuler(){const rl=$('#tmRuler');if(!rl) return;const w=rl.clientWidth,step=w/24,need=S.hour12?40:36,every=[1,2,3,4,6,8,12].find(e=>step*e>=need)||12;$$('#tmRuler span[data-h],#tmRows .tm-zbar span[data-h]').forEach(s=>s.classList.toggle('hide',(+s.dataset.h)%every!==0))
+  const nc=rl.querySelector('.nowc');if(nc){const r=nc.getBoundingClientRect();$$('#tmRuler span[data-h]:not(.hide)').forEach(s=>{const q=s.getBoundingClientRect();if(q.right>r.left-4&&q.left<r.right+4) s.classList.add('hide')})}}
 let rsT=0;addEventListener('resize',()=>{if(UI.view==='team') fitRuler();if(UI.draft) placePop();clearTimeout(rsT);rsT=setTimeout(()=>{if(UI.view==='calendar') renderCal()},150)});
 // hover a block (asleep, off, online or a meeting): it lights up and a card says what it is, its hours and how long
 const tmTip=document.createElement('div');tmTip.className='tm-tip';tmTip.hidden=true;document.body.append(tmTip);

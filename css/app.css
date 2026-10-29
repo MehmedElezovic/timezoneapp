@@ -16,7 +16,7 @@
   --ok:#1f9d61; --warn:#d99a1e; --bad:#d64545;
   --sleep:#2a2a2d; --off:#eceef2; --work:#c9f3d9;
   --tk-off-ring:#b9bcc4; --tk-work-ring:#1a7f54; --tk-work-hot:#b9e7cd;
-  --cl-bg:#f7e6dd; --cl-bg-hover:#f1d8cb; --cl-ink:#7a3418; --cl-mark:#d97757;
+  --now:#6a4bd6; --now-ink:#ffffff; --cl-bg:#f7e6dd; --cl-bg-hover:#f1d8cb; --cl-ink:#7a3418; --cl-mark:#d97757;
   --track:#ffffff; --tk-off:#eef0f3; --tk-work:#cfeedd; --tk-work-line:rgba(26,127,84,.28); --tk-sleep-a:#cdd8f2; --tk-sleep-b:#e6ecf9; --tk-sleep-line:rgba(47,92,184,.26); --tk-moon:#2f5cb8;
   --colgap:10px; --side-pad:24px; --row-h:58px; --tm-left:248px; --wk-left:92px; --lane:40px; --chip-h:34px;
   --shadow-pop:0 24px 70px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.04);
@@ -37,7 +37,7 @@
   --sb-pill:rgba(0,0,0,.5); --sb-pill-ink:#ece8f6; --sb-ghost-line:#6f6389; --sb-ghost-ink:#e9e5f4; --sb-switch:#3a3a40; --sb-underline:rgba(255,255,255,.3);
   --frame-shadow:0 40px 100px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.045); --main-edge:0 0 0 1px rgba(255,255,255,.06);
   --tk-off-ring:#4a4e55; --tk-work-ring:#7ccfa6; --tk-work-hot:#2c5a3c;
-  --cl-bg:#3a2720; --cl-bg-hover:#46302a; --cl-ink:#f4c3ad; --cl-mark:#e48c6c;
+  --now:#c3a8ff; --now-ink:#1c1230; --cl-bg:#3a2720; --cl-bg-hover:#46302a; --cl-ink:#f4c3ad; --cl-mark:#e48c6c;
   --track:#1f1f22; --tk-off:#2a2a2f; --tk-work:#22472f; --tk-work-line:rgba(120,220,160,.22); --tk-sleep-a:#1f2741; --tk-sleep-b:#262f4b; --tk-sleep-line:rgba(140,165,235,.24); --tk-moon:#9db4f2;
   --shadow-pop:0 24px 70px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06);
   --lav-soft:#332a4d; --lav-hover:#43376a; --btn-bg:#f4f4f5; --btn-ink:#141416; --btn-hover:#ffffff;
@@ -305,7 +305,6 @@ p{margin:0}
 .tm-layer{position:absolute;top:0;bottom:0;left:calc(var(--tm-left) + 4px);right:4px;pointer-events:none;z-index:1}
 .tm-layer .win{position:absolute;top:0;bottom:0;background:rgba(183,156,240,.22);border-left:1px solid rgba(183,156,240,.5);border-right:1px solid rgba(183,156,240,.5)}
 .tm-layer .win.part{background:rgba(183,156,240,.12);border-color:rgba(183,156,240,.35)}
-.tm-layer .now{position:absolute;top:0;bottom:0;width:2px;background:var(--lav);transform:translateX(-1px)}
 .tm-row{display:grid;grid-template-columns:var(--tm-left) 1fr;align-items:center;height:var(--row-h);position:relative;z-index:2;padding-left:4px}
 .tm-ruler,.tm-zbar{padding-left:4px;padding-right:4px}
 .tm-who{display:flex;align-items:center;gap:10px;padding-right:12px;min-width:0;cursor:pointer;height:100%}
@@ -1148,6 +1147,12 @@ input,textarea,select,[contenteditable=true],.copyrow input{-webkit-user-select:
 .tm-tip small{margin-top:4px;font-size:11.5px;opacity:.6}
 @keyframes tmtip{from{opacity:0}}
 @media (prefers-reduced-motion:reduce){.tm-tip{animation:none}}
+
+/* the current time: one line over every row in the team view, and your time in a chip on the hour bar */
+.tm-nowl{position:absolute;top:0;bottom:0;left:calc(var(--tm-left) + 4px);right:4px;pointer-events:none;z-index:3}
+.tm-nowl i{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--now);border-radius:2px;box-shadow:0 0 0 1.5px var(--panel)}
+.tm-ruler .rl .nowc{top:6px;background:var(--now);color:var(--now-ink);font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:8px;z-index:2;pointer-events:none;font-variant-numeric:tabular-nums}
+.tm-ruler .rl .nowc::after{content:"";position:absolute;left:50%;bottom:-5px;width:0;height:0;margin-left:-5px;border:5px solid transparent;border-bottom:0;border-top-color:var(--now)}
 
 /* the empty project: what to upload, as a short list */
 .pj-need{list-style:none;margin:10px 0 2px;padding:14px 16px;display:flex;flex-direction:column;gap:9px;max-width:470px;text-align:left;background:var(--panel-2);border-radius:14px}
