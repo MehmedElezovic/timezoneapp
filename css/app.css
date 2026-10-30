@@ -67,8 +67,9 @@ p{margin:0}
 .tbtn{color:inherit;text-align:left}
 .profile{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;cursor:pointer}
 .profile:hover .name{text-decoration:underline;text-decoration-color:var(--sb-underline);text-underline-offset:3px}
-.av{width:46px;height:46px;border-radius:50%;object-fit:cover;flex:none;background:#3a3a40;color:#fff;display:grid;place-items:center;font-weight:600;font-size:14px;overflow:hidden;position:relative;box-shadow:0 0 0 2px rgba(255,255,255,.06)}
-.av img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.av{width:46px;height:46px;border-radius:50%;object-fit:cover;flex:none;background:#3a3a40;color:#fff;display:grid;place-items:center;font-weight:600;font-size:14px;position:relative;box-shadow:0 0 0 2px rgba(255,255,255,.06)}
+/* the photo is clipped to the circle, not the avatar, so the status dot can sit over the edge in full */
+.av img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;border-radius:inherit}
 .av.sm{width:32px;height:32px;font-size:11px}
 .av.xs{width:24px;height:24px;font-size:9px;box-shadow:none}
 .av.md{width:38px;height:38px;font-size:12px}
