@@ -147,8 +147,9 @@ function buildTeams(R,uidMe){
         if(a.move_request&&m.isMe){metaOf(e.id).post=a.move_request;CLOUD.metaKeys.add(e.id)}
       }
     }
-    T.tasks=(R.tasks||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,title:x.title,note:x.note||'',to:(R.tas||[]).filter(y=>y.task_id===x.id).map(y=>y.member_id),by:x.created_by||null,day:x.due_day||null,time:x.due_time||null,tz:x.due_tz||null,at:msOf(x.created_at),done:msOf(x.done_at),cleared:!!x.cleared,files:Array.isArray(x.files)?x.files:[],re:{},cm:[]}));
-    T.projects=(R.projects||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,due:x.due_day||null,to:(R.pas||[]).filter(y=>y.project_id===x.id).map(y=>y.member_id),by:x.created_by||null,who:x.changed_by||null,whoGuest:x.changed_guest||null,share:x.share_token?{on:!!x.share_on,token:x.share_token}:null,at:msOf(x.changed_at)||msOf(x.created_at),
+    T.tasks=(R.tasks||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,title:x.title,note:x.note||'',to:(R.tas||[]).filter(y=>y.task_id===x.id).map(y=>y.member_id),by:x.created_by||null,day:x.due_day||null,time:x.due_time||null,tz:x.due_tz||null,at:msOf(x.created_at),done:msOf(x.done_at),cleared:!!x.cleared,files:Array.isArray(x.files)?x.files:[],re:{},cm:[],...(x.project_id?{pj:x.project_id}:{}),...(x.version_id?{ver:x.version_id}:{}),...(x.flow?{fl:x.flow}:{}),...(x.priority?{pri:x.priority}:{})}));
+    T.flows=(R.flows||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,by:x.created_by||null,at:msOf(x.updated_at)||msOf(x.created_at),qs:(x.body&&x.body.qs)||[],phases:(x.body&&x.body.phases)||[]}));
+    T.projects=(R.projects||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,due:x.due_day||null,to:(R.pas||[]).filter(y=>y.project_id===x.id).map(y=>y.member_id),by:x.created_by||null,who:x.changed_by||null,whoGuest:x.changed_guest||null,share:x.share_token?{on:!!x.share_on,token:x.share_token}:null,at:msOf(x.changed_at)||msOf(x.created_at),...(x.flow?{flow:x.flow}:{}),log:(R.pev||[]).filter(e=>e.project_id===x.id).sort((a,b)=>msOf(a.at)-msOf(b.at)).map(e=>({id:e.id,at:msOf(e.at),by:e.actor||null,type:e.type,data:e.data||{},...(e.task_id?{task:e.task_id}:{})})),
       versions:(R.versions||[]).filter(v=>v.project_id===x.id).sort((a,b)=>a.n-b.n).map(v=>({id:v.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:Array.isArray(v.assets)?v.assets:[],by:v.created_by||null,at:msOf(v.created_at),...(v.share_token?{share:{on:!!v.share_on,token:v.share_token}}:{}),
         cm:(R.vcm||[]).filter(c=>c.version_id===v.id).sort((a,b)=>a.n-b.n).map(c=>({id:c.id,n:c.n,sel:c.sel||'',rx:c.rx??.5,ry:c.ry??.5,px:c.px||0,py:c.py||0,dev:c.dev||'desktop',text:c.body,by:c.guest_name||nameOf(c.author_id),byId:c.author_id||null,...(c.guest_name?{guest:true}:{}),...(c.layer==='client'?{layer:'client'}:{}),...(c.snippet?{snip:c.snippet}:{}),at:msOf(c.created_at),status:c.status||'open',...(c.from_version?{from:{v:c.from_version,c:c.from_comment}}:{}),
           re:(R.vre||[]).filter(r=>r.comment_id===c.id).sort((a,b)=>msOf(a.created_at)-msOf(b.created_at)).map(r=>({id:r.id,by:r.guest_name||nameOf(r.author_id),byId:r.author_id||null,...(r.guest_name?{guest:true}:{}),text:r.body,at:msOf(r.created_at)}))}))}))}));
@@ -165,12 +166,14 @@ function buildTeams(R,uidMe){
   return out;
 }
 function toImage(T){
-  const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{},projects:{},pas:{},versions:{},vcm:{},vre:{}};
-  if(CLOUD.pjOn) for(const p of T.projects||[]){I.projects[p.id]={id:p.id,name:p.name,due:p.due||null,by:p.by||null,who:p.who||null,at:p.at||Date.now(),...(CLOUD.shareCols?{share_on:!!(p.share&&p.share.on),share_token:(p.share&&p.share.token)||null,guest:p.who?null:(p.whoGuest||null)}:{})};for(const mid of p.to||[]) I.pas[p.id+':'+mid]={project_id:p.id,member_id:mid};
+  const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{},projects:{},pas:{},versions:{},vcm:{},vre:{},flows:{},pev:{}};
+  if(CLOUD.flOn){for(const f of T.flows||[]) I.flows[f.id]={id:f.id,name:f.name,by:f.by||null,body:{qs:f.qs||[],phases:f.phases||[]}};
+    for(const p of T.projects||[]) for(const e of p.log||[]) I.pev[e.id]={id:e.id,project_id:p.id,task_id:e.task||null,type:e.type,actor:e.by||null,data:e.data||{},at:e.at}}
+  if(CLOUD.pjOn) for(const p of T.projects||[]){I.projects[p.id]={id:p.id,name:p.name,due:p.due||null,by:p.by||null,who:p.who||null,at:p.at||Date.now(),...(CLOUD.shareCols?{share_on:!!(p.share&&p.share.on),share_token:(p.share&&p.share.token)||null,guest:p.who?null:(p.whoGuest||null)}:{}),...(CLOUD.flOn?{flow:p.flow||null}:{})};for(const mid of p.to||[]) I.pas[p.id+':'+mid]={project_id:p.id,member_id:mid};
     for(const v of p.versions||[]){I.versions[v.id]={id:v.id,project_id:p.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:(v.assets||[]).map(a=>({id:a.id,path:a.path,size:a.size||0,type:a.type||'',file:a.file||null})),by:v.by||null,...(CLOUD.vShare?{share_on:!!(v.share&&v.share.on),share_token:(v.share&&v.share.token)||null}:{})};
       for(const c of v.cm||[]){I.vcm[c.id]={id:c.id,version_id:v.id,n:c.n,sel:c.sel||null,rx:c.rx??null,ry:c.ry??null,px:c.px??null,py:c.py??null,dev:c.dev||null,body:c.text,author_id:c.byId||null,status:c.status||'open',from_version:c.from?c.from.v:null,from_comment:c.from?c.from.c:null,snippet:c.snip||null,layer:c.layer==='client'?'client':'team',at:c.at||null};
         for(const r of c.re||[]) I.vre[r.id]={id:r.id,comment_id:c.id,author_id:r.byId||null,body:r.text,at:r.at||null}}}}
-  for(const t of T.tasks||[]){I.tasks[t.id]={id:t.id,title:t.title,note:t.note||'',day:t.day||null,time:t.time||null,tz:t.tz||null,done:t.done||null,cleared:!!t.cleared,by:t.by||null,files:t.files||[]};for(const mid of t.to||[]) I.tkas[t.id+':'+mid]={task_id:t.id,member_id:mid}}
+  for(const t of T.tasks||[]){I.tasks[t.id]={id:t.id,title:t.title,note:t.note||'',day:t.day||null,time:t.time||null,tz:t.tz||null,done:t.done||null,cleared:!!t.cleared,by:t.by||null,files:t.files||[],...(CLOUD.flOn?{pj:t.pj||null,ver:t.ver||null,fl:t.fl||null,pri:t.pri||null}:{})};for(const mid of t.to||[]) I.tkas[t.id+':'+mid]={task_id:t.id,member_id:mid}}
   const addRe=(tid,cid,re)=>{for(const [e,l] of Object.entries(re||{})) for(const mid of l) I.re[(tid||cid)+'|'+mid+'|'+e]={thread_id:tid,comment_id:cid,member_id:mid,emoji:e}};
   const addCms=(tid,cms)=>{for(const c of cms||[]){I.comments[c.id]={id:c.id,thread_id:tid,author_id:c.byId||null,body:c.text,at:c.at||Date.now()};addRe(null,c.id,c.re)}};
   for(const m of T.members){
@@ -215,15 +218,9 @@ async function pushTeam(T){
   if(attUp.length) await run(sb.from('attendees').upsert(attUp,{onConflict:'event_id,member_id'}));
   for(const k in L.att) if(!N.att[k]) await run(sb.from('attendees').delete().match({event_id:L.att[k].event_id,member_id:L.att[k].member_id}));
   const evDel=Object.keys(L.events).filter(id=>!N.events[id]);if(evDel.length) await run(sb.from('events').delete().in('id',evDel));
-  const LT=L.tasks||{},LA=L.tkas||{},tkRow=n=>({title:n.title,note:n.note||null,due_day:n.day,due_time:n.time,due_tz:n.tz,done_at:n.done?isoOf(n.done):null,cleared:!!n.cleared,files:n.files||[]});
-  const tkIns=[];for(const id in N.tasks){const n=N.tasks[id],o=LT[id];if(!o) tkIns.push({id,team_id:T.id,created_by:n.by||myId,...tkRow(n)});else if(!sameJ(n,o)) await run(sb.from('tasks').update(tkRow(n)).eq('id',id))}
-  if(tkIns.length) await run(sb.from('tasks').insert(tkIns));
-  const taIns=[];for(const k in N.tkas) if(!LA[k]) taIns.push(N.tkas[k]);if(taIns.length) await run(sb.from('task_assignees').upsert(taIns,{onConflict:'task_id,member_id'}));
-  for(const k in LA) if(!N.tkas[k]) await run(sb.from('task_assignees').delete().match(LA[k]));
-  const tkDel=Object.keys(LT).filter(id=>!N.tasks[id]);if(tkDel.length) await run(sb.from('tasks').delete().in('id',tkDel));
   if(CLOUD.pjOn){
     const LP=L.projects||{},LPA=L.pas||{},LV=L.versions||{},LC=L.vcm||{},LR=L.vre||{};
-    const pjRow=n=>({name:n.name,due_day:n.due,changed_by:n.who||(n.guest?null:myId),changed_at:isoOf(n.at),...(CLOUD.shareCols?{share_on:n.share_on,share_token:n.share_token,changed_guest:n.who?null:n.guest}:{})});
+    const pjRow=n=>({name:n.name,due_day:n.due,changed_by:n.who||(n.guest?null:myId),changed_at:isoOf(n.at),...(CLOUD.shareCols?{share_on:n.share_on,share_token:n.share_token,changed_guest:n.who?null:n.guest}:{}),...(CLOUD.flOn?{flow:n.flow}:{})});
     const pjIns=[];for(const id in N.projects){const n=N.projects[id],o=LP[id];if(!o) pjIns.push({id,team_id:T.id,created_by:n.by||myId,...pjRow(n)});else if(!sameJ(n,o)) await run(sb.from('projects').update(pjRow(n)).eq('id',id))}
     if(pjIns.length) await run(sb.from('projects').insert(pjIns));
     const paIns=[];for(const k in N.pas) if(!LPA[k]) paIns.push(N.pas[k]);if(paIns.length) await run(sb.from('project_assignees').upsert(paIns,{onConflict:'project_id,member_id'}));
@@ -240,6 +237,20 @@ async function pushTeam(T){
     const vDel=Object.keys(LV).filter(id=>!N.versions[id]);if(vDel.length) await run(sb.from('versions').delete().in('id',vDel));
     const pjDel=Object.keys(LP).filter(id=>!N.projects[id]);if(pjDel.length) await run(sb.from('projects').delete().in('id',pjDel));
   }
+  if(CLOUD.flOn){
+    const LF=L.flows||{},LE=L.pev||{};
+    for(const id in N.flows){const n=N.flows[id],o=LF[id];if(!o) await run(sb.from('flows').insert({id,team_id:T.id,name:n.name,body:n.body,created_by:n.by||myId}));else if(!sameJ(n,o)) await run(sb.from('flows').update({name:n.name,body:n.body,updated_at:new Date().toISOString()}).eq('id',id))}
+    const fDel=Object.keys(LF).filter(id=>!N.flows[id]);if(fDel.length) await run(sb.from('flows').delete().in('id',fDel));
+    const eIns=[];for(const id in N.pev) if(!LE[id]){const n=N.pev[id];eIns.push({id,team_id:T.id,project_id:n.project_id,task_id:n.task_id,type:n.type,actor:n.actor||myId,data:n.data,at:isoOf(n.at)})}if(eIns.length) await run(sb.from('project_events').insert(eIns));
+    const eDel=Object.keys(LE).filter(id=>!N.pev[id]&&N.projects[LE[id].project_id]);if(eDel.length) await run(sb.from('project_events').delete().in('id',eDel));
+  }
+  // tasks after projects and versions: a new task can point at a project or version made in the same push
+  const LT=L.tasks||{},LA=L.tkas||{},tkRow=n=>({title:n.title,note:n.note||null,due_day:n.day,due_time:n.time,due_tz:n.tz,done_at:n.done?isoOf(n.done):null,cleared:!!n.cleared,files:n.files||[],...(CLOUD.flOn?{project_id:n.pj,version_id:n.ver,flow:n.fl,priority:n.pri}:{})});
+  const tkIns=[];for(const id in N.tasks){const n=N.tasks[id],o=LT[id];if(!o) tkIns.push({id,team_id:T.id,created_by:n.by||myId,...tkRow(n)});else if(!sameJ(n,o)) await run(sb.from('tasks').update(tkRow(n)).eq('id',id))}
+  if(tkIns.length) await run(sb.from('tasks').insert(tkIns));
+  const taIns=[];for(const k in N.tkas) if(!LA[k]) taIns.push(N.tkas[k]);if(taIns.length) await run(sb.from('task_assignees').upsert(taIns,{onConflict:'task_id,member_id'}));
+  for(const k in LA) if(!N.tkas[k]) await run(sb.from('task_assignees').delete().match(LA[k]));
+  const tkDel=Object.keys(LT).filter(id=>!N.tasks[id]);if(tkDel.length) await run(sb.from('tasks').delete().in('id',tkDel));
   const thIns=[];for(const id in N.threads){const n=N.threads[id];if(!L.threads[id]) thIns.push({id,team_id:T.id,member_id:n.member_id,event_id:n.event_id,task_id:n.task_id||null,starts_at:n.s?isoOf(n.s):null,ends_at:n.e?isoOf(n.e):null,created_by:n.by||myId})}
   if(thIns.length) await run(sb.from('threads').insert(thIns));
   const cmIns=[];for(const id in N.comments){const n=N.comments[id];if(!L.comments[id]) cmIns.push({id,thread_id:n.thread_id,author_id:n.author_id||myId,body:n.body,created_at:isoOf(n.at)})}
@@ -267,10 +278,11 @@ async function pull(){
     const q=async t=>{const {data,error}=await sb.from(t).select('*');if(error) throw error;return data||[]};
     const [teams,members,events,attendees,threads,comments,reactions,profiles,tasks,tas]=await Promise.all(['teams','v_members','events','attendees','threads','comments','reactions','profiles','tasks','task_assignees'].map(q));
     const [projects,pas,versions,vcm,vre]=CLOUD.pjOn?await Promise.all(['projects','project_assignees','versions','version_comments','version_replies'].map(q)):[[],[],[],[],[]];
+    const [flows,pev]=CLOUD.flOn?await Promise.all(['flows','project_events'].map(q)):[[],[]];
     CLOUD.profile=profiles.find(p=>p.id===CLOUD.user.id)||CLOUD.profile;
     {const pf=(CLOUD.profile&&CLOUD.profile.prefs)||{};if(pf.hour12!=null) S.hour12=!!pf.hour12;if(pf.dur) UI.dur=+pf.dur;if(pf.weekStart!=null) S.weekStart=+pf.weekStart;if(pf.theme&&pf.theme!==document.documentElement.dataset.theme) setTheme(pf.theme,true)}
     for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.tkThread={};
-    const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas,projects,pas,versions,vcm,vre},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
+    const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas,projects,pas,versions,vcm,vre,flows,pev},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
     S.teams=[...built,...local];if(!S.teams.length) S.teams=seed().teams; // a new account with no team yet still needs one to show
     CLOUD.last={};for(const T of built) CLOUD.last[T.id]=toImage(T);
     if(CLOUD.invOn){const {data}=await sb.rpc('my_invites');CLOUD.invites=Array.isArray(data)?data:[]}
@@ -288,7 +300,10 @@ function reidTeam(T){
     for(const ev of m.events||[]){if(!em[ev.id]) em[ev.id]=uid();ev.id=em[ev.id];ev.who=(ev.who||[]).map(map);if(ev.req) ev.req=map(ev.req);if(ev.by) ev.by=map(ev.by)}
     for(const th of m.threads||[]){th.id=uid();th.re=remapRe(th.re,map);(th.cm||[]).forEach(fixCm)}}
   for(const [k,v] of Object.entries(S.meta||{})) if(em[k]){delete S.meta[k];S.meta[em[k]]=v;v.re=remapRe(v.re,map);(v.cm||[]).forEach(fixCm);if(v.join) v.join=v.join.map(map)}
-  for(const t of T.tasks||[]){t.id=uid();t.to=(t.to||[]).map(map);if(t.by) t.by=map(t.by);(t.cm||[]).forEach(fixCm);t.re=remapRe(t.re,map)}
+  const tm={};for(const t of T.tasks||[]) tm[t.id]=uid();
+  for(const t of T.tasks||[]){t.id=tm[t.id];if(t.fl&&t.fl.after) t.fl.after=t.fl.after.map(x=>tm[x]||x);t.to=(t.to||[]).map(map);if(t.by) t.by=map(t.by);(t.cm||[]).forEach(fixCm);t.re=remapRe(t.re,map)}
+  for(const p of T.projects||[]) for(const e of p.log||[]) if(e.task) e.task=tm[e.task]||e.task;
+  flowRemap(T,map);
   for(const p of T.projects||[]){p.to=(p.to||[]).map(map);if(p.by) p.by=map(p.by);if(p.who) p.who=map(p.who);for(const v of p.versions||[]){if(v.by) v.by=map(v.by);for(const c of v.cm||[]){if(c.byId) c.byId=map(c.byId);for(const r of c.re||[]) if(r.byId) r.byId=map(r.byId)}}}
   T.gone={};
 }
@@ -297,6 +312,7 @@ function remapMember(T,from,to){
   for(const m of T.members){for(const ev of m.events||[]){ev.who=(ev.who||[]).map(map);if(ev.req===from) ev.req=to;if(ev.by===from) ev.by=to}for(const th of m.threads||[]){th.re=remapRe(th.re,map);(th.cm||[]).forEach(fixCm)}}
   for(const v of Object.values(S.meta||{})){v.re=remapRe(v.re,map);(v.cm||[]).forEach(fixCm);if(v.join) v.join=v.join.map(map)}
   for(const t of T.tasks||[]){t.to=(t.to||[]).map(map);if(t.by===from) t.by=to;(t.cm||[]).forEach(fixCm);t.re=remapRe(t.re,map)}
+  flowRemap(T,map);
   for(const p of T.projects||[]){p.to=(p.to||[]).map(map);if(p.by===from) p.by=to;if(p.who===from) p.who=to;for(const v of p.versions||[]){if(v.by===from) v.by=to;for(const c of v.cm||[]){if(c.byId===from) c.byId=to;for(const r of c.re||[]) if(r.byId===from) r.byId=to}}}
 }
 async function uploadTeam(T){
@@ -345,7 +361,7 @@ async function joinByCode(code){
 }
 function listen(){
   if(CLOUD.chan||!sb) return;CLOUD.chan=sb.channel('noon-'+CLOUD.user.id);
-  for(const t of ['teams','members','profiles','events','attendees','threads','comments','reactions','tasks','task_assignees',...(CLOUD.pjOn?['projects','project_assignees','versions','version_comments','version_replies']:[])]) CLOUD.chan.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pullSoon());
+  for(const t of ['teams','members','profiles','events','attendees','threads','comments','reactions','tasks','task_assignees',...(CLOUD.pjOn?['projects','project_assignees','versions','version_comments','version_replies']:[]),...(CLOUD.flOn?['flows','project_events']:[])]) CLOUD.chan.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pullSoon());
   CLOUD.chan.subscribe();
 }
 async function cloudStart(u){
@@ -361,6 +377,7 @@ async function startAccount(u){
   try{const {error}=await sb.from('version_comments').select('layer').limit(1);CLOUD.shareCols=CLOUD.pjOn&&!error}catch(e){CLOUD.shareCols=false} // client links, connector and comment layers
   try{const {error}=await sb.from('versions').select('share_on').limit(1);CLOUD.vShare=CLOUD.shareCols&&!error}catch(e){CLOUD.vShare=false} // a client link per version
   try{const {error}=await sb.rpc('my_invites');CLOUD.invOn=!error}catch(e){CLOUD.invOn=false} // invites wait as requests (2026-10-28 migration)
+  try{const a=await sb.from('tasks').select('project_id,version_id,flow,priority').limit(1),b=await sb.from('project_events').select('id').limit(1),c=await sb.from('flows').select('id').limit(1);CLOUD.flOn=CLOUD.pjOn&&!a.error&&!b.error&&!c.error}catch(e){CLOUD.flOn=false} // templates and steps in a project (2026-11-03 migration)
   const fresh=document.documentElement.dataset.auth!=='in';
   await pull();
   try{const {data}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle();if(data) CLOUD.profile={...(CLOUD.profile||{}),...data}}catch(e){}

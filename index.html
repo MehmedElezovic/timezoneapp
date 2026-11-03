@@ -136,10 +136,6 @@
     <div class="view" id="vTasks" hidden>
       <header class="top">
         <div class="ttl-wrap"><h1>Tasks</h1><span class="sub" id="tkSum"></span></div>
-        <div class="seg" id="tkSeg">
-          <button data-tkf="open">Open<i></i></button><button data-tkf="mine">Mine<i></i></button><button data-tkf="mt">Meetings<i></i></button><button data-tkf="done">Done<i></i></button>
-        </div>
-        <div class="topnav"><button class="lbtn" id="tkResolve" hidden></button></div>
       </header>
       <form class="tk-add" id="fTask" autocomplete="off">
         <input name="title" class="tk-in" placeholder="Add a task for anyone on the team…" maxlength="120" aria-label="Task title">
@@ -155,8 +151,15 @@
             <div class="dd-acts"><button type="button" class="btn ghost sm" id="tkDueClear">Clear</button><button type="button" class="btn dark sm" id="tkDueOk">Done</button></div>
           </div>
         </div>
+        <button type="button" class="chipbtn" id="tkPriBtn" aria-pressed="false" title="High priority"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4.5c3.5-2 6.5 1.8 12 0v9.5c-5.5 1.8-8.5-2-12 0"/></svg><span>High</span></button>
         <button type="submit" class="btn dark">Add</button>
       </form>
+      <div class="tk-bar">
+        <div class="seg sm" id="tkSeg" role="tablist">
+          <button type="button" data-tkf="mine">Your tasks<i></i></button><button type="button" data-tkf="due">Due<i></i></button><button type="button" data-tkf="high">High priority<i></i></button><button type="button" data-tkf="proj">Projects<i></i></button><button type="button" data-tkf="done">Done<i></i></button>
+        </div>
+        <div class="tk-people" id="tkPeople" aria-label="Filter by team member" hidden></div>
+      </div>
       <div class="tk-body">
         <div class="tk-list" id="tkList"></div>
         <div class="tk-detail" id="tkDetail" hidden></div>
@@ -284,16 +287,8 @@
   </form>
 </dialog>
 
-<!-- New project -->
-<dialog id="dProject" class="dlg">
-  <button type="button" class="xbtn dlg-x" data-close aria-label="Close">×</button>
-  <form id="fProject" method="dialog">
-    <div class="dlg-head"><h2>New project</h2></div>
-    <label class="lbl">Project name <input name="name" required maxlength="60" placeholder="Launch pages, Client site…"></label>
-    <p class="hint" style="margin:0">Then drop the HTML files in. A whole folder keeps its images, styles and scripts.</p>
-    <div class="dlg-acts"><button type="button" class="btn ghost" data-close>Cancel</button><button type="submit" class="btn dark">Create project</button></div>
-  </form>
-</dialog>
+<!-- New project: pick a flow, answer its questions, see the plan -->
+<dialog id="dFlow" class="dlg"></dialog>
 
 <!-- Share a project with a client -->
 <dialog id="dShare" class="dlg">
@@ -336,6 +331,7 @@
 <script src="js/tz.js"></script>
 <script src="js/core.js"></script>
 <script src="js/app.js"></script>
+<script src="js/flows.js"></script>
 <script src="js/projects.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/welcome.js"></script>

@@ -91,7 +91,7 @@ const connOf=m=>m.isMe?Object.keys(CONN).filter(k=>(S.integ||{})[k]):(m.conn||[]
 const KIND_LABEL={me:'You',joined:'Joined with their own account',invited:'Invited, not joined yet',manual:'Added by you'};
 
 /* UI state that the logic needs: the day in view (home-zone 'YYYY-MM-DD') and the default meeting length */
-const UI={day:null,dur:30,view:'calendar',cal:'week',sel:null,draft:null,tkf:'open',tkEdit:null,tkAssign:null,filter:new Set(),hover:null,teamCursor:null,inbox:false,menu:null,evThread:null};
+const UI={day:null,dur:30,view:'calendar',cal:'week',sel:null,draft:null,tkf:(()=>{try{return localStorage.getItem('noon.tkf')||'mine'}catch(e){return 'mine'}})(),tkWho:null,tkPri:false,tkEdit:null,tkAssign:null,filter:new Set(),hover:null,teamCursor:null,inbox:false,menu:null,evThread:null};
 
 function dayRange(day=UI.day){const [y,m,d]=day.split('-').map(Number),h=home();return [zonedToUtc(h,y,m,d,0,0),zonedToUtc(h,y,m,d+1,0,0)]}
 const shiftDay=(day,n)=>{const [y,m,d]=day.split('-').map(Number);return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10)};
@@ -265,13 +265,36 @@ function taskDue(t){
   return {state:d<0?'overdue':d===0?'today':d<=7?'week':'later',label:d<0?`Overdue, ${-d} ${-d===1?'day':'days'}`:'Due '+dayLabel(t.day),ms};
 }
 const tasksOf=T=>(T.tasks=T.tasks||[]);
-const tkCan=t=>{if(!t) return true;const my=me().id;return !t.by||t.by===my||(t.to||[]).includes(my)};
+const tkCan=t=>{if(!t) return true;const my=me().id;return !!t.pj||!t.by||t.by===my||(t.to||[]).includes(my)};
 const tkName=(T,id)=>{const z=T.members.find(m=>m.id===id);return z?(z.isMe?'you':first(z.name)):(T.gone&&T.gone[id]?first(T.gone[id].name):'someone')};
 const tkNames=(T,ids)=>{const n=ids.map(id=>tkName(T,id));return n.length?n.length>1?n.slice(0,-1).join(', ')+' and '+n[n.length-1]:n[0]:'nobody yet'};
 const mtState=x=>{if(x.e<Date.now()) return 'overdue';const d=dayDiff(dayOf(x.s));return d===0?'today':d<=7?'week':'later'};
-function addTask(title,to,day,time,note=''){const T=team(),t={id:uid(),title,note,to:[...to],by:me().id,day:day||null,time:(day&&time)||null,tz:home(),at:Date.now(),done:null,re:{},cm:[],files:[]};tasksOf(T).push(t);save();return t}
+function addTask(title,to,day,time,note='',extra={}){const T=team(),t={id:uid(),title,note,to:[...to],by:me().id,day:day||null,time:(day&&time)||null,tz:home(),at:Date.now(),done:null,re:{},cm:[],files:[],...extra};tasksOf(T).push(t);save();return t}
 const taskById=id=>tasksOf(team()).find(x=>x.id===id);
-const tasksOn=day=>tasksOf(team()).filter(t=>!t.done&&t.day===day);
+// a task can sit in a project (t.pj) as one of its steps (t.fl: ph its stage, seq its place, after what comes before it, with: same time as the step above) and be about a version (t.ver)
+const tkProject=(t,T=team())=>t&&t.pj?(T.projects||[]).find(p=>p.id===t.pj)||null:null;
+const projTasks=(T,p)=>tasksOf(T).filter(t=>t.pj===p.id);
+// anyone with a task in a project is on that project
+function tkJoinProject(t){const p=tkProject(t);if(!p) return;p.to=p.to||[];for(const id of t.to) if(!p.to.includes(id)) p.to.push(id)}
+// a step stays out of everyone's lists until the step before it is done
+const tkWaits=(t,T=team())=>((t.fl&&t.fl.after)||[]).map(id=>tasksOf(T).find(x=>x.id===id)).filter(x=>x&&!x.done);
+const tkLocked=(t,T=team())=>!t.done&&tkWaits(t,T).length>0;
+// tick a task off, or back on; returns the tasks that just came up because of it
+function tkTick(t){
+  const T=team(),was=tasksOf(T).filter(x=>tkLocked(x,T));
+  if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();
+  const p=tkProject(t,T);if(p){logEvent(p,t.done?'done':'reopened',{title:t.title},t.id);touch(p)}
+  save();return was.filter(x=>!tkLocked(x,T));
+}
+// high priority on or off; a project keeps the change in its history
+function tkFlip(t){t.pri=t.pri==='high'?null:'high';const p=tkProject(t);if(p){logEvent(p,'priority',{title:t.title,high:t.pri==='high'},t.id);touch(p)}save()}
+function tickMsg(t,freed){
+  if(!t.done) return 'Back on the list';if(!freed.length) return 'Done. Nice.';
+  const T=team();if(freed.length>1) return `Done. ${freed.length} tasks are up next.`;
+  const x=freed[0];return `Done. Next up: ${x.to.length?cap(tkNames(T,x.to))+', ':''}${x.title}`;
+}
+
+const tasksOn=day=>tasksOf(team()).filter(t=>!t.done&&t.day===day&&!tkLocked(t));
 
 /* ---------- @mentions ---------- */
 const mentionsMe=text=>{const n=first(me().name).toLowerCase();return (String(text).match(/@([\p{L}]+)/gu)||[]).some(x=>{const w=x.slice(1).toLowerCase();return w===n||w==='you'})};
@@ -288,7 +311,12 @@ function inbox(){
     if(x.pend) rq.push({kind:'inv',ev:x,s:x.s,who:from||m,t:`${from?gname(from):'Someone'} invited you to ${x.title}`,sub:`${whenLabel(x.s)} to ${fmtT(x.e,H)}. ${past?'It passed without an answer.':'Waiting for your answer.'}`,id:x.id,act:true,missed:past});
     else if(!past){const wait=(x.who||[]).map(find).filter(z=>z&&!z.isMe&&(z.events||[]).some(q=>q.id===x.id&&q.pend));if(wait.length) rq.push({kind:'wait',ev:x,s:x.s,who:wait[0],t:`${x.title}: waiting for ${wait.map(z=>first(z.name)).join(', ')}`,sub:`${whenLabel(x.s)}. Not accepted yet.`,id:x.id})}
   }
-  for(const t of T.tasks||[]) if(!t.done&&t.to.includes(my)&&t.by!==my){const d=taskDue(t),from=find(t.by);rq.push({kind:'task',s:d.ms===Infinity?now+365*DAY:d.ms,who:from||m,t:`${from?gname(from):'Someone'} assigned you: ${t.title}`,sub:`${d.label}.`,act:true,late:d.state==='overdue',task:t.id})}
+  for(const t of T.tasks||[]) if(!t.done&&t.to.includes(my)&&!tkLocked(t,T)){
+    const d=taskDue(t),from=find(t.by),pj=tkProject(t,T),deps=((t.fl&&t.fl.after)||[]).map(id=>(T.tasks||[]).find(x=>x.id===id)).filter(Boolean).sort((a,b)=>(b.done||0)-(a.done||0)),inPj=pj?`In ${pj.name}. `:'';
+    // a step comes up when the one before it is done, your own included; anything else is news only when someone else gave it to you
+    if(deps.length){const by=deps[0].to.map(find).filter(Boolean),w=by[0];rq.push({kind:'task',s:d.ms===Infinity?now+365*DAY:d.ms,who:w||m,t:`It's your turn: ${t.title}`,sub:`${by.length?`${w.isMe?'You':gname(w)} finished ${deps[0].title}. `:''}${inPj}${d.state==='none'?'':d.label+'.'}`.trim(),act:true,late:d.state==='overdue',task:t.id})}
+    else if(t.by!==my) rq.push({kind:'task',s:d.ms===Infinity?now+365*DAY:d.ms,who:from||m,t:`${from?gname(from):'Someone'} assigned you: ${t.title}`,sub:`${inPj}${d.label}.`,act:true,late:d.state==='overdue',task:t.id})
+  }
   const evOf=key=>{for(const z of T.members){const e=(z.events||[]).find(x=>x.id===key);if(e) return {z,ev:e}}return null};
   for(const [key,mt] of Object.entries(S.meta||{})){
     const r=evOf(key);if(!r) continue;const {z,ev}=r,mineEv=(ev.who||[]).includes(my);

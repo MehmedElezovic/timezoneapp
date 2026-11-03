@@ -31,6 +31,7 @@ const I={
   copy:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
   g:'<svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.9h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.4z"/><path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.4l-3.2-2.5c-.9.6-2 1-3.4 1-2.6 0-4.8-1.8-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.4 14a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9z"/><path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6C7.2 7.8 9.4 6 12 6z"/></svg>',
   o:'<svg width="16" height="16" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="3" fill="#0F6CBD"/><ellipse cx="9" cy="12" rx="4" ry="4.6" fill="#fff"/><ellipse cx="9" cy="12" rx="2" ry="2.6" fill="#0F6CBD"/></svg>',
+  flag:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4.5c3.5-2 6.5 1.8 12 0v9.5c-5.5 1.8-8.5-2-12 0"/></svg>',
   sun:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   moon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 15.5A8.5 8.5 0 0 1 8.5 4a8.5 8.5 0 1 0 11.5 11.5z"/></svg>',
 };
@@ -71,6 +72,7 @@ function setView(v,quiet){
   UI.view=v;closeMenu();
   for(const [id,k] of [['vCal','calendar'],['vTeam','team'],['vTasks','tasks'],['vProj','projects']]) $('#'+id).hidden=k!==v;
   if(v!=='calendar'&&UI.draft&&!UI.draft.id) closePop();
+  if(v!=='projects'&&$('#tkDetail').classList.contains('docked')){UI.tkEdit=null;renderTaskDetail()} // the panel beside a project leaves with the project
   if(!SHARE) try{localStorage.setItem('noon.view',v)}catch(e){}
   if(!quiet) render();
 }
@@ -87,7 +89,7 @@ function renderSide(){
   const m=me(),u=typeof user==='function'?user():null,now=Date.now(),ib=inbox();
   $('#profileCard').innerHTML=`<button type="button" class="tbtn pf" data-open-settings="account" style="display:flex;align-items:center;gap:12px;flex:1;min-width:0">${avatar(m,'',statusNow(m)[0])}<span class="who"><span class="name">${esc(u?u.name:m.name)}</span><span class="role">${esc(tzLabel(home()))} · ${fmtT(now,home())}</span></span></button>
     <button type="button" class="ibtn" id="bellBtn" aria-label="Inbox${ib.count?`, ${ib.count} waiting`:''}" title="Inbox">${I.bell}<span class="badge">${ib.count||''}</span></button><span class="sync" id="syncState"></span>`;
-  const T=team(),open=tasksOf(T).filter(t=>!t.done&&!t.cleared),late=open.filter(t=>taskDue(t).state==='overdue').length,inv=(m.events||[]).filter(x=>x.pend&&x.e>now).length;
+  const T=team(),open=tasksOf(T).filter(t=>!t.done&&!t.cleared&&!tkLocked(t,T)),late=open.filter(t=>taskDue(t).state==='overdue').length,inv=(m.events||[]).filter(x=>x.pend&&x.e>now).length;
   const navItems=[['calendar',I.cal,'Calendar',inv?`<span class="cnt">${inv}</span>`:''],['team',I.team,'Team',`<span class="cnt quiet">${T.members.length}</span>`],['tasks',I.task,'Tasks',late?`<span class="cnt bad">${late}</span>`:open.length?`<span class="cnt quiet">${open.length}</span>`:''],['projects',I.proj,'Projects',(T.projects||[]).length?`<span class="cnt quiet">${T.projects.length}</span>`:''],['settings',I.gear,'Settings','']];
   $('#nav').innerHTML=navItems.map(([k,ic,l,b])=>`<button type="button" data-nav="${k}" ${UI.view===k?'aria-current="page"':''}>${ic}<span>${l}</span>${b}</button>`).join('');
   $('#tabbar').innerHTML=navItems.slice(0,4).map(([k,ic,l,b])=>`<button type="button" data-nav="${k}" ${UI.view===k?'aria-current="page"':''}>${ic}<span>${l}</span>${b}</button>`).join('')+`<button type="button" data-tab-inbox>${I.bell}<span>Inbox</span>${ib.count?`<span class="cnt">${ib.count}</span>`:''}</button><button type="button" data-nav="settings">${I.gear}<span>Settings</span></button>`;
@@ -463,40 +465,45 @@ $('#tmInvite').onclick=()=>openInvite();
 /* ---------- tasks ---------- */
 function tkAssignSet(){const ids=new Set(team().members.map(m=>m.id));if(!UI.tkAssign) UI.tkAssign=new Set();UI.tkAssign=new Set([...UI.tkAssign].filter(id=>ids.has(id)));if(!UI.tkAssign.size) UI.tkAssign.add(me().id);return UI.tkAssign}
 function renderTasks(){
-  const T=team(),m=me(),my=m.id,H=home(),now=Date.now(),tasks=tasksOf(T),f=UI.tkf||'open',AS=tkAssignSet();
-  const open=tasks.filter(t=>!t.done),late=open.filter(t=>taskDue(t).state==='overdue').length,mine=open.filter(t=>t.to.includes(my)).length;
-  const IN=inbox(),inv=IN.rq.filter(n=>n.kind==='inv').sort((a,b)=>a.s-b.s),sent=IN.rq.filter(n=>n.kind==='join'||n.kind==='post'),upcoming=(m.events||[]).filter(x=>!x.pend&&x.e>=dayRange(today())[0]&&x.s<now+30*DAY).sort((a,b)=>a.s-b.s);
+  const T=team(),m=me(),my=m.id,H=home(),now=Date.now(),live=tasksOf(T).filter(t=>!tkLocked(t,T)),f=['mine','due','high','proj','done'].includes(UI.tkf)?UI.tkf:'mine',AS=tkAssignSet();
+  if(UI.tkWho&&!T.members.some(z=>z.id===UI.tkWho)) UI.tkWho=null;
+  const who=UI.tkWho,forWho=t=>!who||t.to.includes(who),open=live.filter(t=>!t.done),isHigh=t=>t.pri==='high',late=open.filter(t=>taskDue(t).state==='overdue').length,whoZ=who&&findM(who,T),whoName=whoZ?(whoZ.isMe?'You':first(whoZ.name)):'';
+  const IN=inbox(),inv=IN.rq.filter(n=>n.kind==='inv').sort((a,b)=>a.s-b.s);
   $('#tkSum').textContent=[open.length?`${open.length} open`:'no open tasks',late?`${late} overdue`:'',inv.length?`${inv.length} ${inv.length===1?'invite':'invites'} to answer`:''].filter(Boolean).join(' · ');
-  $$('#tkSeg button').forEach(b=>{b.classList.toggle('on',b.dataset.tkf===f);const n={open:open.length+inv.length,mine:mine+inv.length,mt:inv.length,done:tasks.length-open.length}[b.dataset.tkf];b.querySelector('i').textContent=n||''});
+  const inTab=k=>k==='mine'?open.filter(t=>t.to.includes(my)):k==='due'?open.filter(t=>t.day&&forWho(t)):k==='high'?open.filter(t=>isHigh(t)&&forWho(t)):k==='proj'?open.filter(forWho):k==='done'?live.filter(t=>t.done&&forWho(t)):[];
+  $$('#tkSeg button').forEach(b=>{const k=b.dataset.tkf;b.classList.toggle('on',k===f);const n=k==='mine'?inTab(k).length+inv.length:inTab(k).length;b.querySelector('i').textContent=n||''});
+  // who the list is about: everywhere except your own tasks and meetings
+  const pp=$('#tkPeople');pp.hidden=f==='mine';
+  if(!pp.hidden){const base=k=>f==='due'?open.filter(t=>t.day):f==='high'?open.filter(isHigh):f==='done'?live.filter(t=>t.done):open;
+    pp.innerHTML=`<button type="button" class="tk-whof all${who?'':' on'}" data-tkwho="" aria-pressed="${!who}">Everyone</button>${T.members.map(z=>{const n=base().filter(t=>t.to.includes(z.id)).length;return `<button type="button" class="tk-whof${who===z.id?' on':''}" data-tkwho="${z.id}" aria-pressed="${who===z.id}">${avatar(z)}<span>${esc(z.isMe?'You':first(z.name))}</span>${n?`<i>${n}</i>`:''}</button>`}).join('')}`}
   const sel=T.members.filter(z=>AS.has(z.id));
   $('#tkWho').innerHTML=sel.slice(0,3).map(z=>avatar(z)).join('')+(sel.length>3?`<span class="av more">+${sel.length-3}</span>`:'');
   $('#tkForLbl').textContent=sel.length===1?(sel[0].isMe?'For me':'For '+first(sel[0].name)):`For ${sel.length}`;
+  $('#tkPriBtn').classList.toggle('on',!!UI.tkPri);$('#tkPriBtn').setAttribute('aria-pressed',!!UI.tkPri);
   tkForList();tkDueLabel();
-  const item=t=>{const d=taskDue(t),who=t.to.map(id=>findM(id,T)).filter(Boolean);
-    return `<div class="tk ${d.state}${t.done?' done':''}${UI.tkEdit===t.id?' sel':''}" data-tkopen="${t.id}" role="button" tabindex="0"><button type="button" class="tk-ck" data-tkdone="${t.id}" aria-label="${t.done?'Mark not done':'Mark done'}">${t.done?I.check:''}</button>
-      <div class="tk-main"><div class="tk-title">${esc(t.title)}</div><div class="tk-meta"><span class="tk-due">${esc(d.label)}</span><span>${t.to.length?`for ${esc(tkNames(T,t.to))}`:'unassigned'}</span>${t.by&&t.by!==my?`<span>from ${esc(tkName(T,t.by))}</span>`:''}${(t.cm||[]).length?`<span>💬 ${t.cm.length}</span>`:''}${t.note?'<span>has details</span>':''}${(t.files||[]).length?`<span>${t.files.length} ${t.files.length===1?'file':'files'}</span>`:''}</div></div>
-      <span class="avs sm">${who.slice(0,4).map(z=>avatar(z)).join('')}</span>${tkCan(t)?`<button type="button" class="tk-x" data-tkdel="${t.id}" aria-label="Delete">${I.trash}</button>`:'<span></span>'}</div>`};
+  const item=(t,inProject)=>{const d=taskDue(t),ppl=t.to.map(id=>findM(id,T)).filter(Boolean),pj=tkProject(t,T),ph=pj&&pj.flow&&t.fl&&pj.flow.phases.find(x=>x.id===t.fl.ph);
+    return `<div class="tk ${d.state}${t.done?' done':''}${isHigh(t)?' high':''}${UI.tkEdit===t.id?' sel':''}" data-tkopen="${t.id}" role="button" tabindex="0"><button type="button" class="tk-ck" data-tkdone="${t.id}" aria-label="${t.done?'Mark not done':'Mark done'}">${t.done?I.check:''}</button>
+      <div class="tk-main"><div class="tk-title">${esc(t.title)}</div><div class="tk-meta"><span class="tk-due">${esc(d.label)}</span>${pj&&!inProject?`<span class="tk-pj">${esc(pj.name)}</span>`:''}${t.to.length===1&&t.to[0]===my?'':`<span>${t.to.length?`For ${esc(tkNames(T,t.to))}`:'Nobody yet'}</span>`}${(t.cm||[]).length?`<span class="cm-n">${PI.bubble}${t.cm.length}</span>`:''}</div></div>
+      <button type="button" class="tk-flag${isHigh(t)?' on':''}" data-tkpri="${t.id}" aria-pressed="${isHigh(t)}" aria-label="${isHigh(t)?'High priority, click to remove':'Mark high priority'}" title="${isHigh(t)?'High priority':'Mark high priority'}">${I.flag}</button>
+      <span class="avs sm">${ppl.slice(0,4).map(z=>avatar(z)).join('')}</span>${tkCan(t)?`<button type="button" class="tk-x" data-tkdel="${t.id}" aria-label="Delete">${I.trash}</button>`:'<span></span>'}</div>`};
   const invItem=n=>{const x=n.ev,when=n.missed?'Passed, no answer':`${whenLabel(x.s)} to ${fmtT(x.e,H)}`;
     return `<div class="tk mt ${mtState(x)}" data-openev="${x.id}" role="button" tabindex="0"><span class="tk-mk">${I.cal16}</span><div class="tk-main"><div class="tk-title">${esc(x.title||'Meeting')}</div><div class="tk-meta"><span class="tk-due">${esc(when)}</span><span>${esc(cap(tkName(T,x.req)))} invited you</span></div></div>
       <span class="tk-acts">${n.missed?`<button type="button" class="btn sm ghost" data-dec="${x.id}">Dismiss</button>`:`<button type="button" class="btn sm dark" data-acc="${x.id}">Accept</button><button type="button" class="btn sm ghost" data-dec="${x.id}">Decline</button>`}</span><span></span></div>`};
-  const bookItem=x=>{const p=(x.who||[]).filter(id=>id!==my).map(id=>findM(id,T)).filter(Boolean),wait=p.filter(z=>(z.events||[]).some(q=>q.id===x.id&&q.pend));
-    return `<div class="tk mt ${mtState(x)}" data-openev="${x.id}" role="button" tabindex="0"><span class="tk-mk">${I.cal16}</span><div class="tk-main"><div class="tk-title">${esc(x.title||'Meeting')}</div><div class="tk-meta"><span class="tk-due">${esc(whenLabel(x.s))} to ${fmtT(x.e,H)}</span>${p.length?`<span>with ${esc(tkNames(T,p.map(z=>z.id)))}</span>`:''}${wait.length?`<span>waiting for ${esc(wait.map(z=>first(z.name)).join(', '))}</span>`:''}</div></div><span class="avs sm">${p.slice(0,4).map(z=>avatar(z)).join('')}</span><span></span></div>`};
-  const sentItem=n=>`<div class="tk mt" data-openev="${n.id}" role="button" tabindex="0"><span class="tk-mk">${I.cal16}</span><div class="tk-main"><div class="tk-title">${esc(n.t)}</div><div class="tk-meta"><span class="tk-due">${esc(whenLabel(n.s))}</span><span>No answer yet.</span></div></div><span></span><span></span></div>`;
-  let list;const rb=$('#tkResolve');rb.hidden=true;
-  if(f==='done'){const done=tasks.filter(t=>t.done).sort((x,y)=>y.done-x.done);
-    list=done.length?`<div class="tk-grp">Done <i>${done.length}</i><button type="button" class="tlink" data-tkclear>Delete all done</button></div>${done.map(item).join('')}`:'<p class="tab-note">Nothing finished yet. Tick a task when it is done and it lands here.</p>'}
-  else if(f==='mt'){
-    const need=inv.length?`<div class="tk-grp">Needs your answer <i>${inv.length}</i></div>${inv.map(invItem).join('')}`:'';
-    const asked=sent.length?`<div class="tk-grp">Sent by you <i>${sent.length}</i></div>${sent.map(sentItem).join('')}`:'';
-    const booked=[['today','Today'],['week','This week'],['later','Later']].map(([k,l])=>{const g=upcoming.filter(x=>{const st=mtState(x);return st===k||(k==='today'&&st==='overdue')});return g.length?`<div class="tk-grp">${l} <i>${g.length}</i></div>${g.map(bookItem).join('')}`:''}).join('');
-    list=need+asked+booked||'<p class="tab-note">No invites to answer and nothing booked for the next 30 days. Pick a free slot in the calendar, or a best window on the Team page, to book one.</p>';
-  }
-  else{
-    const vis=tasks.filter(t=>!t.cleared&&(f!=='mine'||t.to.includes(my))),resolved=vis.filter(t=>t.done).length;rb.hidden=!resolved;rb.textContent=`Clear ${resolved} done`;
-    const pool=vis.map(t=>{const dl=taskDue({...t,done:null});return {t,state:dl.state,ms:dl.ms,at:t.at||0}}).concat(inv.map(n=>({inv:n,state:mtState(n.ev),ms:n.ev.s,at:0}))).sort((x,y)=>x.ms-y.ms||x.at-y.at);
-    list=pool.length?TK_GROUPS.map(([k,l])=>{const g=pool.filter(x=>x.state===k);if(!g.length) return '';return `<div class="tk-grp">${l} <i>${g.length}</i></div>`+g.map(x=>x.inv?invItem(x.inv):item(x.t)).join('')}).join('')
-      :`<p class="tab-note">${f==='mine'?'Nothing on your plate. Tasks assigned to you and invites waiting on your answer show up here.':'No open tasks. Add one above, for yourself or for anyone on the team.'}</p>`;
-  }
+  // the lists: soonest first, and within the same stretch of time, high priority on top
+  const grouped=(tasks,invites=[])=>{const pool=tasks.map(t=>{const dl=taskDue(t);return {t,state:dl.state,ms:dl.ms,high:isHigh(t),at:t.at||0}}).concat(invites.map(n=>({inv:n,state:mtState(n.ev),ms:n.ev.s,high:false,at:0})));
+    return TK_GROUPS.map(([k,l])=>{const g=pool.filter(x=>x.state===k).sort((a,b)=>(b.high?1:0)-(a.high?1:0)||a.ms-b.ms||a.at-b.at);return g.length?`<div class="tk-grp">${l} <i>${g.length}</i></div>${g.map(x=>x.inv?invItem(x.inv):item(x.t)).join('')}`:''}).join('')};
+  const note=s=>`<p class="tab-note">${s}</p>`;let list;
+  if(f==='mine') list=grouped(inTab('mine'),inv)||note('Nothing on your plate. Tasks given to you and invites waiting on your answer show up here. Steps in a project show up when it is your turn.');
+  else if(f==='due') list=grouped(inTab('due'))||note(who?`${whoName==='You'?'You have':`${esc(whoName)} has`} nothing with a due date.`:'Nothing with a due date.');
+  else if(f==='high') list=grouped(inTab('high'))||note(who?`${whoName==='You'?'You have':`${esc(whoName)} has`} nothing marked high priority.`:'Nothing is marked high priority. Click the flag on any task to mark it.');
+  else if(f==='done'){const done=inTab('done').sort((x,y)=>y.done-x.done),loose=done.filter(t=>!t.pj).length;
+    list=done.length?`<div class="tk-grp">Done <i>${done.length}</i>${loose?`<button type="button" class="tlink" data-tkclear>Delete those not in a project</button>`:''}</div>${done.map(t=>item(t)).join('')}`:note('Nothing finished yet. Tick a task when it is done and it lands here.')}
+  else if(f==='proj'){
+    const L=inTab('proj'),sec=p=>{const mineHere=L.filter(t=>t.pj===p.id),all=projTasks(T,p),dn=all.filter(t=>t.done).length,wait=all.filter(t=>tkLocked(t,T)&&forWho(t)).length;if(!mineHere.length&&!wait) return '';
+        const phases=p.flow?p.flow.phases:[],parts=phases.length>1?phases.map(ph=>{const g=mineHere.filter(t=>t.fl&&t.fl.ph===ph.id);return g.length?`<div class="tk-sub">${esc(ph.name)}</div>${g.map(t=>item(t,true)).join('')}`:''}).join('')+mineHere.filter(t=>!t.fl||!phases.some(ph=>ph.id===t.fl.ph)).map(t=>item(t,true)).join(''):mineHere.map(t=>item(t,true)).join('');
+        return `<section class="tk-proj"><button type="button" class="tk-pjh" data-tk-proj="${p.id}"><b>${esc(p.name)}</b><small>${esc(pjNowLabel(T,p))}</small><span class="tk-pjn">${dn} of ${all.length} done</span><span class="ptk-bar"><i style="width:${all.length?Math.round(dn/all.length*100):0}%"></i></span></button>${parts}${wait?`<p class="tk-wait">${plural(wait,'more step')} later</p>`:''}</section>`};
+    const loose=L.filter(t=>!tkProject(t,T));
+    list=projectsOf(T).slice().sort((a,b)=>(b.at||0)-(a.at||0)).map(sec).join('')+(loose.length?`<section class="tk-proj"><div class="tk-pjh static"><b>Not in a project</b></div>${loose.map(t=>item(t,true)).join('')}</section>`:'')||note(who?`${whoName==='You'?'You have':`${esc(whoName)} has`} no open tasks.`:'No open tasks yet.')}
   $('#tkList').innerHTML=list;
   renderTaskDetail();
 }
@@ -512,32 +519,44 @@ $('#tkForQ').addEventListener('input',tkForList);
 document.addEventListener('pointerdown',e=>{if(!(e.target.closest&&e.target.closest('.tk-dd-wrap,.dd'))) tkDd(null);if(UI.tkPick&&!(e.target.closest&&e.target.closest('#tkdAddBtn,#tkdDd'))){UI.tkPick=false;const d=$('#tkdDd');if(d) d.hidden=true}});
 $('#fTask').addEventListener('submit',e=>{
   e.preventDefault();const f=e.target,title=f.title.value.trim();if(!title) return;
-  const t=addTask(title,tkAssignSet(),f.day.value,f.time.value);f.title.value='';f.day.value='';f.time.value='';tkDd(null);render();
+  const t=addTask(title,tkAssignSet(),f.day.value,f.time.value,'',UI.tkPri?{pri:'high'}:{});f.title.value='';f.day.value='';f.time.value='';tkDd(null);render();
   toast(`Task added for ${tkNames(team(),t.to)}${t.day?', '+taskDue(t).label.replace(/^Due/,'due'):''}`);f.title.focus();
 });
-$('#tkSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tkf]');if(!b) return;UI.tkf=b.dataset.tkf;renderTasks()});
-$('#tkResolve').onclick=()=>{const T=team(),undo=snapshot(),my=me().id,f=UI.tkf||'open';let n=0;for(const t of tasksOf(T)) if(t.done&&!t.cleared&&(f!=='mine'||t.to.includes(my))){t.cleared=true;n++}save();render();toast(`${n} done ${n===1?'task':'tasks'} cleared. They are under Done.`,undo)};
-function openTask(id){UI.tkEdit=id;UI.tkField=null;UI.tkPick=false;UI.pick=null;UI.pickC=null;if(UI.view!=='tasks') setView('tasks',true);render();const t=$('#tkDetail .ttl');if(t&&!taskById(id).title) t.focus()}
-function closeTask(){UI.tkEdit=null;renderTasks()}
+$('#tkSeg').addEventListener('click',e=>{const b=e.target.closest('[data-tkf]');if(!b) return;UI.tkf=b.dataset.tkf;UI.tkPri=UI.tkf==='high';renderTasks();try{localStorage.setItem('noon.tkf',UI.tkf)}catch(x){}});
+$('#tkPeople').addEventListener('click',e=>{const b=e.target.closest('[data-tkwho]');if(!b) return;UI.tkWho=b.dataset.tkwho||null;renderTasks()});
+$('#tkPriBtn').onclick=()=>{UI.tkPri=!UI.tkPri;renderTasks()};
+function openTask(id){
+  const task=taskById(id),pj=tkProject(task);
+  // a project's task opens beside its project, unless you are reading the Tasks list
+  if(pj&&UI.view!=='tasks'){PV.flows=false;if(PV.proj!==pj.id){PV.proj=pj.id;PV.ver=null}if(!PV.ver){PV.tab='flow';PV.tabFor=pj.id}if(UI.view!=='projects') setView('projects',true)}
+  else if(UI.view!=='tasks') setView('tasks',true);
+  UI.tkEdit=id;UI.tkField=null;UI.tkPick=false;UI.pick=null;UI.pickC=null;render();const t=$('#tkDetail .ttl');if(t&&!task.title) t.focus()}
+function closeTask(){UI.tkEdit=null;render()}
 function renderTaskDetail(){
-  const box=$('#tkDetail'),t=UI.tkEdit&&taskById(UI.tkEdit);if(!t){box.hidden=true;box.innerHTML='';return}
-  const T=team(),can=tkCan(t),d=taskDue(t),ed=can?UI.tkField:null,who=t.to.map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!t.to.includes(z.id)),tz=t.tz||home();
+  const box=$('#tkDetail'),inProj=UI.view==='projects',host=inProj?$('#main'):$('.tk-body'),t=UI.tkEdit&&taskById(UI.tkEdit);
+  if(box.parentElement!==host) host.append(box);box.classList.toggle('docked',inProj);
+  if(!t||(inProj&&(t.pj!==PV.proj||PV.flows))){box.hidden=true;box.innerHTML='';return}
+  const T=team(),can=tkCan(t),d=taskDue(t),ed=can?UI.tkField:null,who=t.to.map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!t.to.includes(z.id)),tz=t.tz||home(),pjs=T.projects||[],pj=tkProject(t,T),vv=pj?tkVer(t):null,waits=tkWaits(t,T),stage=pj&&pj.flow&&t.fl?pj.flow.phases.find(x=>x.id===t.fl.ph):null;
   box.hidden=false;
   box.innerHTML=`<div class="tkd-head"><textarea class="ttl" id="tkdTitle" rows="1" maxlength="120" ${can?'':'readonly'}>${esc(t.title)}</textarea><button type="button" class="xbtn" id="tkdClose" aria-label="Close">×</button></div>
-    <p class="by">${esc(t.by===me().id?'You':cap(tkName(T,t.by)))} added this ${esc(dayLabel(dayOf(t.at||Date.now())).toLowerCase())} · <span class="due ${d.state}">${esc(d.label)}</span>${can?'':`<br>Only ${esc(first(tkName(T,t.by)))} and the people it is for can change it.`}</p>
+    ${pj?`<button type="button" class="tkd-link" data-tkd-proj>${esc(pj.name)}${stage&&pj.flow.phases.length>1?`, ${esc(stage.name)}`:''}</button>`:''}${waits.length?`<p class="by">This comes up after ${esc(waits[0].title)}${waits.length>1?` and ${plural(waits.length-1,'other step')}`:''}.</p>`:''}${can?'':`<p class="by">Only ${esc(first(tkName(T,t.by)))} and the people it is for can change this.</p>`}
     <div class="sec"><h4>For</h4><div class="whochips">${who.map(z=>`<button type="button" class="who1" data-tkdrm="${z.id}" ${can?'':'disabled'}>${avatar(z)}${esc(z.isMe?'Me':first(z.name))}${can?'<i>×</i>':''}</button>`).join('')}${can&&cand.length?`<button type="button" class="addc" id="tkdAddBtn" aria-label="Add someone">${I.plus}</button>`:''}</div>
       ${can&&UI.tkPick?`<div class="dd" id="tkdDd"><div class="dd-list">${cand.map(z=>`<button type="button" class="opt" data-tkdadd="${z.id}">${avatar(z,'sm')}<span class="n">${esc(z.name)}<small>${esc(tzLabel(z.tz))}</small></span></button>`).join('')}</div></div>`:''}</div>
-    <div class="sec"><div class="sec-h"><h4>Due</h4>${can&&ed!=='due'?`<button type="button" class="tkd-pen" data-tkd-edit="due" aria-label="Change the due date" title="Change">${I.pen}</button>`:''}</div>
+    <div class="sec"><div class="sec-h"><h4>Due</h4>${can&&ed!=='due'&&t.day?`<button type="button" class="tkd-pen" data-tkd-edit="due" aria-label="Change the due date" title="Change">${I.pen}</button>`:''}</div>
       ${ed==='due'?`<div class="grid2"><label class="lbl"><input type="date" id="tkdDay" value="${t.day||''}" aria-label="Day"></label><label class="lbl"><input type="time" id="tkdTime" value="${t.time||''}" aria-label="Time, optional"></label></div><div class="tkd-acts"><button type="button" class="btn sm ghost" data-tkd-cancel>Cancel</button><button type="button" class="btn sm dark" data-tkd-save>Save</button></div>`
         :t.day?`<p class="tkd-val">${esc(dayLabel(t.day))}${t.time?` · ${fmtT(taskInstant(t),home())}`:''}</p>${t.time&&tz!==home()?`<p class="by" style="margin-top:4px">Set in ${esc(tzLabel(tz))}. Everyone sees it in their own zone.</p>`:''}`
         :can?`<button type="button" class="tkd-add" data-tkd-edit="due">Add a due date</button>`:'<p class="tkd-val empty">No due date</p>'}</div>
+    <label class="st-check"><input type="checkbox" id="tkdHigh" ${t.pri==='high'?'checked':''} ${can?'':'disabled'}><span>High priority</span></label>
+    ${vv?`<button type="button" class="btn sm tkd-ver" data-tkd-ver>Open ${esc(vLabel(vv))}</button>`:''}
+    ${!pj&&pjs.length&&can?`<div class="sec"><h4>Add to a project</h4><select class="select" id="tkdPj" aria-label="Project"><option value="">No project</option>${pjs.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>`:''}
     <div class="sec"><div class="sec-h"><h4>Details</h4>${can&&ed!=='note'&&t.note?`<button type="button" class="tkd-pen" data-tkd-edit="note" aria-label="Edit the details" title="Edit">${I.pen}</button>`:''}</div>
       ${ed==='note'?`<textarea class="note" id="tkdNote" placeholder="Details, links, what done looks like…">${esc(t.note||'')}</textarea><div class="tkd-acts"><button type="button" class="btn sm ghost" data-tkd-cancel>Cancel</button><button type="button" class="btn sm dark" data-tkd-save>Save</button></div>`
         :t.note?`<p class="tkd-val tkd-note">${esc(t.note)}</p>`:can?`<button type="button" class="tkd-add" data-tkd-edit="note">Add details</button>`:'<p class="tkd-val empty">No details</p>'}</div>
     <div class="sec"><h4>Files</h4><div class="files">${(t.files||[]).map((x,i)=>`<span class="file"><button type="button" class="n" data-tkfopen="${i}" title="Open ${esc(x.name)}">${I.file}<span>${esc(x.name)}</span></button><small>${fmtSize(x.size||0)}</small>${can?`<button type="button" class="rm" data-tkfrm="${i}" aria-label="Remove">${I.x}</button>`:''}</span>`).join('')}${can?`<button type="button" class="attach" id="tkdAttach">${I.clip}<span>${(t.files||[]).length?'Add files':'Attach files'}</span></button>`:''}</div></div>
     <div class="sec">${(t.cm||[]).length?`<h4>Comments <span style="font-weight:500;opacity:.7">${t.cm.length}</span></h4>`:''}${threadHtml(t,'tk')}</div>
-    <div class="acts">${can?`<button type="button" class="btn dark" id="tkdDone">${t.done?'Mark not done':'Mark done'}</button><button type="button" class="btn ghost danger" id="tkdDel">Delete</button>`:''}</div>`;
+    <div class="acts">${can?`${waits.length&&!t.done?'':`<button type="button" class="btn dark" id="tkdDone">${t.done?'Mark not done':'Mark done'}</button>`}<button type="button" class="btn ghost danger" id="tkdDel">Delete</button>`:''}</div>`;
   const ta=$('#tkdTitle');ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';
+  if(inProj) stepsRefresh();
 }
 const fmtSize=n=>n<1024?n+' B':n<1048576?Math.round(n/1024)+' KB':(n/1048576).toFixed(1)+' MB';
 function tkdSave(){const t=UI.tkEdit&&taskById(UI.tkEdit);if(!t||!tkCan(t)) return;
@@ -564,24 +583,31 @@ $('#tkDetail').addEventListener('click',async e=>{
   if(c('[data-tkd-save]')){tkdSave();UI.tkField=null;renderTaskDetail();toast('Saved');return}
   if(c('[data-tkd-cancel]')){UI.tkField=null;renderTaskDetail();return}
   if(c('#tkdAddBtn')){UI.tkPick=!UI.tkPick;renderTaskDetail();return}
-  if(b=c('[data-tkdadd]')){t.to.push(b.dataset.tkdadd);UI.tkPick=false;save();render();return}
+  if(b=c('[data-tkdadd]')){t.to.push(b.dataset.tkdadd);tkJoinProject(t);UI.tkPick=false;save();render();return}
   if(b=c('[data-tkdrm]')){if(!tkCan(t)) return;t.to=t.to.filter(id=>id!==b.dataset.tkdrm);save();render();return}
-  if(c('#tkdDone')){const undo=snapshot();if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();save();render();toast(t.done?'Done. Nice.':'Back on the list',undo);return}
-  if(c('#tkdDel')){const undo=snapshot();team().tasks=tasksOf(team()).filter(x=>x.id!==t.id);UI.tkEdit=null;save();render();toast('Task deleted',undo);return}
+  if(c('[data-tkd-ver]')){openTaskVersion(t);return}
+  if(c('[data-tkd-proj]')){PV.proj=t.pj;PV.ver=null;UI.tkEdit=null;setView('projects');return}
+  if(c('#tkdDone')){if(tkLocked(t)){toast("It isn't this step's turn yet.");return}const undo=snapshot(),freed=tkTick(t);render();toast(tickMsg(t,freed),undo);return}
+  if(c('#tkdDel')){const undo=snapshot();tkDrop(team(),t);UI.tkEdit=null;save();render();toast('Task deleted',undo);return}
   if(c('#tkdAttach')){if(team().cloud&&typeof gate==='function'&&gate('files')) return;if(!team().cloud){toast('Files need a team saved to your account. Sign in to keep this team there.');return}$('#fileIn').click();return}
   if(b=c('[data-tkfopen]')){const x=(t.files||[])[+b.dataset.tkfopen];if(!x||typeof sb==='undefined'||!sb) return;const w=window.open('','_blank');const {data,error}=await sb.storage.from('task-files').createSignedUrl(x.path,3600);if(error||!data){if(w) w.close();toast('Could not open '+x.name);return}if(w) w.location=data.signedUrl;else location.href=data.signedUrl;return}
   if(b=c('[data-tkfrm]')){const i=+b.dataset.tkfrm,x=(t.files||[])[i];if(!x) return;t.files.splice(i,1);save();render();if(typeof sb!=='undefined'&&sb) sb.storage.from('task-files').remove([x.path]);toast('File removed')}
 });
-$('#tkDetail').addEventListener('change',e=>{if(e.target.id==='tkdTitle') tkdSave()});
+$('#tkDetail').addEventListener('change',e=>{if(e.target.id==='tkdTitle') tkdSave();
+  const t=UI.tkEdit&&taskById(UI.tkEdit);if(!t||!tkCan(t)) return;
+  if(e.target.id==='tkdPj'&&e.target.value){t.pj=e.target.value;const pj=tkProject(t);flowEnsure(pj);t.fl={ph:(pjPhaseNow(team(),pj)||pj.flow.phases[0]).id,seq:Date.now(),with:true};flowChain(team(),pj);tkJoinProject(t);touch(pj);save();render()}
+  if(e.target.id==='tkdHigh'&&(t.pri==='high')!==e.target.checked){tkFlip(t);render()}});
 $('#tkDetail').addEventListener('input',e=>{if(e.target.id==='tkdTitle'){e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px'}});
 $('#tkDetail').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='tkdTitle'){e.preventDefault();e.target.blur()}if(e.key==='Escape'&&UI.tkField){e.preventDefault();e.stopPropagation();UI.tkField=null;renderTaskDetail()}if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&UI.tkField){e.preventDefault();tkdSave();UI.tkField=null;renderTaskDetail()}});
 $('#tkList').addEventListener('click',e=>{
   const c=s=>e.target.closest(s);let b;
-  if(b=c('[data-tkdone]')){const t=taskById(b.dataset.tkdone);if(!t) return;if(!tkCan(t)){toast(`Only ${first(tkName(team(),t.by))} and the people it is for can tick this off`);return}const undo=snapshot();if(t.done){t.done=null;t.cleared=false}else t.done=Date.now();save();render();toast(t.done?'Done. Nice.':'Back on the list',undo);return}
-  if(b=c('[data-tkdel]')){const t=taskById(b.dataset.tkdel);if(!tkCan(t)) return;const undo=snapshot();team().tasks=tasksOf(team()).filter(x=>x.id!==t.id);if(UI.tkEdit===t.id) UI.tkEdit=null;save();render();toast('Task deleted',undo);return}
+  if(b=c('[data-tkdone]')){const t=taskById(b.dataset.tkdone);if(!t) return;if(!tkCan(t)){toast(`Only ${first(tkName(team(),t.by))} and the people it is for can tick this off`);return}const undo=snapshot(),freed=tkTick(t);render();toast(tickMsg(t,freed),undo);return}
+  if(b=c('[data-tkpri]')){const t=taskById(b.dataset.tkpri);if(!t) return;if(!tkCan(t)){toast(`Only ${first(tkName(team(),t.by))} and the people it is for can change this`);return}tkFlip(t);renderTasks();renderSide();return}
+  if(b=c('[data-tk-proj]')){PV.proj=b.dataset.tkProj;PV.ver=null;PV.flows=false;PV.tab='flow';PV.tabFor=PV.proj;UI.tkEdit=null;setView('projects');return}
+  if(b=c('[data-tkdel]')){const t=taskById(b.dataset.tkdel);if(!tkCan(t)) return;const undo=snapshot();tkDrop(team(),t);if(UI.tkEdit===t.id) UI.tkEdit=null;save();render();toast('Task deleted',undo);return}
   if(b=c('[data-acc]')){answerInvite(b.dataset.acc,true);render();toast('Accepted');return}
   if(b=c('[data-dec]')){answerInvite(b.dataset.dec,false);render();toast('Declined');return}
-  if(c('[data-tkclear]')){const undo=snapshot();team().tasks=tasksOf(team()).filter(x=>!x.done);save();render();toast('Done tasks cleared',undo);return}
+  if(c('[data-tkclear]')){const undo=snapshot(),who=UI.tkWho;team().tasks=tasksOf(team()).filter(x=>!x.done||x.pj||(who&&!x.to.includes(who)));save();render();toast('Done tasks cleared',undo);return}
   if(b=c('[data-tkopen]')){openTask(b.dataset.tkopen);return}
   if(b=c('[data-openev]')){openEvent(b.dataset.openev);return}
 });
