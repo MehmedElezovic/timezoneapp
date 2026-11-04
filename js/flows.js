@@ -86,11 +86,62 @@ function flowRemap(T,map){
   for(const p of T.projects||[]){if(p.flow&&p.flow.by) p.flow.by=map(p.flow.by);for(const e of p.log||[]) if(e.by) e.by=map(e.by)}
 }
 
-/* ---------- who does it: the same plain dropdown everywhere ---------- */
-function whoSelect(attr,value,extra=''){
-  const T=team(),many=Array.isArray(value)&&value.length>1,v=Array.isArray(value)?(value[0]||''):value;
-  return `<select class="st-sel" ${attr} aria-label="Who does this">${extra}<option value="" ${!many&&!v?'selected':''}>Nobody yet</option>${many?`<option selected disabled>${value.length} people</option>`:''}${T.members.map(z=>`<option value="${z.id}" ${!many&&v===z.id?'selected':''}>${esc(z.isMe?'Me':first(z.name))}</option>`).join('')}</select>`;
+/* ---------- dropdowns: a button and a floating list that look like the rest of Noon, with faces and names for people.
+   Picking sets the button's value and fires input and change on it, so a screen listens to it the way it would a form field. ---------- */
+const DD={el:null,btn:null};
+const DD_MAKER='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20.5a7.5 7.5 0 0 1 15 0"/></svg>';
+const ddMember=o=>o.m?findM(o.m,team()):null;
+const ddLabel=(o,short)=>{const z=ddMember(o);return z?(z.isMe?(short?'Me':`${z.name} (you)`):(short?first(z.name):z.name)):(o.l||'')};
+const ddFace=(o,cls,status)=>{const z=ddMember(o);return z?avatar(z,cls,status):o.ic==='none'?`<span class="dd-none">${I.plus}</span>`:o.ic==='maker'?`<span class="dd-maker">${DD_MAKER}</span>`:''};
+function ddInner(opts,sel){
+  const picked=opts.filter(o=>sel.includes(o.v));
+  if(picked.length>1) return `<span class="avs sm">${picked.slice(0,2).map(o=>ddFace(o,'')).join('')}</span><span class="dd-lab">${picked.length} people</span>${CHEV}`;
+  const o=picked[0];return `${o?ddFace(o,''):''}<span class="dd-lab${o&&o.ic==='none'?' none':''}">${esc(o?ddLabel(o,true):'Choose')}</span>${CHEV}`;
 }
+function ddBtn(attr,value,opts,{cls='',label='Choose'}={}){
+  const sel=Array.isArray(value)?(value.length?value:['']):[value];
+  return `<button type="button" class="dd-btn ${cls}" ${attr} value="${esc(sel[0])}" data-dd-sel="${esc(`[${attr}]`)}" data-dd-opts="${esc(JSON.stringify(opts))}" data-dd-now="${esc(sel.join(','))}" aria-haspopup="listbox" aria-expanded="false" aria-label="${esc(label)}">${ddInner(opts,sel)}</button>`;
+}
+const whoBtn=(attr,value,withMaker=false)=>ddBtn(attr,value,[...(withMaker?[{v:'creator',l:'Whoever starts it',s:'The person who starts the project',ic:'maker'}]:[]),...team().members.map(z=>({v:z.id,m:z.id})),{v:'',l:'Nobody yet',ic:'none'}],{cls:'who',label:'Who does this'});
+function ddClose(refocus=true){
+  if(!DD.el) return;const b=DD.btn;DD.el.remove();DD.el=null;DD.btn=null;b.setAttribute('aria-expanded','false');if(refocus&&b.isConnected) b.focus();
+}
+function ddOpen(btn){
+  ddClose(false);
+  const opts=JSON.parse(btn.dataset.ddOpts),now=btn.dataset.ddNow.split(','),t=Date.now(),m=document.createElement('div');
+  m.className='dd dd-menu';m.id='ddMenu';m.setAttribute('role','listbox');m.setAttribute('aria-label',btn.getAttribute('aria-label')||'Choose');
+  m.innerHTML=opts.map((o,i)=>{const z=ddMember(o),on=now.includes(o.v),sub=z?`${tzLabel(z.tz)} · ${fmtT(t,z.tz)}`:(o.s||'');
+    return `${o.ic==='none'&&i?'<hr class="dd-sep">':''}<button type="button" class="opt" role="option" aria-selected="${on}" data-dd-pick="${esc(o.v)}">${ddFace(o,'sm',z?statusNow(z,t)[0]:undefined)}<span class="n">${esc(ddLabel(o))}${sub?`<small>${esc(sub)}</small>`:''}</span>${on?`<span class="dd-ck">${I.check}</span>`:''}</button>`}).join('');
+  (btn.closest('dialog')||document.body).append(m);DD.el=m;DD.btn=btn;btn.setAttribute('aria-expanded','true');
+  // under the button when it fits, above it when it does not, and always on screen
+  const r=btn.getBoundingClientRect(),W=innerWidth,H=innerHeight,w=Math.min(W-24,Math.max(r.width,opts.some(o=>o.m)?280:220));
+  m.style.width=w+'px';m.style.left=clamp(r.width>=w||r.left+r.width/2<W/2?r.left:r.right-w,12,W-w-12)+'px';
+  const h=m.scrollHeight,below=H-r.bottom-18,above=r.top-18,up=h>below&&above>below,room=Math.max(160,up?above:below),shown=Math.min(h,room,360);
+  m.style.maxHeight=shown+'px';m.style.top=(up?r.top-shown-6:r.bottom+6)+'px';
+  (m.querySelector('[aria-selected=true]')||m.querySelector('.opt')).focus({preventScroll:true});
+}
+function ddPick(v){
+  const btn=DD.btn,sel=btn.dataset.ddSel,opts=JSON.parse(btn.dataset.ddOpts);ddClose(false);
+  const live=btn.isConnected?btn:$(sel);if(!live) return;
+  live.value=v;live.dataset.ddNow=v;live.innerHTML=ddInner(opts,[v]);
+  live.dispatchEvent(new Event('input',{bubbles:true}));live.dispatchEvent(new Event('change',{bubbles:true}));
+  const again=$(sel);if(again) again.focus();
+}
+document.addEventListener('click',e=>{
+  const t=e.target;if(!t.closest) return;
+  const o=t.closest('[data-dd-pick]');if(o&&DD.el&&DD.el.contains(o)){ddPick(o.dataset.ddPick);return}
+  const b=t.closest('.dd-btn');if(b){if(DD.btn===b) ddClose();else ddOpen(b)}
+});
+document.addEventListener('pointerdown',e=>{if(DD.el&&e.target.closest&&!DD.el.contains(e.target)&&e.target.closest('.dd-btn')!==DD.btn) ddClose(false)},true);
+document.addEventListener('keydown',e=>{
+  if(!DD.el){const b=e.target.closest&&e.target.closest('.dd-btn');if(b&&(e.key==='ArrowDown'||e.key==='ArrowUp')){e.preventDefault();ddOpen(b)}return}
+  if(e.key==='Escape'){e.preventDefault();e.stopPropagation();ddClose();return}
+  if(e.key==='Tab'){ddClose(false);return}
+  const L=$$('.opt',DD.el),i=L.indexOf(document.activeElement),go={ArrowDown:i+1,ArrowUp:i-1,Home:0,End:L.length-1}[e.key];
+  if(go===undefined) return;e.preventDefault();e.stopPropagation();L[(go+L.length)%L.length].focus();
+},true);
+addEventListener('scroll',e=>{if(DD.el&&!DD.el.contains(e.target)) ddClose(false)},true);
+addEventListener('resize',()=>ddClose(false));
 
 /* ---------- a project's steps ---------- */
 function stepsTabHtml(p){
@@ -104,7 +155,7 @@ function taskRowHtml(T,t){
   return `<div class="st-row is-${st}${mine?' mine':''}${st==='now'&&du.state==='overdue'?' late':''}${UI.tkEdit===t.id?' sel':''}" role="button" tabindex="0" data-st-task="${t.id}">
     <button type="button" class="st-ck" data-st-done="${t.id}" aria-label="${st==='done'?'Mark not done':st==='wait'?'Not its turn yet':'Mark done'}">${st==='done'?I.check:''}</button>
     <div class="st-main"><div class="st-title">${esc(t.title)}${t.pri==='high'?`<span class="st-high">${I.flag}High priority</span>`:''}</div><div class="st-sub"><span class="st-state">${esc(sub)}</span>${vv?`<button type="button" class="ptk-ver" data-st-ver="${t.id}">Open ${esc(vLabel(vv))}</button>`:''}${cm?`<span class="cm-n">${PI.bubble}${cm}</span>`:''}</div></div>
-    <div class="st-acts">${mine?`<button type="button" class="btn sm dark" data-st-done="${t.id}">Mark done</button>`:''}<span class="st-person">${ppl[0]?avatar(ppl[0],'xs'):''}${whoSelect(`data-st-who="${t.id}"`,t.to)}</span></div></div>`;
+    <div class="st-acts">${mine?`<button type="button" class="btn sm dark" data-st-done="${t.id}">Mark done</button>`:''}${whoBtn(`data-st-who="${t.id}"`,t.to)}</div></div>`;
 }
 function stepsHtml(p){
   const T=team(),fl=p.flow,cur=pjPhaseNow(T,p),qs=fl.qs||[];
@@ -113,7 +164,7 @@ function stepsHtml(p){
     return `<section class="st-stage ${state}">${only?'':`<div class="st-headrow"><button type="button" class="st-head" data-st-toggle="${ph.id}" aria-expanded="${open}"><span class="st-n">${state==='done'?I.check:i+1}</span><b>${esc(ph.name)}</b><small>${sum}</small><span class="st-chev${open?' up':''}">${CHEV}</span></button>${state==='done'?`<button type="button" class="st-link" data-st-repeat="${ph.id}">Do it again</button>`:''}</div>`}
       ${open||only?`<div class="st-rows">${L.map(t=>taskRowHtml(T,t)).join('')}</div><div class="st-foot">${stageAdd(ph,'Add a step')}</div>`:''}</section>`};
   const dOpen=!!FB.open['details:'+p.id];
-  const details=qs.length?`<section class="st-stage quiet"><button type="button" class="st-head" data-st-toggle="details:${p.id}" aria-expanded="${dOpen}"><b>Project details</b><span class="st-chev${dOpen?' up':''}">${CHEV}</span></button>${dOpen?`<div class="st-details">${qs.map(q=>`<label class="lbl">${esc(q.label)}${q.type==='yesno'?`<select class="select" data-st-ans="${q.id}"><option value="">Not answered</option><option value="yes" ${fl.ans[q.id]==='yes'?'selected':''}>Yes</option><option value="no" ${fl.ans[q.id]==='no'?'selected':''}>No</option></select>`:`<input data-st-ans="${q.id}" type="${q.type==='number'?'number':'text'}" value="${esc(fl.ans[q.id]||'')}">`}</label>`).join('')}</div>`:''}</section>`:'';
+  const details=qs.length?`<section class="st-stage quiet"><button type="button" class="st-head" data-st-toggle="details:${p.id}" aria-expanded="${dOpen}"><b>Project details</b><span class="st-chev${dOpen?' up':''}">${CHEV}</span></button>${dOpen?`<div class="st-details">${qs.map(q=>`<label class="lbl">${esc(q.label)}${q.type==='yesno'?ddBtn(`data-st-ans="${q.id}"`,fl.ans[q.id]||'',[{v:'',l:'Not answered'},{v:'yes',l:'Yes'},{v:'no',l:'No'}],{cls:'field',label:q.label}):`<input data-st-ans="${q.id}" type="${q.type==='number'?'number':'text'}" value="${esc(fl.ans[q.id]||'')}">`}</label>`).join('')}</div>`:''}</section>`:'';
   return fl.phases.map(stage).join('')+details;
 }
 const stageAdd=(ph,label)=>FB.adding===ph.id?`<form class="st-new" data-ph="${ph.id}" autocomplete="off"><input id="stNew" maxlength="100" placeholder="What needs doing? Press Enter to add" aria-label="${label}"></form>`:`<button type="button" class="st-add" data-st-add="${ph.id}">${I.plus}<span>${label}</span></button>`;
@@ -151,12 +202,12 @@ function editorHtml(f){
   const stepRow=(s,i,ph)=>{const open=FB.more===s.id,who=!s.who?'':s.who.t==='creator'?'creator':s.who.id,t=tags(s);
     return `<div class="st-row edit" data-step="${s.id}"><span class="st-grip" draggable="true" data-st-drag="${s.id}" title="Drag to move" aria-hidden="true"><svg width="10" height="16" viewBox="0 0 10 16" fill="currentColor"><circle cx="2.5" cy="3" r="1.4"/><circle cx="7.5" cy="3" r="1.4"/><circle cx="2.5" cy="8" r="1.4"/><circle cx="7.5" cy="8" r="1.4"/><circle cx="2.5" cy="13" r="1.4"/><circle cx="7.5" cy="13" r="1.4"/></svg></span>
       <div class="st-main"><input class="st-in" data-st-title="${s.id}" maxlength="100" value="${esc(s.title)}" aria-label="Step">${t.length?`<div class="st-sub">${esc(t.join(', '))}</div>`:''}</div>
-      <div class="st-acts">${whoSelect(`data-st-swho="${s.id}"`,who,`<option value="creator" ${who==='creator'?'selected':''}>Whoever starts it</option>`)}<button type="button" class="st-link" data-st-more="${s.id}" aria-expanded="${open}">${open?'Less':'More'}</button><button type="button" class="st-x" data-st-del="${s.id}" aria-label="Delete ${esc(s.title)}">${I.x}</button></div></div>
+      <div class="st-acts">${whoBtn(`data-st-swho="${s.id}"`,who,true)}<button type="button" class="st-link" data-st-more="${s.id}" aria-expanded="${open}">${open?'Less':'More'}</button><button type="button" class="st-x" data-st-del="${s.id}" aria-label="Delete ${esc(s.title)}">${I.x}</button></div></div>
       ${open?`<div class="st-more"><label class="lbl">Instructions<textarea class="st-note" data-st-note="${s.id}" maxlength="1000" placeholder="What to do, and what done looks like">${esc(s.note||'')}</textarea></label>
-        ${numQ.length?`<label class="lbl">How many<select class="select" data-st-each="${s.id}"><option value="">Just one</option>${numQ.map(q=>`<option value="${q.id}" ${s.each===q.id?'selected':''}>One for each: ${esc(q.label)}</option>`).join('')}</select></label>`:''}
-        ${ynQ.length?`<label class="lbl">When<select class="select" data-st-when="${s.id}"><option value="">Always</option>${ynQ.flatMap(q=>['yes','no'].map(v=>`<option value="${q.id}|${v}" ${s.when&&s.when.q===q.id&&s.when.is===v?'selected':''}>Only if "${esc(q.label)}" is ${v}</option>`)).join('')}</select></label>`:''}
+        ${numQ.length?`<label class="lbl">How many${ddBtn(`data-st-each="${s.id}"`,s.each||'',[{v:'',l:'Just one'},...numQ.map(q=>({v:q.id,l:`One for each: ${q.label}`}))],{cls:'field',label:'How many'})}</label>`:''}
+        ${ynQ.length?`<label class="lbl">When${ddBtn(`data-st-when="${s.id}"`,s.when?`${s.when.q}|${s.when.is}`:'',[{v:'',l:'Always'},...ynQ.flatMap(q=>['yes','no'].map(v=>({v:`${q.id}|${v}`,l:`Only if "${q.label}" is ${v}`})))],{cls:'field',label:'When'})}</label>`:''}
         ${i||f.phases.indexOf(ph)?`<label class="st-check"><input type="checkbox" data-st-together="${s.id}" ${s.together?'checked':''}><span>Can happen at the same time as the step above</span></label>`:''}</div>`:''}`};
-  return `<section class="st-stage quiet"><div class="st-head static"><b>Questions when a project starts</b></div><div class="st-qs">${f.qs.map(q=>`<div class="st-q"><input class="st-in" data-st-q="${q.id}" maxlength="120" value="${esc(q.label)}" placeholder="Type a question" aria-label="Question"><select class="st-sel" data-st-qtype="${q.id}" aria-label="Kind of answer">${Object.entries(qTypes).map(([k,l])=>`<option value="${k}" ${q.type===k?'selected':''}>${l}</option>`).join('')}</select><button type="button" class="st-x" data-st-qdel="${q.id}" aria-label="Delete question">${I.x}</button></div>`).join('')}</div><div class="st-foot"><button type="button" class="st-add" data-st-qadd>${I.plus}<span>Add a question</span></button></div></section>
+  return `<section class="st-stage quiet"><div class="st-head static"><b>Questions when a project starts</b></div><div class="st-qs">${f.qs.map(q=>`<div class="st-q"><input class="st-in" data-st-q="${q.id}" maxlength="120" value="${esc(q.label)}" placeholder="Type a question" aria-label="Question">${ddBtn(`data-st-qtype="${q.id}"`,q.type,Object.entries(qTypes).map(([k,l])=>({v:k,l})),{label:'Kind of answer'})}<button type="button" class="st-x" data-st-qdel="${q.id}" aria-label="Delete question">${I.x}</button></div>`).join('')}</div><div class="st-foot"><button type="button" class="st-add" data-st-qadd>${I.plus}<span>Add a question</span></button></div></section>
     ${f.phases.map((ph,i)=>`<section class="st-stage"><div class="st-head static"><span class="st-n">${i+1}</span><input class="st-in st-name" data-st-ph="${ph.id}" maxlength="60" value="${esc(ph.name)}" aria-label="Stage name"><span class="st-order"><button type="button" class="st-x" data-st-up="${ph.id}" aria-label="Move ${esc(ph.name)} up" ${i?'':'disabled'}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button><button type="button" class="st-x" data-st-down="${ph.id}" aria-label="Move ${esc(ph.name)} down" ${i<f.phases.length-1?'':'disabled'}>${CHEV}</button><button type="button" class="st-x" data-st-phdel="${ph.id}" aria-label="Delete ${esc(ph.name)}">${I.trash}</button></span></div><div class="st-rows" data-ph="${ph.id}">${ph.steps.map((s,k)=>stepRow(s,k,ph)).join('')}</div><div class="st-foot">${stageAdd(ph,'Add a step')}</div></section>`).join('')}
     <button type="button" class="st-add wide" data-st-phadd>${I.plus}<span>Add a stage</span></button>`;
 }
@@ -179,14 +230,14 @@ function fwRender(){
   const qRow=q=>`<label class="lbl">${esc(q.label)}${q.type==='yesno'?`<span class="fw-yn">${['yes','no'].map(v=>`<button type="button" class="${FW.ans[q.id]===v?'on':''}" data-fw-yn="${q.id}" data-v="${v}">${cap(v)}</button>`).join('')}</span>`:`<input data-fw-q="${q.id}" type="${q.type==='number'?'number':'text'}" ${q.type==='number'?'min="1" max="30"':''} value="${esc(FW.ans[q.id]||'')}">`}</label>`;
   d.innerHTML=`<form id="fwForm" autocomplete="off"><div class="dlg-head"><h2>${FW.proj?'Add steps from a template':'New project'}</h2><button type="button" class="xbtn" data-fw-x aria-label="Close">×</button></div>
     <div class="fw-split"><div class="fw-form">${FW.proj?'':`<label class="lbl">Project name<input id="fwName" maxlength="60" required value="${esc(FW.name)}" placeholder="Acme hair page"></label>`}
-      <label class="lbl">Template<select class="select" id="fwFlow">${flowsOf(T).map(x=>`<option value="${x.id}" ${x.id===FW.flow?'selected':''}>${esc(x.name)}</option>`).join('')}${FW.proj?'':`<option value="" ${FW.flow?'':'selected'}>None, just a blank project</option>`}</select></label>
+      <label class="lbl">Template${ddBtn('id="fwFlow"',FW.flow||'',[...flowsOf(T).map(x=>({v:x.id,l:x.name})),...(FW.proj?[]:[{v:'',l:'None, just a blank project'}])],{cls:'field',label:'Template'})}</label>
       ${FW.proj?'':`<label class="lbl">Deadline <input type="date" id="fwDue" value="${esc(FW.due)}"></label>`}
       ${f?f.qs.filter(q=>q.label).map(qRow).join(''):''}</div>
     ${f?`<div class="fw-prev"><h4>Who does what</h4><div id="fwPrev">${fwPreview(f)}</div></div>`:''}</div>
     <div class="dlg-acts"><button type="button" class="st-link" id="fwBuild">Change templates</button><span class="sp"></span><button type="button" class="btn ghost" data-fw-x>Cancel</button><button type="submit" class="btn dark">${f?'Start project':'Create project'}</button></div></form>`;
 }
 function fwPreview(f){
-  return f.phases.map(ph=>{const L=ph.steps.filter(s=>stepOn(s,FW.ans));return L.length?`<div class="fw-ph"><b>${esc(ph.name)}</b>${L.map(s=>{const n=stepCount(s,FW.ans),q=f.qs.find(x=>x.id===s.each);return `<div class="fw-t"><span class="fw-tt">${esc(s.title)}${n>1?` <small>${n} ${eachWord(q).toLowerCase()}s</small>`:''}</span>${whoSelect(`data-fw-who="${s.id}"`,FW.picks[s.id]!==undefined?FW.picks[s.id]:stepPerson(s))}</div>`}).join('')}</div>`:''}).join('');
+  return f.phases.map(ph=>{const L=ph.steps.filter(s=>stepOn(s,FW.ans));return L.length?`<div class="fw-ph"><b>${esc(ph.name)}</b>${L.map(s=>{const n=stepCount(s,FW.ans),q=f.qs.find(x=>x.id===s.each);return `<div class="fw-t"><span class="fw-tt">${esc(s.title)}${n>1?` <small>${n} ${eachWord(q).toLowerCase()}s</small>`:''}</span>${whoBtn(`data-fw-who="${s.id}"`,FW.picks[s.id]!==undefined?FW.picks[s.id]:stepPerson(s))}</div>`}).join('')}</div>`:''}).join('');
 }
 function fwStart(){
   const T=team(),f=fwFlow();let p=FW.proj&&projById(FW.proj);
@@ -204,6 +255,7 @@ $('#dFlow').addEventListener('click',e=>{
 $('#dFlow').addEventListener('input',e=>{const t=e.target;if(t.id==='fwName') FW.name=t.value;if(t.id==='fwDue') FW.due=t.value;if(t.dataset.fwQ){FW.ans[t.dataset.fwQ]=t.value;const f=fwFlow();if(f) $('#fwPrev').innerHTML=fwPreview(f)}});
 $('#dFlow').addEventListener('change',e=>{const t=e.target;if(t.id==='fwFlow'){FW.flow=t.value||null;FW.ans={};FW.picks={};fwRender();return}if(t.dataset.fwWho!==undefined) FW.picks[t.dataset.fwWho]=t.value});
 $('#dFlow').addEventListener('submit',e=>{e.preventDefault();fwStart()});
+$('#dFlow').addEventListener('cancel',e=>{if(DD.el){e.preventDefault();ddClose()}});
 
 /* ---------- clicks, typing and dragging ---------- */
 $('#vProj').addEventListener('click',async e=>{
@@ -226,7 +278,7 @@ $('#vProj').addEventListener('click',async e=>{
     if(b=c('[data-st-repeat]')){const ph=p.flow.phases.find(x=>x.id===b.dataset.stRepeat);if(!ph) return;const undo=snapshot();flowRound(T,p,ph);FB.open[ph.id]=true;save();render();toast(`${ph.name} added again.`,undo);return}
     if(b=c('[data-st-done]')){const t=taskById(b.dataset.stDone);if(!t) return;if(tkLocked(t,T)){toast("It isn't this step's turn yet.");return}const undo=snapshot(),freed=tkTick(t);render();toast(tickMsg(t,freed),undo);return}
     if(b=c('[data-st-ver]')){const t=taskById(b.dataset.stVer);if(t) openTaskVersion(t);return}
-    if(c('select')) return;
+    if(c('.dd-btn')) return;
     if(b=c('[data-st-task]')){openTask(b.dataset.stTask);return}
     return;
   }
@@ -256,7 +308,7 @@ $('#vProj').addEventListener('input',e=>{
 });
 $('#vProj').addEventListener('change',e=>{
   const t=e.target,d=t.dataset||{},T=team(),f=PV.flows?curFlow():null;
-  if(d.stWho){const task=taskById(d.stWho),p=PV.proj&&projById(PV.proj);if(!task||!p) return;task.to=t.value?[t.value]:[];if(t.value){const z=findM(t.value,T);logEvent(p,'assigned',{who:z?z.name:'',title:task.title},task.id)}tkJoinProject(task);touch(p);save();stepsRefresh();renderSide();return}
+  if(d.stWho){const task=taskById(d.stWho),p=PV.proj&&projById(PV.proj);if(!task||!p) return;task.to=t.value?[t.value]:[];if(t.value){const z=findM(t.value,T);logEvent(p,'assigned',{who:z?z.name:'',title:task.title},task.id)}tkJoinProject(task);touch(p);save();render();return}
   if(!f) return;const s=id=>stepsOf(f).find(x=>x.id===id);
   if(d.stSwho){const x=s(d.stSwho);if(x){x.who=!t.value?null:t.value==='creator'?{t:'creator'}:{t:'person',id:t.value};save()}return}
   if(d.stEach){const x=s(d.stEach);if(x){if(t.value) x.each=t.value;else delete x.each;save();stepsRefresh()}return}

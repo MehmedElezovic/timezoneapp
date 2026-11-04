@@ -548,7 +548,7 @@ function renderTaskDetail(){
         :can?`<button type="button" class="tkd-add" data-tkd-edit="due">Add a due date</button>`:'<p class="tkd-val empty">No due date</p>'}</div>
     <label class="st-check"><input type="checkbox" id="tkdHigh" ${t.pri==='high'?'checked':''} ${can?'':'disabled'}><span>High priority</span></label>
     ${vv?`<button type="button" class="btn sm tkd-ver" data-tkd-ver>Open ${esc(vLabel(vv))}</button>`:''}
-    ${!pj&&pjs.length&&can?`<div class="sec"><h4>Add to a project</h4><select class="select" id="tkdPj" aria-label="Project"><option value="">No project</option>${pjs.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div>`:''}
+    ${!pj&&pjs.length&&can?`<div class="sec"><h4>Add to a project</h4>${ddBtn('id="tkdPj"','',[{v:'',l:'No project'},...pjs.map(p=>({v:p.id,l:p.name}))],{cls:'field',label:'Add to a project'})}</div>`:''}
     <div class="sec"><div class="sec-h"><h4>Details</h4>${can&&ed!=='note'&&t.note?`<button type="button" class="tkd-pen" data-tkd-edit="note" aria-label="Edit the details" title="Edit">${I.pen}</button>`:''}</div>
       ${ed==='note'?`<textarea class="note" id="tkdNote" placeholder="Details, links, what done looks like…">${esc(t.note||'')}</textarea><div class="tkd-acts"><button type="button" class="btn sm ghost" data-tkd-cancel>Cancel</button><button type="button" class="btn sm dark" data-tkd-save>Save</button></div>`
         :t.note?`<p class="tkd-val tkd-note">${esc(t.note)}</p>`:can?`<button type="button" class="tkd-add" data-tkd-edit="note">Add details</button>`:'<p class="tkd-val empty">No details</p>'}</div>
