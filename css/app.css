@@ -1663,3 +1663,18 @@ input,textarea,select,[contenteditable=true],.copyrow input{-webkit-user-select:
   #vProj:has(.pv-host){overflow-y:auto}
   #vProj .pj-body.pv-host{flex:none;height:calc(100vh - 120px);min-height:480px}
 }
+
+/* comparing two copy versions: what went struck through, what came in marked */
+.cp-doc del.rd{text-decoration:line-through;text-decoration-color:var(--bad);text-decoration-thickness:1.5px;color:var(--tag-red);background:var(--tag-red-bg);border-radius:3px;padding:0 2px;margin:0 1px;cursor:pointer}
+.cp-doc ins.rd{text-decoration:none;background:var(--tag-green-bg);color:var(--tag-green);border-radius:3px;padding:0 1px;cursor:pointer}
+.cp-doc .rd.on{box-shadow:0 0 0 2px var(--lav)}
+.cp-to{display:grid;place-items:center;color:var(--ink-4);flex:none}
+.cp-legend{display:inline-flex;gap:8px;font-size:12px;font-weight:600;flex:none}
+.cp-legend del{color:var(--tag-red);background:var(--tag-red-bg);padding:2px 7px;border-radius:6px;text-decoration:line-through}
+.cp-legend ins{color:var(--tag-green);background:var(--tag-green-bg);padding:2px 7px;border-radius:6px;text-decoration:none}
+.rd-card .pc-sg del{color:var(--tag-red)}
+.cp-h4{font-size:12px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;margin:12px 4px 2px}
+.cp-side .pv-sub{font-size:12.5px;color:var(--ink-3);line-height:1.45}
+/* five actions on a version card wrap onto two lines before they squeeze its name */
+@media (max-width:1440px){.ver-acts{flex-wrap:wrap;justify-content:flex-end;max-width:330px}}
+@media (max-width:860px){.cp-legend{display:none}}

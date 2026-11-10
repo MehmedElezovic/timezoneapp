@@ -21,6 +21,7 @@ const LIBS={
   quill:['https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js','https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.core.css'],
   marked:['https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js'],
   mammoth:['https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js'],
+  diff:['https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js'],
 };
 const libP={};
 function lib(name){return libP[name]||(libP[name]=new Promise((res,rej)=>{const [js,css]=LIBS[name];
@@ -28,13 +29,13 @@ function lib(name){return libP[name]||(libP[name]=new Promise((res,rej)=>{const 
   const s=document.createElement('script');s.src=js;s.onload=()=>res();s.onerror=()=>{delete libP[name];rej(new Error(`${name} did not load`))};document.head.appendChild(s)}))}
 
 /* ---------- state ---------- */
-const CP={page:null,open:null,edit:null,quill:null,q0:'',draft:null,sel:null,filter:'open',layer:'team',reply:null,replyText:'',pop:null,menu:null,link:false,linkAt:null,scroll:{},dt:0,qReady:false};
+const CP={page:null,open:null,cmp:null,hsel:null,edit:null,quill:null,q0:'',draft:null,sel:null,filter:'open',layer:'team',reply:null,replyText:'',pop:null,menu:null,link:false,linkAt:null,scroll:{},dt:0,qReady:false};
 const copyOf=p=>(p.copy=p.copy||[]);
 const cpById=(p,id)=>copyOf(p).find(v=>v.id===id)||null;
 const cpCur=p=>{const L=copyOf(p);return L[L.length-1]||null};
 const cpShown=p=>(CP.open&&cpById(p,CP.open))||cpCur(p);
 // what the Copy tab shows: the list of versions, one version open, or a version being written
-function cpMode(p){cpReset(p);return CP.edit?'edit':CP.open&&cpById(p,CP.open)?'read':'list'}
+function cpMode(p){cpReset(p);return CP.edit?'edit':CP.cmp&&cpById(p,CP.cmp.a)&&cpById(p,CP.cmp.b)?'cmp':CP.open&&cpById(p,CP.open)?'read':'list'}
 const cpLayerOf=c=>c.layer==='client'?'client':'team';
 // open means still waiting on someone: an open comment or suggestion, or accepted wording not in a newer version yet
 const cpOpen=c=>c.status==='open'||(c.status==='accepted'&&!c.done);
@@ -142,7 +143,8 @@ function cleanCopy(html){
   for(const b of [...root.querySelectorAll('p,h1,h2,h3,li,blockquote')]) if(!b.textContent.trim()&&!b.querySelector('ul,ol')) b.remove();
   return root.innerHTML;
 }
-const plainOf=html=>{const d=document.createElement('div');d.innerHTML=html;return d.textContent||''};
+// read through an inert document: raw copy straight from the database never runs anything here
+const plainOf=html=>new DOMParser().parseFromString(String(html||''),'text/html').body.textContent||'';
 
 /* ---------- Markdown out: what Claude reads. Bold that starts or ends on punctuation goes in as <strong>, so a quote
    mark or a full stop can never stop it being bold; underline and highlight have no Markdown, so they stay as tags. ---------- */
@@ -245,18 +247,19 @@ function decorate(box,items){
 }
 
 /* ---------- the copy tab: the version on the left as a document, its comments on the right ---------- */
-function cpReset(p){if(CP.page===p.id) return;CP.page=p.id;CP.open=null;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;if(CP.edit&&CP.edit.page!==p.id){CP.edit=null;CP.quill=null}}
+function cpReset(p){if(CP.page===p.id) return;CP.page=p.id;CP.open=null;CP.cmp=null;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;if(CP.edit&&CP.edit.page!==p.id){CP.edit=null;CP.quill=null}}
 function copyViewHtml(p){
   cpReset(p);if(CP.edit) return cpEditHtml(p);
   const L=copyOf(p);
   if(!L.length){const d=draftGet(p);return `<div class="pj-dz big calm"><span class="ic">${FDI.doc}</span><b>No copy for ${esc(p.name)} yet</b><small>Write it here or paste it from Google Docs, Notion or a Markdown file, or upload a Markdown, Word, text or HTML file. Bold, italics, underline, highlights, headings, lists and links all come through, and every save is a version the team can comment on.</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-cp-write>${I.pen}${d?'Continue the draft':'Write the copy'}</button><button type="button" class="btn" data-cp-up>${PI.up}Upload a file</button></span></div>
     <div class="pj-over">${PI.up}<b>Drop a Markdown, Word, text or HTML file to make copy v1</b></div>`}
-  return (cpMode(p)==='read'?cpReadHtml(p,cpShown(p)):cpListHtml(p))+`<div class="pj-over">${PI.up}<b>Drop a file to make copy v${cpCur(p).n+1}</b></div>`;
+  const mode=cpMode(p);
+  return (mode==='cmp'?cpCompareHtml(p):mode==='read'?cpReadHtml(p,cpShown(p)):cpListHtml(p))+`<div class="pj-over">${PI.up}<b>Drop a file to make copy v${cpCur(p).n+1}</b></div>`;
 }
 // a version's first lines, small, as its picture in the list
 function cpThumbHtml(v){const d=document.createElement('div');d.innerHTML=cleanCopy(v.body);while(d.children.length>7) d.lastElementChild.remove();return `<div class="thumb cp-thumb" aria-hidden="true"><div class="cp-thumb-in">${d.innerHTML}</div></div>`}
 const cpWords=v=>plainOf(v.body).split(/\s+/).filter(Boolean).length;
-const cpTitle=v=>{const d=document.createElement('div');d.innerHTML=v.body;const h=d.querySelector('h1,h2,h3')||d.firstElementChild;return clip((h&&h.textContent||'').trim()||'Untitled',70)};
+const cpTitle=v=>{const d=new DOMParser().parseFromString(String(v.body||''),'text/html').body;const h=d.querySelector('h1,h2,h3')||d.firstElementChild;return clip((h&&h.textContent||'').trim()||'Untitled',70)};
 function cpListHtml(p){
   const T=team(),cur=cpCur(p),d=draftGet(p),next=cur.n+1,acc=cur.cm.filter(c=>c.kind==='suggest'&&c.status==='accepted'&&!c.done).length;
   const card=v=>{const o=v.cm.filter(c=>cpLayerOf(c)==='team'&&cpOpen(c)).length,co=v.cm.filter(c=>cpLayerOf(c)==='client'&&cpOpen(c)).length,r=v.cm.filter(c=>!cpOpen(c)).length,isCur=v===cur,sh=!!(v.share&&v.share.on),fin=p.finalCopy===v.id;
@@ -264,10 +267,87 @@ function cpListHtml(p){
       <div class="ver-body"><div class="ver-head"><span class="ver-n">v${v.n}</span>${isCur?'<span class="ver-cur">Current</span>':''}${fin?`<span class="cp-final">${I.check}Final</span>`:''}${sh?'<span class="pj-shared" title="The review link for this version is on">Shared</span>':''}<b>${esc(cpTitle(v))}</b></div>
         <small>${esc(cpSrc(v))} · ${plural(cpWords(v),'word')} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}</small>
         <span class="pg-cnt">${o?`<i class="o">${o} open</i>`:''}${co?`<i class="cl">${co} on the review link</i>`:''}${isCur&&acc?`<i class="ok">${acc} accepted, going into v${next}</i>`:''}${r?`<i>${r} done</i>`:''}${!o&&!r&&!co?'<i>No comments yet</i>':''}</span></div>
-      <div class="ver-acts"><button type="button" class="btn sm dark" data-cpv-open="${v.id}">Open</button><button type="button" class="btn sm${sh?' on':''}" data-cpv-share="${v.id}" title="${sh?'The review link for this version is on':'Send this version out for review'}">${PI.share}${sh?'Shared':'Share'}</button><button type="button" class="btn sm${fin?' on':''}" data-cpv-final="${v.id}" title="${fin?'This is the final copy. Click to take the mark off':'Mark the copy this page gets built from'}">${I.check}${fin?'Final':'Mark final'}</button><button type="button" class="btn sm" data-cpv-dl="${v.id}" title="Download as Markdown">${PI.dl}Download</button><button type="button" class="tk-x" data-cpv-del="${v.id}" aria-label="Delete copy v${v.n}">${I.trash}</button></div></div>`};
+      <div class="ver-acts"><button type="button" class="btn sm dark" data-cpv-open="${v.id}">Open</button>${copyOf(p).length>1?`<button type="button" class="btn sm" data-cpv-cmp="${v.id}" title="See what changed between this version and another">${PI.cmp}Compare with…</button>`:''}<button type="button" class="btn sm${sh?' on':''}" data-cpv-share="${v.id}" title="${sh?'The review link for this version is on':'Send this version out for review'}">${PI.share}${sh?'Shared':'Share'}</button><button type="button" class="btn sm${fin?' on':''}" data-cpv-final="${v.id}" title="${fin?'This is the final copy. Click to take the mark off':'Mark the copy this page gets built from'}">${I.check}${fin?'Final':'Mark final'}</button><button type="button" class="btn sm" data-cpv-dl="${v.id}" title="Download as Markdown">${PI.dl}Download</button><button type="button" class="tk-x" data-cpv-del="${v.id}" aria-label="Delete copy v${v.n}">${I.trash}</button></div></div>`};
   return `<div class="ver-list">${[...copyOf(p)].reverse().map(card).join('')}</div>
     <div class="pj-dz"><span class="ic">${FDI.doc}</span><b>${d?`Your draft of v${next} is waiting`:`Write v${next}, or drop a file to make it`}</b><small>Writing starts from v${cur.n}${acc?`, with ${plural(acc,'accepted change')} already in`:''}. A Markdown, Word, text or HTML file becomes v${next} as it is. Every version keeps its own comments.</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-cp-write>${I.pen}${d?'Continue the draft':`Write v${next}`}</button><button type="button" class="btn" data-cp-up>${PI.up}Upload a file</button></span></div>`;
 }
+/* ---------- compare: two versions of the copy as one document. The later one is shown; words the earlier one had and
+   the later one dropped are struck through in place, words that came in are marked. Only the words are compared:
+   formatting alone (new bold, say) is not a change here. ---------- */
+// a version's text with a line break between blocks, so words in neighbouring paragraphs never run together, and for
+// every character its position in the version's own text (the one comments use)
+function cpBlockText(box){
+  let s='',last=null,pos=0;const map=[];
+  for(const t of textNodes(box)){const blk=t.parentElement.closest('p,h1,h2,h3,li,blockquote');if(last&&blk!==last){s+='\n';map.push(pos)}last=blk;s+=t.data;for(let i=0;i<t.data.length;i++) map.push(pos++)}
+  map.push(pos);return {s,map};
+}
+// the changes: each a stretch of the earlier text (as..ae) replaced by a stretch of the later one (bs..be)
+function cpDiff(htmlA,htmlB){
+  const a=document.createElement('div'),b=document.createElement('div');a.innerHTML=cleanCopy(htmlA);b.innerHTML=cleanCopy(htmlB);
+  const A=cpBlockText(a),B=cpBlockText(b),hunks=[];let ia=0,ib=0,cur=null;
+  const flush=()=>{if(cur&&(cur.del.trim()||cur.ins.trim())) hunks.push(cur);cur=null};
+  for(const pt of Diff.diffWordsWithSpace(A.s,B.s)){const L=pt.value.length;
+    // a space between two changed words keeps them one change, so a rewritten phrase reads as one
+    if(!pt.added&&!pt.removed){if(cur&&!pt.value.trim()&&!pt.value.includes('\n')){cur.gap=(cur.gap||'')+pt.value;ia+=L;ib+=L;continue}flush();ia+=L;ib+=L;continue}
+    if(!cur) cur={as:A.map[ia],ae:A.map[ia],bs:B.map[ib],be:B.map[ib],del:'',ins:''};
+    if(cur.gap){cur.del+=cur.gap;cur.ins+=cur.gap;cur.gap='';cur.ae=A.map[ia];cur.be=B.map[ib]}
+    if(pt.removed){cur.del+=pt.value;ia+=L;cur.ae=A.map[ia]}else{cur.ins+=pt.value;ib+=L;cur.be=B.map[ib]}}
+  flush();return {hunks,box:b};
+}
+function cpRedline(box,hunks){
+  const cuts=new Set();for(const h of hunks){cuts.add(h.bs);cuts.add(h.be)}
+  let pos=0;for(const t of textNodes(box)){const a=pos,L=t.data.length;pos+=L;let node=t,off=a;for(const c of [...cuts].filter(c=>c>a&&c<a+L).sort((x,y)=>x-y)){node=node.splitText(c-off);off=c}}
+  const at=[];pos=0;
+  for(const t of textNodes(box)){const a=pos,b=pos+t.data.length;pos=b;let w=t;const i=hunks.findIndex(h=>h.be>h.bs&&h.bs<=a&&b<=h.be);
+    if(i>=0&&b>a){const ins=document.createElement('ins');ins.className='rd';ins.dataset.h=i;w.replaceWith(ins);ins.append(w);w=ins}
+    at.push([w,a,b])}
+  hunks.forEach((h,i)=>{if(!h.del.trim()) return;const d=document.createElement('del');d.className='rd';d.dataset.h=i;d.textContent=h.del.replace(/\s*\n\s*/g,' ');
+    const start=at.find(x=>x[1]===h.bs&&x[2]>x[1]),end=[...at].reverse().find(x=>x[2]===h.bs);
+    if(start) start[0].before(d);else if(end) end[0].after(d);else box.append(d)});
+}
+function cpCmpPick(p,k,v,other){
+  const open=CP.menu==='cmp'+k;
+  return `<div class="vpick-wrap"><button type="button" class="vpick" data-cpcmp="${k}" aria-haspopup="menu" aria-expanded="${open}"><span class="pv-ttl"><b>${k==='a'?'Before':'After'}: v${v.n}</b><small>${esc(cpSrc(v))} · ${esc(agoLabel(v.at||Date.now()))}</small></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
+    ${open?`<div class="dd vmenu cp-vmenu" role="menu">${[...copyOf(p)].reverse().filter(x=>x!==other).map(x=>`<button type="button" class="opt${x===v?' on':''}" role="menuitem" data-cpcmp-pick="${k}" data-v="${x.id}"><span class="vn">v${x.n}</span><span class="n">${esc(cpTitle(x))}<small>${esc(cpSrc(x))} · ${esc(agoLabel(x.at||Date.now()))}</small></span>${x===v?`<span class="dd-ck">${I.check}</span>`:''}</button>`).join('')}</div>`:''}</div>`;
+}
+function cpCompareHtml(p){
+  const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b);
+  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button>${cpCmpPick(p,'a',a,b)}<span class="cp-to" aria-hidden="true">${PI.arrow}</span>${cpCmpPick(p,'b',b,a)}<span class="sp"></span><span class="cp-legend"><del>Removed</del><ins>Added</ins></span></div>
+      <div class="cp-scroll" id="cpScroll"><article class="cp-doc" id="cpCmpDoc" aria-label="Copy v${b.n} with the changes from v${a.n}"><p class="cp-wait">Comparing…</p></article></div></div>
+    <aside class="pv-side cp-side" id="cpSide"><div class="pv-sh"><h3>From v${a.n} to v${b.n}</h3><p class="pv-sub">Working out what changed…</p></div></aside></div>`;
+}
+const cpWordCount=s=>(String(s).match(/\S+/g)||[]).length;
+function cpCompareSide(p,a,b,hunks){
+  const T=team(),add=hunks.reduce((n,h)=>n+cpWordCount(h.ins),0),rem=hunks.reduce((n,h)=>n+cpWordCount(h.del),0);
+  // accepted suggestions on the earlier version that went into a version up to the later one explain their change
+  const sugs=a.cm.filter(c=>c.kind==='suggest'&&c.status==='accepted'&&c.done>a.n&&c.done<=b.n);
+  const hits=(h,c)=>c.s<Math.max(h.ae,h.as+1)&&h.as<c.e;
+  const card=(h,i)=>{const sg=sugs.find(c=>hits(h,c)),kind=h.del.trim()&&h.ins.trim()?'Changed':h.ins.trim()?'Added':'Removed';
+    return `<div class="pc cpc rd-card${CP.hsel===i?' sel':''}" data-hunk="${i}" role="button" tabindex="0"><div class="pc-top"><span class="pin-n">${i+1}</span><b>${kind}</b>${sg?`<span class="cp-tag ok" title="Accepted into v${sg.done}">${esc(nameOf(T,sg.byId,sg.by))}'s suggestion</span>`:''}</div>
+      <p class="pc-sg">${h.del.trim()?`<del>${esc(clip(h.del.replace(/\s+/g,' ').trim(),220))}</del>`:''}${h.ins.trim()?`<ins>${esc(clip(h.ins.replace(/\s+/g,' ').trim(),220))}</ins>`:''}</p></div>`};
+  const open=a.cm.filter(c=>c.status==='open');
+  const state=c=>hunks.some(h=>hits(h,c))?`<span class="cp-tag ok">Words changed in v${b.n}</span>`:`<span class="cp-tag">Same in v${b.n}</span>`;
+  return `<div class="pv-sh"><h3>From v${a.n} to v${b.n}</h3><p class="pv-sub">${hunks.length?`${plural(hunks.length,'change')} · ${plural(add,'word')} added · ${plural(rem,'word')} removed`:'The words are the same in both versions.'}</p></div>
+    <div class="pv-list" id="cpList">${hunks.map(card).join('')}
+      ${open.length?`<h4 class="cp-h4">Still open on v${a.n}</h4>${open.map(c=>`<div class="pc"><div class="pc-top"><span class="pin-n">${c.n}</span><b>${esc(nameOf(T,c.byId,c.by))}</b>${state(c)}</div>${c.kind==='suggest'?`<p class="pc-sg"><del>${esc(clip(c.quote,160))}</del>${c.rep?`<ins>${esc(c.rep)}</ins>`:''}</p>`:`<p class="pc-q">${esc(clip(c.quote,140))}</p><p>${mentionHtml(c.text)}</p>`}</div>`).join('')}`:''}
+      <p class="pv-empty">Only the words are compared: a change to formatting alone, such as new bold, does not show here.</p></div>`;
+}
+async function cpCompareAfter(p){
+  const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b),box=$('#cpCmpDoc'),key=CP.cmp.a+CP.cmp.b;if(!box) return;
+  try{await lib('diff')}catch(e){box.innerHTML='<p class="cp-wait">The compare view could not load. Check your connection, then open it again.</p>';return}
+  if(!box.isConnected||!CP.cmp||CP.cmp.a+CP.cmp.b!==key) return;
+  const {hunks,box:doc}=cpDiff(a.body,b.body);cpRedline(doc,hunks);box.innerHTML='';box.append(...doc.childNodes);
+  CP.hunks=hunks;const side=$('#cpSide');if(side) side.innerHTML=cpCompareSide(p,a,b,hunks);
+  const sc=$('#cpScroll'),k='cmp'+key;if(sc){sc.scrollTop=CP.scroll[k]||0;sc.addEventListener('scroll',()=>{CP.scroll[k]=sc.scrollTop},{passive:true})}
+  if(CP.hsel!=null) cpHunkMark(CP.hsel,false);
+}
+function cpHunkMark(i,scroll=true){
+  CP.hsel=i;for(const x of $$('#cpCmpDoc .rd.on,#cpSide .rd-card.sel')) x.classList.remove('on','sel');
+  const els=$$(`#cpCmpDoc [data-h="${i}"]`);for(const x of els) x.classList.add('on');const c=$(`#cpSide [data-hunk="${i}"]`);if(c) c.classList.add('sel');
+  if(scroll){if(els[0]) els[0].scrollIntoView({block:'center',behavior:'smooth'});if(c) c.scrollIntoView({block:'nearest',behavior:'smooth'})}
+}
+// compare a version with the one before it (or after it, for the first)
+function cpStartCompare(p,id){const L=copyOf(p),v=cpById(p,id),i=L.indexOf(v);if(L.length<2||!v) return;const o=i>0?L[i-1]:L[i+1];CP.cmp=v.n>o.n?{a:o.id,b:v.id}:{a:v.id,b:o.id};CP.hsel=null;CP.menu=null;CP.sel=null;CP.draft=null;cpPopHide();render()}
 function cpOpenVer(id){CP.open=id;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;CP.filter='open';render()}
 async function cpDelete(p,v){
   if(!await confirmDlg(`Delete ${cpLabel(v).toLowerCase()}?`,`${v.cm.length?`Its ${plural(v.cm.length,'comment')} go too. `:''}This cannot be undone.`,'Delete version')) return;
@@ -293,7 +373,7 @@ function cpReadHtml(p,v){
   const bar=SHARE?`<div class="cp-bar"><span class="pv-ttl"><b>${cpLabel(v)}</b><small>Select any words to comment on them or to suggest other wording.</small></span></div>`
     :`<div class="cp-bar"><button type="button" class="chev" id="cpBack" aria-label="All copy versions" title="All copy versions">${PI.back}</button><div class="vpick-wrap"><button type="button" class="vpick" id="cpVerBtn" aria-haspopup="menu" aria-expanded="${CP.menu==='ver'}"><span class="pv-ttl"><b>${cpLabel(v)}${latest?'':' <i class="cp-old">older version</i>'}</b><small>${esc(cpSrc(v))} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}</small></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>${CP.menu==='ver'?cpVerMenuHtml(p,v):''}</div>
       ${fin?`<span class="cp-final">${I.check}Final</span>`:''}${sh?'<span class="pj-shared" title="The review link for this version is on">Shared</span>':''}<span class="sp"></span>
-      <button type="button" class="btn sm" data-cp-up title="Upload a Markdown, Word, text or HTML file as copy v${next}">${PI.up}<span>Upload</span></button><button type="button" class="btn sm dark" data-cp-write>${I.pen}<span>${d?`Continue v${next}`:`Edit as v${next}`}</span></button>
+      ${copyOf(p).length>1?`<button type="button" class="btn sm" data-cpv-cmp="${v.id}" title="See what changed between this version and another">${PI.cmp}<span>Compare</span></button>`:''}<button type="button" class="btn sm" data-cp-up title="Upload a Markdown, Word, text or HTML file as copy v${next}">${PI.up}<span>Upload</span></button><button type="button" class="btn sm dark" data-cp-write>${I.pen}<span>${d?`Continue v${next}`:`Edit as v${next}`}</span></button>
       <div class="fd-more"><button type="button" class="btn sm icon" id="cpMore" aria-label="More for ${esc(cpLabel(v))}" aria-haspopup="menu" aria-expanded="${CP.menu==='more'}">${I.more}</button>${CP.menu==='more'?cpMoreHtml(p,v):''}</div></div>`;
   return `<div class="cp"><div class="cp-main">${bar}
       <div class="cp-scroll" id="cpScroll"><article class="cp-doc" id="cpDoc" aria-label="${esc(cpLabel(v))}"></article></div>
@@ -344,6 +424,7 @@ function cpSideHtml(p,v){
 // after the page view is drawn: the document with its marks, or the editor
 function cpAfter(p){
   if(CP.edit){cpMount(p);return}
+  if(cpMode(p)==='cmp'){cpCompareAfter(p);return}
   const v=cpShown(p),box=$('#cpDoc');if(!v||!box) return;
   box.innerHTML=cleanCopy(v.body);
   const items=v.cm.filter(c=>(SHARE||cpLayerOf(c)===CP.layer)&&(cpOpen(c)||c.id===CP.sel)).map(c=>({id:c.id,s:c.s,e:c.e,kind:c.kind,rep:c.rep,status:c.status}));
@@ -529,6 +610,7 @@ function cpEscape(){
   if(CP.draft){CP.draft=null;const p=projById(PV.proj);if(p) cpRefresh(p);return true}
   if(CP.reply){CP.reply=null;const p=projById(PV.proj);if(p) cpRefresh(p);return true}
   if(CP.sel&&PV.tab==='copy'){CP.sel=null;const p=projById(PV.proj);if(p) cpRefresh(p);return true}
+  if(CP.cmp&&!SHARE){const id=CP.cmp.b;CP.cmp=null;cpOpenVer(id);return true}
   if(CP.open&&!SHARE&&!CP.edit){CP.open=null;render();return true}
   return false;
 }
@@ -546,7 +628,13 @@ $('#vProj').addEventListener('click',async e=>{
   if(b=c('[data-cpv-final]')){const x=cpById(p,b.dataset.cpvFinal);if(x) cpFinal(p,x);return}
   if(b=c('[data-cpv-dl]')){const x=cpById(p,b.dataset.cpvDl);if(x) cpDownload(p,x);return}
   if(b=c('[data-cpv-del]')){const x=cpById(p,b.dataset.cpvDel);if(x) cpDelete(p,x);return}
+  if(b=c('[data-cpv-cmp]')){cpStartCompare(p,b.dataset.cpvCmp);return}
   if(b=c('[data-cpv-open]')){cpOpenVer(b.dataset.cpvOpen);return}
+  if(c('#cpCmpBack')){const id=CP.cmp&&CP.cmp.b;CP.cmp=null;CP.menu=null;cpOpenVer(id);return}
+  if(b=c('[data-cpcmp]')){const k='cmp'+b.dataset.cpcmp;CP.menu=CP.menu===k?null:k;render();return}
+  if(b=c('[data-cpcmp-pick]')){const k=b.dataset.cpcmpPick,x=cpById(p,b.dataset.v),o=cpById(p,k==='a'?CP.cmp.b:CP.cmp.a);CP.menu=null;CP.hsel=null;if(x&&o) CP.cmp=x.n<o.n?{a:x.id,b:o.id}:{a:o.id,b:x.id};render();return}
+  if(b=c('[data-hunk]')){cpHunkMark(+b.dataset.hunk);return}
+  if(b=c('#cpCmpDoc .rd')){cpHunkMark(+b.dataset.h);return}
   if(c('[data-cp-write]')){if(SHARE) return;cpStartEdit(p);return}
   if(c('[data-cp-save]')){cpSaveEdit(p);return}
   if(c('[data-cp-cancel-edit]')){cpCancelEdit(p);return}
@@ -590,7 +678,7 @@ $('#vProj').addEventListener('keydown',e=>{
   if(e.key==='Enter'&&!e.shiftKey&&(t.id==='cpText'||t.id==='cpNote')){e.preventDefault();cpPost();return}
   if(e.key==='Enter'&&!e.shiftKey&&t.id==='cpReply'){e.preventDefault();const s=t.parentElement.querySelector('[data-cpc-send]');if(s) s.click();return}
 },true);
-document.addEventListener('pointerdown',e=>{if(CP.menu&&!(e.target.closest&&e.target.closest('.vpick-wrap,.fd-more'))){CP.menu=null;for(const m of $$('#vProj .cp-vmenu,#vProj .cp-menu')) m.remove();for(const b of $$('#cpVerBtn,#cpMore')) b.setAttribute('aria-expanded','false')}});
+document.addEventListener('pointerdown',e=>{if(CP.menu&&!(e.target.closest&&e.target.closest('.vpick-wrap,.fd-more'))){CP.menu=null;for(const m of $$('#vProj .cp-vmenu,#vProj .cp-menu')) m.remove();for(const b of $$('#cpVerBtn,#cpMore,[data-cpcmp]')) b.setAttribute('aria-expanded','false')}});
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'&&CP.edit&&$('#cpQuill')){e.preventDefault();const p=projById(CP.edit.page);if(p) cpSaveEdit(p)}});
 addEventListener('beforeunload',()=>{if(CP.edit&&CP.quill){const p=projById(CP.edit.page);if(p) cpDraftSave(p)}});
 

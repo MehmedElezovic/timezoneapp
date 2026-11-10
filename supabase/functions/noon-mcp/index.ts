@@ -1,10 +1,14 @@
-// Noon · the Claude connector. A remote MCP server (streamable HTTP, JSON responses) that lets Claude read a project's
-// pages and comments, upload the next version, and resolve or answer comments, all as the person whose key it holds.
+// Noon · the Claude connector. A remote MCP server (streamable HTTP, JSON responses) that lets Claude find pages by
+// client and category, read a page's copy (as Markdown) and design (HTML) with their comments and history, upload the
+// next copy or design version, and resolve or answer comments, all as the person whose key it holds.
 // Keys are made in Noon › Settings › Claude; only their SHA-256 lives in public.api_tokens. Claude sends the key as
 // "Authorization: Bearer noon_…", or as the last part of the address for clients that cannot set headers.
 // Deployed with verify_jwt off: this function checks the key itself, then works with the service role, and every
 // query is limited to the teams that person sits in.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import { marked } from "npm:marked@12.0.2";
+import { parseHTML } from "npm:linkedom@0.18.5";
+import { htmlToMarkdown, htmlToText } from "./markdown.js";
 
 const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -29,6 +33,7 @@ const typeOf = (p: string) => EXT[(p.split(".").pop() || "").toLowerCase()] || "
 const isText = (t: string) => /^text\/|json|xml|svg|javascript/.test(t);
 
 class Oops extends Error {}
+const { document: DOC } = parseHTML("<!doctype html><html><head></head><body></body></html>"); // to read copy versions with
 type Seat = { team_id: string; member_id: string; team: string };
 type Ctx = { userId: string; seats: Seat[] };
 
@@ -46,7 +51,8 @@ function normPath(path: string) {
 const relTo = (dir: string, full: string) => (dir && full.startsWith(dir) ? full.slice(dir.length) : full);
 const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
-  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+  const d = Math.round(m / 1440);
+  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${d} day${d === 1 ? "" : "s"} ago`;
 };
 const size = (n: number) => (n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 async function q<T = any>(p: PromiseLike<{ data: T | null; error: any }>): Promise<T> {
@@ -84,22 +90,23 @@ async function findProject(ctx: Ctx, ref: unknown) {
   const teams = ctx.seats.map((s) => s.team_id);
   if (!teams.length) throw new Oops("This account is not in any team yet.");
   const r = String(ref ?? "").trim();
-  if (!r) throw new Oops("Say which project: its name, its id, or a Noon link to it.");
+  if (!r) throw new Oops("Say which page: its name, its id, or a Noon link to it.");
   const id = r.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
   const share = r.match(/[?&]share=([A-Za-z0-9_-]{20,64})/);
   let sel = db.from("projects").select("*").in("team_id", teams);
   if (id) sel = sel.eq("id", id[0].toLowerCase());
   else if (share) { // a client link opens one version; find the project it belongs to
     const sv = await q<any[]>(db.from("versions").select("project_id").eq("share_token", share[1]).in("team_id", teams));
-    sel = sel.eq("id", sv[0]?.project_id ?? "00000000-0000-0000-0000-000000000000");
+    const cv = sv.length ? [] : await q<any[]>(db.from("copy_versions").select("project_id").eq("share_token", share[1]).in("team_id", teams));
+    sel = sel.eq("id", sv[0]?.project_id ?? cv[0]?.project_id ?? "00000000-0000-0000-0000-000000000000");
   }
   else sel = sel.ilike("name", `%${r.replace(/[\\%_]/g, (c) => "\\" + c)}%`);
   const found = await q<any[]>(sel);
-  if (!found.length) throw new Oops(`No project matches "${r}". Call list_projects to see them all.`);
+  if (!found.length) throw new Oops(`No page matches "${r}". Call find_pages or list_projects to see them.`);
   if (found.length > 1) {
     const exact = found.filter((p) => p.name.toLowerCase() === r.toLowerCase());
     if (exact.length === 1) return exact[0];
-    throw new Oops(`"${r}" matches ${found.length} projects: ${found.map((p) => `"${p.name}" (${p.id})`).join(", ")}. Pass the exact name or the id.`);
+    throw new Oops(`"${r}" matches ${found.length} pages: ${found.map((p) => `"${p.name}" (${p.id})`).join(", ")}. Pass the exact name or the id.`);
   }
   return found[0];
 }
@@ -136,10 +143,10 @@ async function commentsOf(versionId: string, status: string, layer = "all") {
   return cms.map((c) => ({ ...c, replies: res.filter((r) => r.comment_id === c.id) }));
 }
 const author = (people: Record<string, string>, row: any) =>
-  row.guest_name ? `${row.guest_name} (client)` : (row.author_id && people[row.author_id]) || "Someone";
+  row.guest_name ? `${row.guest_name} (guest)` : (row.author_id && people[row.author_id]) || "Someone";
 function commentText(c: any, people: Record<string, string>) {
   const lines = [
-    `${tag(c)} · ${c.status} · ${author(people, c)}${c.layer === "client" ? " · on the client link" : ""} · left at ${WIDTH[c.dev] || "desktop (1280px)"} · ${ago(c.created_at)}${c.from_version ? ` · carried over from ${c.from_version}` : ""}`,
+    `${tag(c)} · ${c.status} · ${author(people, c)}${c.layer === "client" ? " · on the review link" : ""} · left at ${WIDTH[c.dev] || "desktop (1280px)"} · ${ago(c.created_at)}${c.from_version ? ` · carried over from ${c.from_version}` : ""}`,
     `  "${c.body}"`,
   ];
   if (c.sel) lines.push(`  Pinned to the element: ${c.sel}`);
@@ -154,16 +161,135 @@ async function download(path: string | null) {
   return error ? null : data;
 }
 
+// ---------------------------------------------------------------- clients, folders and categories
+type Tree = { folders: Record<string, any>; group: Record<string, any>; item: Record<string, any>; lists: any[] };
+async function treeOf(teams: string[]): Promise<Tree> {
+  const [fs, cs] = await Promise.all([
+    q<any[]>(db.from("folders").select("id,team_id,parent_id,name,cats").in("team_id", teams)),
+    q<any[]>(db.from("categories").select("id,team_id,parent_id,level,name,sort").in("team_id", teams).order("sort")),
+  ]);
+  return {
+    folders: Object.fromEntries(fs.map((f) => [f.id, f])),
+    group: Object.fromEntries(cs.filter((c) => !c.parent_id).map((c) => [c.id, c])),
+    item: Object.fromEntries(cs.filter((c) => c.parent_id).map((c) => [c.id, c])),
+    lists: cs,
+  };
+}
+// the folders from the client down to this one
+function pathOf(t: Tree, folderId: string | null) {
+  const out: any[] = [];
+  let f = folderId ? t.folders[folderId] : null, n = 0;
+  while (f && n++ < 40) { out.unshift(f); f = f.parent_id ? t.folders[f.parent_id] : null; }
+  return out;
+}
+const placeOf = (t: Tree, p: any) => { const path = pathOf(t, p.folder_id); return path.length ? path.map((f) => f.name).join(" › ") : "not in a client yet"; };
+const catList = (t: Tree, ids: string[]) => (ids || []).map((id) => t.item[id]).filter(Boolean).map((c: any) => ({ list: t.group[c.parent_id]?.name || "Category", name: c.name as string }));
+// a page's categories: its client's (audience, industry…) count for it, then its own (page type, style…)
+const catsOf = (t: Tree, p: any) => [...catList(t, pathOf(t, p.folder_id)[0]?.cats || []), ...catList(t, p.cats || [])];
+const catsText = (cs: { list: string; name: string }[]) => (cs.length ? cs.map((c) => `${c.list}: ${c.name}`).join(" · ") : "no categories");
+
+// ---------------------------------------------------------------- copy
+async function copyOf(projectId: string) {
+  return await q<any[]>(db.from("copy_versions").select("*").eq("project_id", projectId).order("n"));
+}
+function pickCopy(p: any, cs: any[], n: unknown) {
+  if (!cs.length) throw new Oops(`${p.name} has no copy yet. Add it with upload_copy_version.`);
+  if (n == null || n === "" || n === "latest") return cs[cs.length - 1];
+  if (n === "final") {
+    const f = cs.find((c) => c.id === p.final_copy);
+    if (!f) throw new Oops(`${p.name} has no copy marked final. Its copy versions: ${cs.map((c) => "v" + c.n).join(", ")}.`);
+    return f;
+  }
+  const want = Number(String(n).replace(/^v/i, "")), v = cs.find((c) => c.n === want);
+  if (!v) throw new Oops(`There is no copy v${want}. ${p.name} has ${cs.map((c) => "v" + c.n).join(", ")}.`);
+  return v;
+}
+async function copyCommentsOf(versionIds: string[]) {
+  if (!versionIds.length) return [];
+  const cms = await q<any[]>(db.from("copy_comments").select("*").in("copy_version_id", versionIds).order("n"));
+  const res = cms.length ? await q<any[]>(db.from("copy_replies").select("*").in("comment_id", cms.map((c) => c.id)).order("created_at")) : [];
+  return cms.map((c) => ({ ...c, replies: res.filter((r) => r.comment_id === c.id) }));
+}
+const clipQ = (s: string, n = 300) => { s = String(s || "").replace(/\s+/g, " ").trim(); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+const copyState = (c: any) => (c.status === "accepted" ? (c.applied_in ? `accepted, went into v${c.applied_in}` : "accepted, waiting for the next version") : c.status);
+function copyCommentText(c: any, people: Record<string, string>) {
+  const where = c.layer === "client" ? " · on the review link" : "";
+  const lines = c.kind === "suggest"
+    ? [`${tag(c)} · suggestion · ${copyState(c)} · ${author(people, c)}${where} · ${ago(c.created_at)}`, `  Change "${clipQ(c.quote)}" to ${c.replacement ? `"${clipQ(c.replacement, 600)}"` : "nothing (remove it)"}`]
+    : [`${tag(c)} · ${c.status} · ${author(people, c)}${where} · ${ago(c.created_at)}`, `  On the words "${clipQ(c.quote)}"`];
+  if (c.body) lines.push(`  "${c.body}"`);
+  for (const r of c.replies || []) lines.push(`  ↳ ${author(people, r)}: "${r.body}"`);
+  return lines.join("\n");
+}
+const wordsIn = (html: string) => (htmlToText(DOC, html).match(/\S+/g) || []).length;
+const srcText = (v: any) => (!v.src || v.src === "written" ? "written in Noon" : v.src === "Claude" ? "uploaded by Claude" : `from ${v.src}`);
+const verText = (list: any[], fin: string | null) => {
+  if (!list.length) return "none";
+  const top = Math.max(...list.map((v) => v.n)), f = fin ? list.find((v) => v.id === fin) : null;
+  return `v${top}${f ? ` (v${f.n} final)` : ""}`;
+};
+
 // ---------------------------------------------------------------- tools
 const TOOLS = [
   {
+    name: "list_clients",
+    description: "How the work is organised: the clients (top-level folders) with their categories (audience, industry…), the folders inside each, how many pages each holds, and the team's category lists (for clients: Audience, Industry…; for pages: Page type, Style…). Start here to learn the category names to search with.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "find_pages",
+    description: "Find pages across every client by category, client and name, e.g. every B2B listicle, or all Scrappy advertorials for one client. A page (called a project in the other tools) has a copy, read as Markdown with get_copy, and a design, an HTML page read with get_version; one version of each can be marked final. A client's categories count for all its pages. Then read the pages it returns with get_copy (version \"final\"), get_version and get_page_history.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        category: { anyOf: [{ type: "string" }, { type: "array", items: { type: "string" } }], description: "Category choices the page must have, all of them: \"B2B\", or [\"B2B\", \"Listicle\"]. Matches the client's categories and the page's own. \"Page type: Listicle\" works too." },
+        client: { type: "string", description: "Only pages under this client (part of its name is enough)." },
+        search: { type: "string", description: "Only pages whose name contains this." },
+        has: { type: "string", enum: ["final_copy", "final_design", "copy", "design"], description: "Only pages that have this." },
+        limit: { type: "number", description: "Most pages to list, the most recently changed first. Default 50." },
+      },
+    },
+  },
+  {
+    name: "get_copy",
+    description: "Read a page's copy as Markdown, with the comments and suggestions on it. A comment sits on some words (quoted). A suggestion proposes new wording for some words; the team accepts or declines it, and accepted wording belongs in the next version. By default the latest copy version and what is still open on it; version \"final\" gives the copy marked final.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: { type: "string", description: "The page: its name, its id, or a Noon link to it." },
+        version: { anyOf: [{ type: "number" }, { type: "string" }], description: "1, 2, 3…, \"latest\" (default) or \"final\"." },
+        comments: { type: "string", enum: ["open", "all", "none"], description: "Default: open (open comments and suggestions, and accepted wording not in a version yet)." },
+      },
+      required: ["project"],
+    },
+  },
+  {
+    name: "get_page_history",
+    description: "Everything that happened on a page, oldest first: each copy version (where it came from, who, when, how long) with its comments and suggestions and what became of them (accepted into which version, declined, resolved), each design version with its comments and replies, and which copy and design are final. Use it to learn how a page was worked out, or to compare how similar pages went.",
+    inputSchema: { type: "object", properties: { project: { type: "string", description: "The page: its name, its id, or a Noon link to it." } }, required: ["project"] },
+  },
+  {
+    name: "upload_copy_version",
+    description: "Add the next version of a page's copy, written in Markdown: # headings, **bold**, *italic*, <u>underline</u>, <mark>highlight</mark>, [links](https://…), lists, > quotes, --- lines. The team sees it in Noon right away and can compare it with the previous version. Accepted suggestions on the previous version whose wording is in it are marked as gone into this version. Optionally resolve the comments you handled on the previous version, with a reply on each.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project: { type: "string", description: "The page: its name, its id, or a Noon link to it." },
+        markdown: { type: "string", description: "The whole copy, in Markdown." },
+        resolve: { type: "array", items: { anyOf: [{ type: "number" }, { type: "string" }] }, description: "Comments to resolve on the previous copy version: team comments as numbers or \"#3\", review-link comments as \"C2\"." },
+        reply: { type: "string", description: "Optional note posted as a reply on every comment you resolve." },
+      },
+      required: ["project", "markdown"],
+    },
+  },
+  {
     name: "list_projects",
-    description: "List the Noon projects this person can see, newest change first: name, team, current version, open comments, deadline and when it last changed. Use it to find a project before reading it.",
+    description: "List every page (a project, in these tools) this person can see, newest change first: name, client and folder, categories, copy and design versions with which is final, open design comments, deadline and when it last changed. To filter by client or category, use find_pages.",
     inputSchema: { type: "object", properties: { search: { type: "string", description: "Optional: only projects whose name contains this." } } },
   },
   {
     name: "get_project",
-    description: "One project's overview: every version with its comment counts, the deadline, who it is assigned to, and whether a client link is on.",
+    description: "One page's overview: its client and categories, every design version with its comment counts, its copy versions, which are final, the deadline, who it is assigned to, and which review links are on.",
     inputSchema: { type: "object", properties: { project: { type: "string", description: "Project name, its id, or a Noon link to it." } }, required: ["project"] },
   },
   {
@@ -175,7 +301,7 @@ const TOOLS = [
         project: { type: "string", description: "Project name, its id, or a Noon link to it." },
         version: { type: "number", description: "Version number (1, 2, 3…). Leave out for the latest." },
         comments: { type: "string", enum: ["open", "resolved", "all"], description: "Which comments to include. Default: open." },
-        layer: { type: "string", enum: ["all", "team", "client"], description: "Team comments (left in Noon, numbered #1, #2…), client-link comments (C1, C2…), or both. Default: all." },
+        layer: { type: "string", enum: ["all", "team", "client"], description: "Team comments (left in Noon, numbered #1, #2…), review-link comments (\"client\", numbered C1, C2…), or both. Default: all." },
         include_files: { type: "boolean", description: "Also return the contents of text files that came with the page (CSS, JS, SVG, JSON up to 200 KB each), and download links for images. Default: false." },
       },
       required: ["project"],
@@ -217,7 +343,7 @@ const TOOLS = [
             required: ["path", "content"],
           },
         },
-        resolve: { type: "array", items: { anyOf: [{ type: "number" }, { type: "string" }] }, description: "Comments to mark resolved on the version this one answers (the previous latest): team comments as numbers or \"#3\", client-link comments as \"C2\"." },
+        resolve: { type: "array", items: { anyOf: [{ type: "number" }, { type: "string" }] }, description: "Comments to mark resolved on the version this one answers (the previous latest): team comments as numbers or \"#3\", review-link comments as \"C2\"." },
         reply: { type: "string", description: "Optional note posted as a reply on every comment you resolve, e.g. 'Done in v3: shortened the headline.'" },
       },
       required: ["project", "html"],
@@ -225,13 +351,14 @@ const TOOLS = [
   },
   {
     name: "resolve_comments",
-    description: "Mark comments on a version as resolved (or reopen them), with an optional reply on each.",
+    description: "Mark comments on a design or copy version as resolved (or reopen them), with an optional reply on each.",
     inputSchema: {
       type: "object",
       properties: {
         project: { type: "string" },
+        part: { type: "string", enum: ["design", "copy"], description: "Comments on the design (default) or on the copy." },
         version: { type: "number", description: "Leave out for the latest." },
-        numbers: { type: "array", items: { anyOf: [{ type: "number" }, { type: "string" }] }, description: "Comments as shown in get_version: team comments as numbers or \"#3\", client-link comments as \"C2\"." },
+        numbers: { type: "array", items: { anyOf: [{ type: "number" }, { type: "string" }] }, description: "Comments as shown in get_version or get_copy: team comments as numbers or \"#3\", review-link comments as \"C2\"." },
         reopen: { type: "boolean", description: "Reopen instead of resolve. Default: false." },
         reply: { type: "string", description: "Optional reply posted on each of them." },
       },
@@ -240,13 +367,14 @@ const TOOLS = [
   },
   {
     name: "reply_to_comment",
-    description: "Post a reply on one comment, as this person. Use it to ask a question or explain what changed.",
+    description: "Post a reply on one comment on a design or copy version, as this person. Use it to ask a question or explain what changed.",
     inputSchema: {
       type: "object",
       properties: {
         project: { type: "string" },
+        part: { type: "string", enum: ["design", "copy"], description: "A comment on the design (default) or on the copy." },
         version: { type: "number", description: "Leave out for the latest." },
-        number: { anyOf: [{ type: "number" }, { type: "string" }], description: "The comment: a number or \"#3\" for a team comment, \"C2\" for a client-link comment. Replies on client-link comments are visible to the client." },
+        number: { anyOf: [{ type: "number" }, { type: "string" }], description: "The comment: a number or \"#3\" for a team comment, \"C2\" for a review-link comment. Replies on review-link comments are visible on the link." },
         text: { type: "string" },
       },
       required: ["project", "number", "text"],
@@ -254,43 +382,160 @@ const TOOLS = [
   },
 ];
 
-const INSTRUCTIONS = `Noon is a team planner with a Projects area where people review HTML pages. A project is a stack of versions (v1, v2, …); comments are pinned to elements of one version's page.
-To apply feedback: get_version (latest version, open comments, full HTML) → edit the page so every open comment is handled → upload_version with the full new HTML, the comment numbers you handled in "resolve", and a short "reply" saying what you did. Comments come in two layers: the team's, left in Noon and numbered #1, #2…, and the client link's, numbered C1, C2…, which is the conversation the client sees on their review link. Treat both as feedback to apply. Anything you post on a client-link comment (a reply, or the reply note when resolving it) is visible to the client, so keep it client-friendly; team comments are internal. If a comment is unclear, ask with reply_to_comment instead of guessing.`;
+const INSTRUCTIONS = `Noon is where a team works on landing pages for its clients. Clients are top-level folders (they may hold more folders), and they hold pages. A page (called a project in these tools) has two parts, each a stack of versions: its copy, read as Markdown with get_copy, and its design, an HTML page read with get_version. One copy version and one design version can be marked final. Clients and pages carry categories: a client's (Audience: B2B, Industry: Dental…) count for all its pages, and a page's own say what it is (Page type: Listicle, Style: Scrappy…).
+To learn from past work: list_clients for the layout and the category names, find_pages to filter (for example category ["B2B", "Listicle"]), then get_copy with version "final", get_version for the design, and get_page_history for how the page got there.
+To apply design feedback: get_version (latest version, open comments, full HTML) → edit the page so every open comment is handled → upload_version with the full new HTML, the comment numbers you handled in "resolve", and a short "reply" saying what you did. To apply copy feedback: get_copy → rewrite so every open comment is handled and accepted suggestions are in → upload_copy_version with the whole copy in Markdown, resolving what you handled.
+Comments come in two layers: the team's, left in Noon and numbered #1, #2…, and the review link's, numbered C1, C2…, which is the conversation people outside Noon (clients, sometimes teammates) see on their link. Treat both as feedback to apply. Anything you post on a review-link comment (a reply, or the reply note when resolving it) is visible on the link, so keep it client-friendly; team comments are internal. If a comment is unclear, ask with reply_to_comment instead of guessing.`;
 
 async function callTool(ctx: Ctx, name: string, a: any): Promise<string | { type: string; text: string }[]> {
   if (name === "list_projects") {
     const teams = ctx.seats.map((s) => s.team_id);
-    let sel = db.from("projects").select("id,name,team_id,due_day,changed_at,changed_by,changed_guest").in("team_id", teams).order("changed_at", { ascending: false });
+    let sel = db.from("projects").select("id,name,team_id,folder_id,cats,final_copy,final_design,due_day,changed_at,changed_by,changed_guest").in("team_id", teams).order("changed_at", { ascending: false });
     if (a?.search) sel = sel.ilike("name", `%${String(a.search).replace(/[\\%_]/g, (c) => "\\" + c)}%`);
     const ps = await q<any[]>(sel);
-    if (!ps.length) return a?.search ? `No project name contains "${a.search}".` : "No projects yet.";
+    if (!ps.length) return a?.search ? `No page name contains "${a.search}".` : "No pages yet.";
     const vs = await q<any[]>(db.from("versions").select("id,project_id,n,share_on").in("project_id", ps.map((p) => p.id)));
+    const cvs = await q<any[]>(db.from("copy_versions").select("id,project_id,n").in("project_id", ps.map((p) => p.id))), tree = await treeOf(teams);
     const open = vs.length ? await q<any[]>(db.from("version_comments").select("version_id,layer").eq("status", "open").in("version_id", vs.map((v) => v.id))) : [];
     const team = Object.fromEntries(ctx.seats.map((s) => [s.team_id, s.team]));
     return ps.map((p) => {
       const mine = vs.filter((v) => v.project_id === p.id), cur = mine.reduce((m, v) => Math.max(m, v.n), 0);
       const curId = mine.find((v) => v.n === cur)?.id, here = open.filter((o) => o.version_id === curId), openCur = here.filter((o) => o.layer !== "client").length, openCl = here.length - openCur;
-      return `• ${p.name} (${team[p.team_id]})\n  id ${p.id} · ${cur ? `v${cur} is current, ${openCur} open team comment${openCur === 1 ? "" : "s"}${openCl ? ` and ${openCl} from the client link` : ""} on it` : "no versions yet"} · changed ${ago(p.changed_at)}${p.due_day ? ` · deadline ${p.due_day}` : ""}${mine.some((v) => v.share_on) ? ` · client link on for ${mine.filter((v) => v.share_on).sort((x, y) => x.n - y.n).map((v) => "v" + v.n).join(", ")}` : ""}`;
+      return `• ${p.name} (${team[p.team_id]}) — ${placeOf(tree, p)}\n  id ${p.id} · ${catsText(catsOf(tree, p))}\n  copy: ${verText(cvs.filter((v) => v.project_id === p.id), p.final_copy)} · design: ${cur ? `v${cur} is current${p.final_design && mine.some((v) => v.id === p.final_design) ? ` (v${mine.find((v) => v.id === p.final_design).n} final)` : ""}, ${openCur} open team comment${openCur === 1 ? "" : "s"}${openCl ? ` and ${openCl} from the review link` : ""} on it` : "none yet"} · changed ${ago(p.changed_at)}${p.due_day ? ` · deadline ${p.due_day}` : ""}${mine.some((v) => v.share_on) ? ` · review link on for design ${mine.filter((v) => v.share_on).sort((x, y) => x.n - y.n).map((v) => "v" + v.n).join(", ")}` : ""}`;
     }).join("\n");
+  }
+
+  if (name === "list_clients") {
+    const teams = ctx.seats.map((s) => s.team_id), t = await treeOf(teams);
+    const ps = await q<any[]>(db.from("projects").select("id,team_id,folder_id").in("team_id", teams));
+    const fs = Object.values(t.folders) as any[], byName = (x: any, y: any) => x.name.localeCompare(y.name);
+    const under = (id: string): number => ps.filter((p) => p.folder_id === id).length + fs.filter((f) => f.parent_id === id).reduce((n, f) => n + under(f.id), 0);
+    const walk = (f: any, d: number): string[] => [
+      `${"  ".repeat(d + 1)}${d ? "▸" : "•"} ${f.name}${d ? "" : ` — ${catsText(catList(t, f.cats || []))}`} — ${under(f.id)} page${under(f.id) === 1 ? "" : "s"}`,
+      ...fs.filter((k) => k.parent_id === f.id).sort(byName).flatMap((k) => walk(k, d + 1)),
+    ];
+    const out: string[] = [];
+    for (const s of ctx.seats) {
+      const lists = t.lists.filter((c) => c.team_id === s.team_id && !c.parent_id), tops = fs.filter((f) => f.team_id === s.team_id && !f.parent_id).sort(byName);
+      const loose = ps.filter((p) => p.team_id === s.team_id && !p.folder_id).length;
+      out.push(`Team ${s.team}`,
+        lists.length ? "Categories:\n" + lists.map((g) => `  ${g.name} (for ${g.level === "client" ? "clients" : "pages"}): ${t.lists.filter((c) => c.parent_id === g.id).map((c) => c.name).join(", ") || "no choices yet"}`).join("\n") : "Categories: none yet.",
+        tops.length ? "Clients:\n" + tops.flatMap((f) => walk(f, 0)).join("\n") : "Clients: none yet.",
+        ...(loose ? [`Pages not in a client yet: ${loose}`] : []), "");
+    }
+    return out.join("\n").trim();
+  }
+
+  if (name === "find_pages") {
+    const teams = ctx.seats.map((s) => s.team_id), t = await treeOf(teams);
+    const ps = await q<any[]>(db.from("projects").select("id,name,team_id,folder_id,cats,final_copy,final_design,changed_at").in("team_id", teams).order("changed_at", { ascending: false }));
+    const ids = ps.map((p) => p.id);
+    const [vs, cvs] = ids.length ? await Promise.all([
+      q<any[]>(db.from("versions").select("id,project_id,n").in("project_id", ids)),
+      q<any[]>(db.from("copy_versions").select("id,project_id,n").in("project_id", ids)),
+    ]) : [[], []];
+    const want = (Array.isArray(a?.category) ? a.category : a?.category ? [a.category] : []).map((x: unknown) => String(x).trim().toLowerCase()).filter(Boolean);
+    const client = String(a?.client || "").trim().toLowerCase(), search = String(a?.search || "").trim().toLowerCase();
+    const rows = ps.map((p) => ({ p, cats: catsOf(t, p), path: pathOf(t, p.folder_id), d: vs.filter((v) => v.project_id === p.id), c: cvs.filter((v) => v.project_id === p.id) }))
+      .filter((r) => want.every((w: string) => r.cats.some((c) => c.name.toLowerCase() === w || `${c.list}: ${c.name}`.toLowerCase() === w)))
+      .filter((r) => !client || (r.path[0] && r.path[0].name.toLowerCase().includes(client)))
+      .filter((r) => !search || r.p.name.toLowerCase().includes(search))
+      .filter((r) => a?.has === "final_copy" ? r.c.some((v) => v.id === r.p.final_copy) : a?.has === "final_design" ? r.d.some((v) => v.id === r.p.final_design) : a?.has === "copy" ? r.c.length > 0 : a?.has === "design" ? r.d.length > 0 : true);
+    if (!rows.length) {
+      const known = [...new Set((Object.values(t.item) as any[]).map((c) => c.name))];
+      return `No pages match.${want.length && known.length ? ` The category choices in use are: ${known.join(", ")}.` : ""}`;
+    }
+    const lim = Math.max(1, Math.min(200, Math.round(Number(a?.limit)) || 50));
+    return `${rows.length} page${rows.length === 1 ? "" : "s"}${rows.length > lim ? `, the ${lim} changed most recently` : ""}:\n` + rows.slice(0, lim).map((r) =>
+      `• ${r.p.name} — ${placeOf(t, r.p)}\n  id ${r.p.id} · ${catsText(r.cats)}\n  copy: ${verText(r.c, r.p.final_copy)} · design: ${verText(r.d, r.p.final_design)} · changed ${ago(r.p.changed_at)}`).join("\n");
   }
 
   const p = await findProject(ctx, a?.project);
   const seat = seatFor(ctx, p.team_id);
 
+  if (name === "get_copy") {
+    const cs = await copyOf(p.id), v = pickCopy(p, cs, a?.version), people = await peopleOf(p.team_id), t = await treeOf([p.team_id]);
+    const mode = a?.comments === "all" || a?.comments === "none" ? a.comments : "open";
+    const cms = mode === "none" ? [] : (await copyCommentsOf([v.id])).filter((c) => mode === "all" || c.status === "open" || (c.status === "accepted" && !c.applied_in));
+    const cur = cs[cs.length - 1], fin = cs.find((c) => c.id === p.final_copy);
+    const head = [
+      `Page: ${p.name} — ${placeOf(t, p)} · ${catsText(catsOf(t, p))}`,
+      `Copy v${v.n} of ${cs.length}${v.id === cur.id ? " (latest)" : ` (older: v${cur.n} is the latest)`}${fin ? (fin.id === v.id ? " · marked final" : ` · v${fin.n} is marked final`) : ""} · ${srcText(v)} · ${ago(v.created_at)} by ${people[v.created_by] || "someone"} · ${wordsIn(v.body)} words${projLink(p.id) ? ` · ${projLink(p.id)}` : ""}`,
+    ];
+    const group = (label: string, list: any[]) => (list.length ? `${label} (${list.length}):\n\n${list.map((c) => copyCommentText(c, people)).join("\n\n")}` : "");
+    const cmText = mode === "none" ? "" : !cms.length ? `Nothing ${mode === "all" ? "" : "open "}on copy v${v.n}.` : [
+      group(`Team comments and suggestions on copy v${v.n}, internal`, cms.filter((c) => c.layer !== "client")),
+      group(`Review link comments and suggestions on copy v${v.n}, visible on the link`, cms.filter((c) => c.layer === "client")),
+    ].filter(Boolean).join("\n\n");
+    return [{ type: "text", text: [...head, "", cmText].join("\n").trim() }, { type: "text", text: `=== Copy v${v.n} of ${p.name}, in Markdown ===\n${htmlToMarkdown(DOC, v.body)}` }];
+  }
+
+  if (name === "get_page_history") {
+    const people = await peopleOf(p.team_id), t = await treeOf([p.team_id]);
+    const [cs, vs] = await Promise.all([copyOf(p.id), versionsOf(p.id)]);
+    const ccm = await copyCommentsOf(cs.map((c) => c.id));
+    const dcm = vs.length ? await q<any[]>(db.from("version_comments").select("*").in("version_id", vs.map((v) => v.id)).order("n")) : [];
+    const dre = dcm.length ? await q<any[]>(db.from("version_replies").select("*").in("comment_id", dcm.map((c) => c.id)).order("created_at")) : [];
+    const fc = cs.find((c) => c.id === p.final_copy), fd = vs.find((v) => v.id === p.final_design);
+    const out = [
+      `Page: ${p.name} — ${placeOf(t, p)} · ${catsText(catsOf(t, p))}${projLink(p.id) ? ` · ${projLink(p.id)}` : ""}`,
+      `Final copy: ${fc ? "v" + fc.n : "none marked"} · Final design: ${fd ? "v" + fd.n : "none marked"} · Last change ${ago(p.changed_at)}`,
+      "", cs.length ? `Copy, ${cs.length} version${cs.length === 1 ? "" : "s"}:` : "Copy: none yet.",
+    ];
+    for (const v of cs) {
+      out.push(`  v${v.n} · ${srcText(v)} · ${ago(v.created_at)} by ${people[v.created_by] || "someone"} · ${wordsIn(v.body)} words${v.id === p.final_copy ? " · final" : ""}`);
+      for (const c of ccm.filter((x) => x.copy_version_id === v.id)) out.push(copyCommentText(c, people).split("\n").map((l) => "    " + l).join("\n"));
+    }
+    out.push("", vs.length ? `Design, ${vs.length} version${vs.length === 1 ? "" : "s"}:` : "Design: none yet.");
+    for (const v of vs) {
+      const mine = dcm.filter((c) => c.version_id === v.id);
+      out.push(`  v${v.n} · ${v.name} · ${ago(v.created_at)} by ${people[v.created_by] || "someone"} · ${mine.length} comment${mine.length === 1 ? "" : "s"}, ${mine.filter((c) => c.status === "open").length} open${v.id === p.final_design ? " · final" : ""}`);
+      for (const c of mine) {
+        out.push(`    ${tag(c)} · ${c.status} · ${author(people, c)}${c.layer === "client" ? " · on the review link" : ""} · at ${WIDTH[c.dev] || "desktop (1280px)"}${c.from_version ? ` · carried over from ${c.from_version}` : ""}: "${c.body}"`);
+        for (const r of dre.filter((x) => x.comment_id === c.id)) out.push(`      ↳ ${author(people, r)}: "${r.body}"`);
+      }
+    }
+    return out.join("\n");
+  }
+
+  if (name === "upload_copy_version") {
+    const md = String(a?.markdown ?? "");
+    if (!md.trim()) throw new Oops("markdown is empty.");
+    if (md.length > 400000) throw new Oops("That is over 400,000 characters. Send the copy on its own.");
+    const body = String(await marked.parse(md, { gfm: true }));
+    const cs = await copyOf(p.id), prev = cs[cs.length - 1] || null, n = (prev?.n || 0) + 1;
+    await q(db.from("copy_versions").insert({ id: crypto.randomUUID(), project_id: p.id, team_id: p.team_id, n, body, src: "Claude", created_by: seat.member_id }));
+    await q(db.from("projects").update({ changed_at: new Date().toISOString(), changed_by: seat.member_id, changed_guest: null }).eq("id", p.id));
+    let note = "";
+    if (prev) {
+      // accepted wording that is now in the copy went into this version; a removal counts once its words are gone
+      const text = htmlToText(DOC, body).toLowerCase(), norm = (x: string) => String(x || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const acc = await q<any[]>(db.from("copy_comments").select("id,n,layer,quote,replacement").eq("copy_version_id", prev.id).eq("status", "accepted").is("applied_in", null));
+      const done = acc.filter((c) => (c.replacement ? text.includes(norm(c.replacement)) : !text.includes(norm(c.quote)))), left = acc.filter((c) => !done.includes(c));
+      if (done.length) { await q(db.from("copy_comments").update({ applied_in: n }).in("id", done.map((c) => c.id))); note += ` Accepted suggestion${done.length === 1 ? "" : "s"} ${done.map(tag).join(", ")} marked as gone into v${n}.`; }
+      if (left.length) note += ` Accepted wording not found in it, still waiting: ${left.map(tag).join(", ")}.`;
+      if (Array.isArray(a?.resolve) && a.resolve.length) note += "\n" + (await resolveCopy(p, prev, a.resolve, false, a?.reply, seat));
+    }
+    return `Added copy v${n} of ${p.name} (${wordsIn(body)} words).${prev ? ` In Noon, the Copy tab's Compare shows it against v${prev.n}.` : ""}${note}${projLink(p.id) ? ` ${projLink(p.id)}` : ""}`;
+  }
+
   if (name === "get_project") {
     const vs = await versionsOf(p.id), people = await peopleOf(p.team_id);
     const cms = vs.length ? await q<any[]>(db.from("version_comments").select("version_id,status,layer").in("version_id", vs.map((v) => v.id))) : [];
     const who = await q<any[]>(db.from("project_assignees").select("member_id").eq("project_id", p.id));
+    const t = await treeOf([p.team_id]), cs = await copyOf(p.id);
     return [
-      `Project: ${p.name} (team ${seat.team})`,
+      `Page: ${p.name} (team ${seat.team}) — ${placeOf(t, p)}`,
       `id ${p.id}${projLink(p.id) ? ` · ${projLink(p.id)}` : ""}`,
-      `Deadline: ${p.due_day || "none"} · Assigned to: ${who.map((w) => people[w.member_id]).filter(Boolean).join(", ") || "nobody"} · Client links: ${vs.filter((v) => v.share_on).map((v) => "v" + v.n).join(", ") || "none"}`,
+      `Categories: ${catsText(catsOf(t, p))}`,
+      `Copy: ${cs.length ? cs.map((c) => `v${c.n}${c.id === p.final_copy ? " (final)" : ""}`).join(", ") + " · read it with get_copy" : "none yet"}`,
+      `Deadline: ${p.due_day || "none"} · Assigned to: ${who.map((w) => people[w.member_id]).filter(Boolean).join(", ") || "nobody"} · Review links on: ${[...vs.filter((v) => v.share_on).map((v) => "design v" + v.n), ...cs.filter((c) => c.share_on).map((c) => "copy v" + c.n)].join(", ") || "none"}`,
       `Last change ${ago(p.changed_at)}${p.changed_guest ? ` by ${p.changed_guest} (client)` : p.changed_by && people[p.changed_by] ? ` by ${people[p.changed_by]}` : ""}`,
       "",
-      vs.length ? "Versions (newest last):" : "No versions yet.",
+      vs.length ? "Design versions (newest last):" : "No design versions yet.",
       ...vs.map((v) => {
         const mine = cms.filter((c) => c.version_id === v.id), o = mine.filter((c) => c.status === "open" && c.layer !== "client").length, oc = mine.filter((c) => c.status === "open" && c.layer === "client").length;
-        return `  v${v.n} · ${v.name} · ${size(v.size || 0)} · ${(v.assets || []).length} files alongside · ${ago(v.created_at)} by ${people[v.created_by] || "someone"} · ${o} open team, ${oc} open client link, ${mine.length - o - oc} resolved`;
+        return `  v${v.n}${v.id === p.final_design ? " (final)" : ""} · ${v.name} · ${size(v.size || 0)} · ${(v.assets || []).length} files alongside · ${ago(v.created_at)} by ${people[v.created_by] || "someone"} · ${o} open team, ${oc} open review link, ${mine.length - o - oc} resolved`;
       }),
     ].join("\n");
   }
@@ -308,7 +553,7 @@ async function callTool(ctx: Ctx, name: string, a: any): Promise<string | { type
     const group = (label: string, list: any[]) => list.length ? `${label} (${list.length}):\n\n${list.map((c) => commentText(c, people)).join("\n\n")}` : `${label}: none.`;
     const cmText = !cms.length ? `No ${word}comments on v${v.n}.` : [
       a?.layer !== "client" ? group(`Team ${word}comments on v${v.n}, internal`, team) : "",
-      a?.layer !== "team" ? group(`Client link ${word}comments on v${v.n}, visible to the client`, client) : "",
+      a?.layer !== "team" ? group(`Review link ${word}comments on v${v.n}, visible on the link`, client) : "",
     ].filter(Boolean).join("\n\n");
     if (name === "get_comments") return [...head, "", cmText].join("\n");
 
@@ -381,6 +626,23 @@ async function callTool(ctx: Ctx, name: string, a: any): Promise<string | { type
       `${prev ? ` In Noon, open v${n} and choose Compare to see it next to v${prev.n}.` : ""}${projLink(p.id) ? ` ${projLink(p.id)}` : ""}${note}`;
   }
 
+  if (name === "resolve_comments" && a?.part === "copy") {
+    const cs = await copyOf(p.id), v = pickCopy(p, cs, a?.version);
+    return await resolveCopy(p, v, a?.numbers || [], !!a?.reopen, a?.reply, seat);
+  }
+  if (name === "reply_to_comment" && a?.part === "copy") {
+    const cs = await copyOf(p.id), v = pickCopy(p, cs, a?.version);
+    const text = String(a?.text || "").trim();
+    if (!text || text.length > 1000) throw new Oops("A reply is 1 to 1000 characters.");
+    const ref = refOf(a?.number);
+    if (!ref) throw new Oops("Say which comment: a number like 3 or #3 for a team comment, C2 for a review-link comment.");
+    const c = (await q<any[]>(db.from("copy_comments").select("id,n,layer").eq("copy_version_id", v.id).eq("layer", ref.layer).eq("n", ref.n)))[0];
+    if (!c) throw new Oops(`There is no comment ${ref.layer === "client" ? "C" : "#"}${ref.n} on copy v${v.n}.`);
+    await q(db.from("copy_replies").insert({ id: crypto.randomUUID(), comment_id: c.id, team_id: p.team_id, author_id: seat.member_id, body: text }));
+    await q(db.from("projects").update({ changed_at: new Date().toISOString(), changed_by: seat.member_id, changed_guest: null }).eq("id", p.id));
+    return `Replied on ${tag(c)} of copy v${v.n}${c.layer === "client" ? ". It shows on the review link" : ""}.`;
+  }
+
   if (name === "resolve_comments") {
     const vs = await versionsOf(p.id), v = pickVersion(vs, a?.version);
     return await resolve(p, v, a?.numbers || [], !!a?.reopen, a?.reply, seat);
@@ -391,12 +653,12 @@ async function callTool(ctx: Ctx, name: string, a: any): Promise<string | { type
     const text = String(a?.text || "").trim();
     if (!text || text.length > 1000) throw new Oops("A reply is 1 to 1000 characters.");
     const ref = refOf(a?.number);
-    if (!ref) throw new Oops("Say which comment: a number like 3 or #3 for a team comment, C2 for a client-link comment.");
+    if (!ref) throw new Oops("Say which comment: a number like 3 or #3 for a team comment, C2 for a review-link comment.");
     const c = (await q<any[]>(db.from("version_comments").select("id,n,layer").eq("version_id", v.id).eq("layer", ref.layer).eq("n", ref.n)))[0];
     if (!c) throw new Oops(`There is no comment ${ref.layer === "client" ? "C" : "#"}${ref.n} on v${v.n}.`);
     await q(db.from("version_replies").insert({ id: crypto.randomUUID(), comment_id: c.id, team_id: p.team_id, author_id: seat.member_id, body: text }));
     await q(db.from("projects").update({ changed_at: new Date().toISOString(), changed_by: seat.member_id, changed_guest: null }).eq("id", p.id));
-    return `Replied on ${tag(c)} of v${v.n}${c.layer === "client" ? ". The client sees it on their link" : ""}.`;
+    return `Replied on ${tag(c)} of v${v.n}${c.layer === "client" ? ". It shows on the review link" : ""}.`;
   }
 
   throw new Oops(`Unknown tool ${name}.`);
@@ -404,7 +666,7 @@ async function callTool(ctx: Ctx, name: string, a: any): Promise<string | { type
 
 async function resolve(p: any, v: any, numbers: unknown[], reopen: boolean, reply: unknown, seat: Seat) {
   const refs = (numbers || []).map(refOf).filter(Boolean) as Ref[];
-  if (!refs.length) throw new Oops("Say which comments: numbers or #3 for team comments, C2 for client-link comments.");
+  if (!refs.length) throw new Oops("Say which comments: numbers or #3 for team comments, C2 for review-link comments.");
   const all = await q<any[]>(db.from("version_comments").select("id,n,layer").eq("version_id", v.id));
   const cms = all.filter((c) => refs.some((r) => r.n === c.n && r.layer === (c.layer === "client" ? "client" : "team")));
   const missing = refs.filter((r) => !cms.some((c) => c.n === r.n && (c.layer === "client" ? "client" : "team") === r.layer)).map((r) => (r.layer === "client" ? "C" : "#") + r.n);
@@ -417,6 +679,22 @@ async function resolve(p: any, v: any, numbers: unknown[], reopen: boolean, repl
   return `${cms.length ? `${reopen ? "Reopened" : "Resolved"} ${cms.map(tag).join(", ")} on v${v.n}${String(reply || "").trim() ? ", with your reply on each" : ""}.` : "Nothing changed."}${missing.length ? ` Not found on v${v.n}: ${missing.join(", ")}.` : ""}`;
 }
 
+// the same for comments and suggestions on a copy version
+async function resolveCopy(p: any, v: any, numbers: unknown[], reopen: boolean, reply: unknown, seat: Seat) {
+  const refs = (numbers || []).map(refOf).filter(Boolean) as Ref[];
+  if (!refs.length) throw new Oops("Say which comments: numbers or #3 for team comments, C2 for review-link comments.");
+  const all = await q<any[]>(db.from("copy_comments").select("id,n,layer").eq("copy_version_id", v.id));
+  const cms = all.filter((c) => refs.some((r) => r.n === c.n && r.layer === (c.layer === "client" ? "client" : "team")));
+  const missing = refs.filter((r) => !cms.some((c) => c.n === r.n && (c.layer === "client" ? "client" : "team") === r.layer)).map((r) => (r.layer === "client" ? "C" : "#") + r.n);
+  if (cms.length) {
+    await q(db.from("copy_comments").update({ status: reopen ? "open" : "resolved" }).in("id", cms.map((c) => c.id)));
+    const text = String(reply || "").trim().slice(0, 1000);
+    if (text) await q(db.from("copy_replies").insert(cms.map((c) => ({ id: crypto.randomUUID(), comment_id: c.id, team_id: p.team_id, author_id: seat.member_id, body: text }))));
+    await q(db.from("projects").update({ changed_at: new Date().toISOString(), changed_by: seat.member_id, changed_guest: null }).eq("id", p.id));
+  }
+  return `${cms.length ? `${reopen ? "Reopened" : "Resolved"} ${cms.map(tag).join(", ")} on copy v${v.n}${String(reply || "").trim() ? ", with your reply on each" : ""}.` : "Nothing changed."}${missing.length ? ` Not found on copy v${v.n}: ${missing.join(", ")}.` : ""}`;
+}
+
 // ---------------------------------------------------------------- the MCP wire
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, "Content-Type": "application/json" } });
 async function handle(ctx: Ctx, m: any) {
@@ -427,7 +705,7 @@ async function handle(ctx: Ctx, m: any) {
   switch (method) {
     case "initialize": {
       const want = m.params?.protocolVersion;
-      return ok({ protocolVersion: VERSIONS.includes(want) ? want : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: "noon", title: "Noon", version: "1.0.0" }, instructions: INSTRUCTIONS });
+      return ok({ protocolVersion: VERSIONS.includes(want) ? want : VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: "noon", title: "Noon", version: "1.1.0" }, instructions: INSTRUCTIONS });
     }
     case "ping": return ok({});
     case "tools/list": return ok({ tools: TOOLS });
