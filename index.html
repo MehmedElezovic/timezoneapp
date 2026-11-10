@@ -278,7 +278,7 @@
 <!-- New client, folder or page; names and categories; moving -->
 <dialog id="dFd" class="dlg"></dialog>
 
-<!-- Share a project with a client -->
+<!-- A review link to a design or copy version -->
 <dialog id="dShare" class="dlg">
   <button type="button" class="xbtn dlg-x" data-close aria-label="Close">×</button>
   <div class="dlg-head"><h2 id="shareTitle">Share a version</h2></div>
@@ -315,6 +315,7 @@
 <input type="file" id="photoIn" hidden accept="image/*">
 <input type="file" id="pjFiles" hidden multiple>
 <input type="file" id="pjFolder" hidden webkitdirectory>
+<input type="file" id="cpFiles" hidden multiple accept=".md,.markdown,.txt,.docx,.html,.htm,text/markdown,text/plain,text/html,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
 
 <script src="js/tz.js"></script>
 <script src="js/core.js"></script>
@@ -323,6 +324,7 @@
 <script src="js/files.js"></script>
 <script src="js/projects.js"></script>
 <script src="js/folders.js"></script>
+<script src="js/copy.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/welcome.js"></script>
 <script src="js/share.js"></script>

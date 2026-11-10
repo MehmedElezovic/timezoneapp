@@ -223,8 +223,9 @@ function renderProjects(){
   if(PV.mode==='compare'&&!(p&&cmpSet(p))) endCompare();
   let v=p&&PV.ver&&verById(p,PV.ver);
   if(PV.ver&&!v){PV.ver=null;PV.built=null}
-  if(v){const cmp=cmpOf(p),key=pvKey(v);
-    if(PV.built===key&&$('#pvIf')){pvUpdate()}else pvBuild(p,v,cmp);renderTaskDetail();return}
+  if(v&&(SHARE||pageTab(p)==='design')){const cmp=cmpOf(p),key=pvKey(v);
+    if(PV.built===key&&$('#pvIf')){if(!SHARE) pageChromeRefresh(p);pvUpdate()}else pvBuild(p,v,cmp);renderTaskDetail();return}
+  if(p&&PV.tab==='copy'&&CP.edit&&CP.edit.page===p.id&&$('#cpQuill')&&$('#cpQuill').dataset.on) return;
   pvTeardown();
   if(p) renderProject(p);else{const f=fdById(PV.folder);if(!f) PV.folder=null;if(f) renderFolder(f);else renderHome()}
   renderTaskDetail();
@@ -241,30 +242,42 @@ const whoName=(T,id,you='you')=>{const z=id&&findM(id,T);return z?(z.isMe?you:fi
 const changedBy=(T,p)=>!p.who&&p.whoGuest?`${first(p.whoGuest)} (client)`:whoName(T,p.who||p.by);
 const verShared=v=>!!(v.share&&v.share.on);
 const shareOn=p=>versOf(p).some(verShared);
-function renderProject(p){
-  const T=team(),vs=versOf(p).slice().reverse(),cv=curVer(p),open=projOpen(p),du=dueInfo(p.due),ppl=(p.to||[]).map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!(p.to||[]).includes(z.id));
-  const card=v=>{const o=openIn(v,'team').length,co=openIn(v,'client').length,r=v.cm.filter(c=>c.status==='resolved').length,many=vs.length>1,cur=v===cv,sh=verShared(v);
-    return `<div class="ver-card${cur?' cur':''}" role="button" tabindex="0" data-ver-open="${v.id}">${thumbHtml(v)}
-      <div class="ver-body"><div class="ver-head"><span class="ver-n">${vLabel(v)}</span>${cur?'<span class="ver-cur">Current</span>':''}${sh?'<span class="pj-shared" title="The client link for this version is on">Shared</span>':''}<b>${esc(v.name)}</b></div>
-        <small>${fmtSize(v.size||0)} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}${v.assets.length?` · ${plural(v.assets.length,'file')} alongside`:''}${cloudFiles(T)&&!v.file?' · not in your account yet':''}</small>
-        <span class="pg-cnt">${o?`<i class="o">${o} open</i>`:''}${co?`<i class="cl">${co} on the client link</i>`:''}${r?`<i>${r} resolved</i>`:''}${!o&&!r&&!co?'<i>No comments yet</i>':''}</span></div>
-      <div class="ver-acts"><button type="button" class="btn sm dark" data-ver-open="${v.id}">Open</button>${many?`<button type="button" class="btn sm" data-ver-cmp="${v.id}" title="Open ${vLabel(v)} side by side with another version">${PI.cmp}Compare with…</button>`:''}<button type="button" class="btn sm${sh?' on':''}" data-ver-share="${v.id}" title="${sh?'The client link for this version is on':'Send this version to a client for feedback'}">${PI.share}${sh?'Shared':'Share'}</button><button type="button" class="btn sm" data-ver-dl="${v.id}" title="${v.assets.length?'Download as a zip with its files':'Download the HTML file'}">${PI.dl}Download</button><button type="button" class="tk-x" data-ver-del="${v.id}" aria-label="Delete version">${I.trash}</button></div></div>`};
-  // a page has its copy and its design side by side; the steps and history tabs come back with tasks
-  if(PV.tabFor!==p.id){PV.tabFor=p.id;PV.tab=FEAT.tasks&&p.flow?'flow':'design'}
+// which tab a page opens on: Design once it has a design, Copy before that
+function pageTab(p){
+  if(PV.tabFor!==p.id){PV.tabFor=p.id;PV.tab=FEAT.tasks&&p.flow?'flow':versOf(p).length?'design':'copy'}
   if(!FEAT.tasks&&(PV.tab==='flow'||PV.tab==='history')) PV.tab='design';
-  const tab=PV.tab,design=tab==='design',all=FEAT.tasks?projTasks(T,p):[],doneN=all.filter(t=>t.done).length,up=fdById(p.folder,T);
-  $('#vProj').innerHTML=`<header class="top"><button type="button" class="chev" id="pjBack" aria-label="Back to ${esc(up?up.name:'all clients')}">${PI.back}</button><div class="ttl-wrap"><h1 class="editable" id="pjName" contenteditable="true" spellcheck="false" title="Click to rename">${esc(p.name)}</h1><span class="sub crumbs">${crumbsHtml(T,p.folder)}${up?'':'<i>/</i><span>Not in a client</span>'}</span></div>
+  return PV.tab;
+}
+// the top of a page: its name and place, categories, deadline, people and the tabs. It stays put while the part under
+// the tabs changes: a list of versions, one version open, or the copy being written.
+function pageChrome(p){
+  const T=team(),vs=versOf(p),cv=curVer(p),du=dueInfo(p.due),ppl=(p.to||[]).map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!(p.to||[]).includes(z.id));
+  const tab=pageTab(p),design=tab==='design',all=FEAT.tasks?projTasks(T,p):[],doneN=all.filter(t=>t.done).length,up=fdById(p.folder,T);
+  return `<header class="top"><button type="button" class="chev" id="pjBack" aria-label="Back to ${esc(up?up.name:'all clients')}">${PI.back}</button><div class="ttl-wrap"><h1 class="editable" id="pjName" contenteditable="true" spellcheck="false" title="Click to rename">${esc(p.name)}</h1><span class="sub crumbs">${crumbsHtml(T,p.folder)}${up?'':'<i>/</i><span>Not in a client</span>'}</span></div>
       <div class="topnav"><button type="button" class="lbtn quiet" id="pjMove" title="Move to another client or folder">${FDI.move}<span>Move</span></button><button type="button" class="lbtn quiet icon" id="pjLink" title="Copy a link to this page, for a teammate or for Claude" aria-label="Copy a link to this page">${I.link||PI.page}</button>${design?`<button type="button" class="lbtn quiet" id="pjUploadDir" title="Upload a folder">${PI.folder}<span>Folder</span></button><button type="button" class="lbtn dark" id="pjUpload" title="Upload design ${cv?'version '+(cv.n+1):'version 1'}">${PI.up}<span>Upload ${cv?'v'+(cv.n+1):'version 1'}</span></button>`:''}</div></header>
     <div class="pj-meta">${catMetaHtml('page',p,T)}
       <div class="pj-meta-i"><label for="pjDue">Deadline</label><div class="pj-due"><input type="date" id="pjDue" class="pj-date" value="${p.due||''}" aria-label="Deadline">${du?`<small class="${du.state}">${esc(du.rel)}</small>`:''}</div></div>
       <div class="pj-meta-i"><label>${all.length?'People':'Assigned to'}</label>${all.length?`<div class="whochips">${[...new Set(all.flatMap(t=>t.to))].map(id=>findM(id,T)).filter(Boolean).map(z=>`<span class="who1">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}</span>`).join('')||'<span class="pj-none">Nobody yet</span>'}</div>`:`<div class="whochips">${ppl.map(z=>`<button type="button" class="who1" data-pjrm="${z.id}" title="Remove">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}<i>×</i></button>`).join('')}${cand.length?`<button type="button" class="addc" id="pjAddBtn" aria-label="Add someone" aria-expanded="${PV.pick}">${I.plus}</button>`:''}${PV.pick&&cand.length?`<div class="dd" id="pjDd"><div class="dd-list">${cand.map(z=>`<button type="button" class="opt" data-pjav="${z.id}">${avatar(z,'sm')}<span class="n">${esc(z.isMe?'Me':z.name)}<small>${esc(tzLabel(z.tz))}</small></span></button>`).join('')}</div></div>`:''}${!ppl.length&&!PV.pick?'<span class="pj-none">Nobody yet</span>':''}</div>`}</div>
       <div class="pj-meta-i"><label>Last change</label><div class="pj-last"><b>${esc(agoLabel(p.at||Date.now()))}</b><small>by ${esc(changedBy(T,p))}</small></div></div>
     </div>
-    <div class="pj-tabs"><div class="seg sm" id="pjTabs" role="tablist"><button type="button" class="${tab==='copy'?'on':''}" data-pj-tab="copy">Copy</button><button type="button" class="${design?'on':''}" data-pj-tab="design">Design<i>${vs.length||''}</i></button>${FEAT.tasks?`<button type="button" class="${tab==='flow'?'on':''}" data-pj-tab="flow">Steps<i>${all.length-doneN||''}</i></button><button type="button" class="${tab==='history'?'on':''}" data-pj-tab="history">History</button>`:''}</div>${FEAT.tasks&&p.flow&&all.length?`<div class="pj-prog"><span>${doneN} of ${plural(all.length,'step')} done</span><div class="ptk-bar"><i style="width:${Math.round(doneN/all.length*100)}%"></i></div></div>`:''}</div>
-    <div class="pj-body pj-drop${tab==='flow'||tab==='history'?' st-canvas':''}" id="pjDrop">${tab==='copy'?copyTabHtml(p):tab==='flow'?stepsTabHtml(p):tab==='history'?historyTabHtml(p):`${vs.length?`<div class="ver-list">${vs.map(card).join('')}</div>`:''}
-      <div class="pj-dz${vs.length?'':' big'}"><span class="ic">${PI.up}</span><b>${vs.length?`Drop the next version here, it becomes v${cv.n+1}`:'Drop the first HTML file here, it becomes version 1'}</b>${vs.length?'<small>A new version starts with no comments. Compare puts any two versions side by side, and Share sends one version to a client. A lone HTML file reuses the previous version\'s images and styles; drop a folder to bring new ones.</small>':`<ul class="pj-need"><li><b>The page's HTML file</b>, such as index.html. Every HTML file you add becomes its own version.</li><li><b>The images, styles, scripts and fonts it uses.</b> Drop or choose the whole folder, so links like images/hero.jpg keep working.</li><li><b>Only the HTML file</b> is enough when its images and styles load from web addresses (https://…).</li></ul><small>Files up to 25 MB each. Unzip a .zip first.</small>`}<span class="pj-dz-acts"><button type="button" class="btn dark" data-pick="files">Choose files</button><button type="button" class="btn" data-pick="folder">Choose a folder</button>${vs.length?'':`<button type="button" class="btn claude" data-pick="claude">${PI.spark}Upload with Claude</button>`}</span></div>`}
+    <div class="pj-tabs"><div class="seg sm" id="pjTabs" role="tablist"><button type="button" class="${tab==='copy'?'on':''}" data-pj-tab="copy">Copy<i>${copyOf(p).length||''}</i></button><button type="button" class="${design?'on':''}" data-pj-tab="design">Design<i>${vs.length||''}</i></button>${FEAT.tasks?`<button type="button" class="${tab==='flow'?'on':''}" data-pj-tab="flow">Steps<i>${all.length-doneN||''}</i></button><button type="button" class="${tab==='history'?'on':''}" data-pj-tab="history">History</button>`:''}</div>${FEAT.tasks&&p.flow&&all.length?`<div class="pj-prog"><span>${doneN} of ${plural(all.length,'step')} done</span><div class="ptk-bar"><i style="width:${Math.round(doneN/all.length*100)}%"></i></div></div>`:''}</div>`;
+}
+// redrawing the top while a version is open, unless someone is typing in it
+function pageChromeRefresh(p){const ch=$('#pjChrome'),a=document.activeElement;if(ch&&!(ch.contains(a)&&a.matches('input,textarea,[contenteditable]'))) ch.innerHTML=pageChrome(p)}
+function renderProject(p){
+  const T=team(),vs=versOf(p).slice().reverse(),cv=curVer(p);
+  const card=v=>{const o=openIn(v,'team').length,co=openIn(v,'client').length,r=v.cm.filter(c=>c.status==='resolved').length,many=vs.length>1,cur=v===cv,sh=verShared(v),fin=p.finalDesign===v.id;
+    return `<div class="ver-card${cur?' cur':''}" role="button" tabindex="0" data-ver-open="${v.id}">${thumbHtml(v)}
+      <div class="ver-body"><div class="ver-head"><span class="ver-n">${vLabel(v)}</span>${cur?'<span class="ver-cur">Current</span>':''}${fin?`<span class="cp-final">${I.check}Final</span>`:''}${sh?'<span class="pj-shared" title="The review link for this version is on">Shared</span>':''}<b>${esc(v.name)}</b></div>
+        <small>${fmtSize(v.size||0)} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}${v.assets.length?` · ${plural(v.assets.length,'file')} alongside`:''}${cloudFiles(T)&&!v.file?' · not in your account yet':''}</small>
+        <span class="pg-cnt">${o?`<i class="o">${o} open</i>`:''}${co?`<i class="cl">${co} on the review link</i>`:''}${r?`<i>${r} resolved</i>`:''}${!o&&!r&&!co?'<i>No comments yet</i>':''}</span></div>
+      <div class="ver-acts"><button type="button" class="btn sm dark" data-ver-open="${v.id}">Open</button>${many?`<button type="button" class="btn sm" data-ver-cmp="${v.id}" title="Open ${vLabel(v)} side by side with another version">${PI.cmp}Compare with…</button>`:''}<button type="button" class="btn sm${sh?' on':''}" data-ver-share="${v.id}" title="${sh?'The review link for this version is on':'Send this version out for review'}">${PI.share}${sh?'Shared':'Share'}</button><button type="button" class="btn sm${fin?' on':''}" data-ver-final="${v.id}" title="${fin?'This is the final design. Click to take the mark off':'Mark the design this page goes live with'}">${I.check}${fin?'Final':'Mark final'}</button><button type="button" class="btn sm" data-ver-dl="${v.id}" title="${v.assets.length?'Download as a zip with its files':'Download the HTML file'}">${PI.dl}Download</button><button type="button" class="tk-x" data-ver-del="${v.id}" aria-label="Delete version">${I.trash}</button></div></div>`};
+  const tab=pageTab(p),design=tab==='design';
+  $('#vProj').innerHTML=`<div class="pj-chrome" id="pjChrome">${pageChrome(p)}</div>
+    <div class="pj-body pj-drop${tab==='flow'||tab==='history'?' st-canvas':tab==='copy'&&cpMode(p)!=='list'?' cp-host':''}" id="pjDrop">${tab==='copy'?copyViewHtml(p):tab==='flow'?stepsTabHtml(p):tab==='history'?historyTabHtml(p):`${vs.length?`<div class="ver-list">${vs.map(card).join('')}</div>`:''}
+      <div class="pj-dz${vs.length?'':' big'}"><span class="ic">${PI.up}</span><b>${vs.length?`Drop the next version here, it becomes v${cv.n+1}`:'Drop the first HTML file here, it becomes version 1'}</b>${vs.length?'<small>A new version starts with no comments. Compare puts any two versions side by side, and Share sends one version out for review. A lone HTML file reuses the previous version\'s images and styles; drop a folder to bring new ones.</small>':`<ul class="pj-need"><li><b>The page's HTML file</b>, such as index.html. Every HTML file you add becomes its own version.</li><li><b>The images, styles, scripts and fonts it uses.</b> Drop or choose the whole folder, so links like images/hero.jpg keep working.</li><li><b>Only the HTML file</b> is enough when its images and styles load from web addresses (https://…).</li></ul><small>Files up to 25 MB each. Unzip a .zip first.</small>`}<span class="pj-dz-acts"><button type="button" class="btn dark" data-pick="files">Choose files</button><button type="button" class="btn" data-pick="folder">Choose a folder</button>${vs.length?'':`<button type="button" class="btn claude" data-pick="claude">${PI.spark}Upload with Claude</button>`}</span></div>`}
       ${design?`<div class="pj-over">${PI.up}<b>Drop to add design ${cv?'version '+(cv.n+1):'version 1'} to ${esc(p.name)}</b></div>`:''}</div>`;
-  fitThumbs();fillThumbs(vs);
+  fitThumbs();fillThumbs(vs);if(tab==='copy') cpAfter(p);
   {const n=$('#stNew');if(n) n.focus()}
 }
 
@@ -276,11 +289,11 @@ function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.r
 async function pvBuild(p,v,cmp){
   pvTeardown();const key=pvKey(v);PV.built=key;
   const vers=versOf(p),cm=PV.mode==='compare';
-  $('#vProj').innerHTML=`<div class="pv"><div class="pv-bar"><div class="pv-bl"><div class="pv-left"><button type="button" class="chev" id="pvBack" aria-label="Back to ${esc(p.name)}">${PI.back}</button>
+  $('#vProj').innerHTML=`${SHARE?'':`<div class="pj-chrome" id="pjChrome">${pageChrome(p)}</div><div class="pj-body pv-host pj-drop" id="pjDrop">`}<div class="pv"><div class="pv-bar"><div class="pv-bl"><div class="pv-left"><button type="button" class="chev" id="pvBack" aria-label="All design versions" title="All design versions">${PI.back}</button>
       <div class="vpick-wrap"><button type="button" class="vpick" id="pvVerBtn" aria-haspopup="menu" aria-expanded="false" title="Switch version"><span class="pv-ttl" id="pvTtl"></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd vmenu" id="pvVerMenu" role="menu" hidden></div></div></div>
       <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div><span></span></div>
       <div class="pv-br"><div class="seg sm" id="pvMode" aria-label="Mode"><button type="button" data-mode="comment">${PI.bubble}<span>Comment</span></button><button type="button" data-mode="browse">${PI.cursor}<span>Browse</span></button><button type="button" data-mode="compare" ${vers.length>1?'':'disabled title="Upload a second version to compare"'}>${PI.cmp}<span>Compare</span></button></div></div></div>
-    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div>${cm?'<div class="pv-align" id="pvAlign" hidden></div>':''}<div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>`;
+    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div>${cm?'<div class="pv-align" id="pvAlign" hidden></div>':''}<div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>${SHARE?'':`<div class="pj-over">${PI.up}<b>Drop to add design version ${curVer(p).n+1}</b></div></div>`}`;
   pvLayout();pvUpdate();
   const [hb,ha]=await Promise.all([pageHtml(v),cmp?pageHtml(cmp):null]);
   if(PV.built!==key||!$('#pvIf')) return;
@@ -420,7 +433,7 @@ function pvPos(c,side='B'){
 }
 function pvVisible(v){return v.cm.filter(c=>inLayer(c)&&(PV.filter==='all'||(PV.filter==='resolved')===(c.status==='resolved')))}
 function layerSeg(p,v){if(SHARE||!hasClient(p)) return '';const t=openIn(v,'team').length,c=openIn(v,'client').length;
-  return `<div class="seg sm pv-layer" id="pvLayer" aria-label="Which comments"><button type="button" data-layer="team" class="${PV.layer==='team'?'on':''}">Team<i>${t||''}</i></button><button type="button" data-layer="client" class="${PV.layer==='client'?'on':''}">Client link<i>${c||''}</i></button></div>${PV.layer==='client'?'<p class="pv-layer-note">What your client sees on the link. Anything you post or reply here, they see too.</p>':''}`}
+  return `<div class="seg sm pv-layer" id="pvLayer" aria-label="Which comments"><button type="button" data-layer="team" class="${PV.layer==='team'?'on':''}">Team<i>${t||''}</i></button><button type="button" data-layer="client" class="${PV.layer==='client'?'on':''}">Review link<i>${c||''}</i></button></div>${PV.layer==='client'?'<p class="pv-layer-note">What people see on the review link. Anything you post or reply here, they see too.</p>':''}`}
 function pinHtml(c,x,y,cls,attr){return `<button type="button" class="pin${cls}" ${attr} style="left:${x}px;top:${y}px" title="${esc(c.text)}">${c.status==='resolved'?I.check:c.n}</button>`}
 function pvPins(){
   const box=$('#pvPins');if(!box) return;
@@ -479,7 +492,7 @@ function pvMenu(){
   const T=team(),cur=curVer(p);
   const cm=PV.mode==='compare';
   m.innerHTML=`<div class="dd-list">${[...versOf(p)].reverse().map(x=>{const o=openIn(x).length,on=!cm&&x===v;return `<button type="button" class="opt${on?' on':''}" role="menuitemradio" aria-checked="${on}" data-vpick="${x.id}"><span class="vn">${esc(vLabel(x))}</span><span class="n">${esc(x.name)}${x===cur?' <i>current</i>':''}<small>${esc(agoLabel(x.at||Date.now()))}${SHARE?'':` by ${esc(whoName(T,x.by))}`} · ${o?`${o} open`:'nothing open'}</small></span>${on?`<span class="tick">${I.check}</span>`:''}</button>`}).join('')}</div>
-    ${SHARE||cm?'':`<div class="vmenu-acts"><button type="button" class="opt" data-vact="up">${PI.up}<span class="n">Upload v${cur.n+1}</span></button><button type="button" class="opt" data-vact="share">${PI.share}<span class="n">${verShared(v)?`${esc(vLabel(v))} is shared · link`:`Share ${esc(vLabel(v))} with a client`}</span></button><button type="button" class="opt" data-vact="dl">${PI.dl}<span class="n">Download ${esc(vLabel(v))}</span></button><button type="button" class="opt danger" data-vact="del">${I.trash}<span class="n">Delete ${esc(vLabel(v))}</span></button></div>`}`;
+    ${SHARE||cm?'':`<div class="vmenu-acts"><button type="button" class="opt" data-vact="up">${PI.up}<span class="n">Upload v${cur.n+1}</span></button><button type="button" class="opt" data-vact="share">${PI.share}<span class="n">${verShared(v)?`${esc(vLabel(v))} is shared · review link`:`Share ${esc(vLabel(v))} for review`}</span></button><button type="button" class="opt" data-vact="final">${I.check}<span class="n">${p.finalDesign===v.id?'Not final any more':`Mark ${esc(vLabel(v))} as final`}</span></button><button type="button" class="opt" data-vact="dl">${PI.dl}<span class="n">Download ${esc(vLabel(v))}</span></button><button type="button" class="opt danger" data-vact="del">${I.trash}<span class="n">Delete ${esc(vLabel(v))}</span></button></div>`}`;
 }
 const chevSvg='<svg class="vc" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 function slotChoices(p,k){const other=k==='L'?PV.cr:PV.cl;return [...versOf(p)].reverse().filter(x=>x.id!==other)}
@@ -500,7 +513,7 @@ function pvUpdate(){
   const p=projById(PV.proj),v=p&&verById(p,PV.ver);if(!v||!$('#pvTtl')) return;
   const cm=PV.mode==='compare',cmp=cmpOf(p),open=openIn(v).length,res=allIn(v).length-open;
   if(PV.vmenu) pvMenu();
-  $('#pvTtl').innerHTML=cm?`<b>Comparing ${[PV.cl,PV.cr].map(id=>id?vLabel(verById(p,id)):'…').join(' and ')}</b><small>${esc(p.name)} · side by side</small>`:`<b>${esc(vLabel(v))} · ${esc(v.name)}</b><small>${esc(p.name)} · ${v===curVer(p)?'current':'older version'} · ${open?`${open} open`:'nothing open'}${res?` · ${res} resolved`:''}</small>`;
+  $('#pvTtl').innerHTML=cm?`<b>Comparing ${[PV.cl,PV.cr].map(id=>id?vLabel(verById(p,id)):'…').join(' and ')}</b><small>${esc(p.name)} · side by side</small>`:`<b>${esc(vLabel(v))} · ${esc(v.name)}${!SHARE&&p.finalDesign===v.id?' <i class="cp-final">Final</i>':''}</b><small>${esc(p.name)} · ${v===curVer(p)?'current':'older version'} · ${open?`${open} open`:'nothing open'}${res?` · ${res} resolved`:''}</small>`;
   $$('#pvDev button').forEach(b=>b.classList.toggle('on',b.dataset.dev===PV.dev));
   $$('#pvMode button').forEach(b=>b.classList.toggle('on',b.dataset.mode===PV.mode));
   const B=frameOf('B');if(B.doc&&B.doc.documentElement){B.doc.documentElement.dataset.noonMode=cm?'compare':PV.mode;if(PV.mode!=='comment') pvUnhov()}
@@ -515,7 +528,7 @@ function pvUpdate(){
 }
 const whoOf=(T,id,g)=>(id&&findM(id,T))||(g?{id:'g:'+g,name:g}:me());
 const ownIt=(x,my)=>SHARE?x.byId===my:(!x.byId||x.byId===my);
-const clientTag=x=>SHARE?(x.byId&&x.byId!=='guest-me'?'<span class="pc-client team" title="From the team">Team</span>':''):x.guest?'<span class="pc-client" title="Left on the client link">Client</span>':'';
+const clientTag=x=>SHARE?(x.byId&&x.byId!=='guest-me'?'<span class="pc-client team" title="From the team">Team</span>':''):x.guest?'<span class="pc-client" title="Left on the review link">Guest</span>':'';
 const nameOf=(T,id,by)=>id===me().id?'You':id?first(whoOf(T,id).name):(by||'Someone');
 function pvSideRender(p,v){
   const side=$('#pvSide');if(!side) return;const T=team(),my=me().id,open=openIn(v).length,res=allIn(v).length-open,pv=prevVer(p,v);
@@ -531,7 +544,7 @@ function pvSideRender(p,v){
   const myTasks=SHARE||!FEAT.tasks?'':projTasks(T,p).filter(t=>!t.done&&t.to.includes(my)&&!tkLocked(t,T)&&tkVer(t)===v).map(t=>`<div class="pv-task" role="button" tabindex="0" data-pv-open="${t.id}"><button type="button" class="tk-ck" data-pv-done="${t.id}" aria-label="Mark done"></button><span><b>${esc(t.title)}</b><small>Your task on ${vLabel(v)}${t.day?` · ${esc(taskDue(t).label)}`:''}</small></span></div>`).join('');
   const banner=pv&&!SHARE?`<button type="button" class="pv-banner" data-mode-cmp="1">${PI.cmp}<span><b>${openIn(pv).length?`${plural(openIn(pv).length,'open comment')} on ${vLabel(pv)}`:`Compare with ${vLabel(pv)}`}</b><small>${openIn(pv).length?`See how ${vLabel(v)} answers each one, side by side.`:'The two versions side by side, comment by comment.'}</small></span>${PI.arrow}</button>`:'';
   side.innerHTML=`<div class="pv-sh"><h3>Comments on ${vLabel(v)}</h3>${layerSeg(p,v)}<div class="seg sm" id="pvFilter"><button type="button" data-pfilter="open" class="${PV.filter==='open'?'on':''}">Open<i>${open||''}</i></button><button type="button" data-pfilter="resolved" class="${PV.filter==='resolved'?'on':''}">Resolved<i>${res||''}</i></button><button type="button" data-pfilter="all" class="${PV.filter==='all'?'on':''}">All</button></div></div>
-    <div class="pv-list">${myTasks}${banner}${list.length?list.map(card).join(''):`<p class="pv-empty">${allIn(v).length?PV.filter==='open'?'Everything here is resolved.':'Nothing resolved yet.':PV.layer==='client'&&!SHARE?`Nothing on the client link for ${vLabel(v)} yet. What your client leaves there shows up here.`:`No comments on ${vLabel(v)} yet. Click anywhere on the page to leave the first one. Each comment pins to the exact element you clicked, so it stays put at every width.`}</p>`}</div>`;
+    <div class="pv-list">${myTasks}${banner}${list.length?list.map(card).join(''):`<p class="pv-empty">${allIn(v).length?PV.filter==='open'?'Everything here is resolved.':'Nothing resolved yet.':PV.layer==='client'&&!SHARE?`Nothing on the review link for ${vLabel(v)} yet. What people leave there shows up here.`:`No comments on ${vLabel(v)} yet. Click anywhere on the page to leave the first one. Each comment pins to the exact element you clicked, so it stays put at every width.`}</p>`}</div>`;
   side.querySelector('.pv-list').scrollTop=top;
   if(PV.reply&&PV.sel){const ta=$('#pvReply');if(ta){ta.focus();if(PV.replyText) ta.value=PV.replyText}}
 }
@@ -551,6 +564,7 @@ function pvCmpSide(p,v,cmp){
 }
 function openVer(id){const p=projById(PV.proj),v=p&&verById(p,id);if(!v) return;if(PV.mode==='compare') endCompare();PV.ver=id;PV.vmenu=false;PV.sel=null;PV.draft=null;PV.reply=null;PV.filter='open';renderProjects()}
 function pvEscape(){
+  if(PV.proj&&!SHARE&&PV.tab==='copy'){if(cpEscape()) return true;const p=projById(PV.proj);PV.folder=p&&fdById(p.folder)?p.folder:null;PV.proj=null;PV.ver=null;renderProjects();return true}
   if(PV.draft){PV.draft=null;pvUpdate();return true}
   if(PV.reply){PV.reply=null;pvUpdate();return true}
   if(PV.sel){PV.sel=null;for(const s of ['A','B']){const {doc}=frameOf(s);if(doc) for(const x of doc.querySelectorAll('[data-noon-focus]')) delete x.dataset.noonFocus}pvUpdate();return true}
@@ -612,7 +626,7 @@ $('#vProj').addEventListener('click',async e=>{
   if(b=c('[data-pv-open]')){openTask(b.dataset.pvOpen);return}
   if(c('#pvVerBtn')){PV.vmenu=!PV.vmenu;pvMenu();return}
   if(b=c('[data-vpick]')){PV.vmenu=false;if(b.dataset.vpick!==PV.ver) openVer(b.dataset.vpick);else pvMenu();return}
-  if(b=c('[data-vact]')){const k=b.dataset.vact;PV.vmenu=false;pvMenu();if(k==='up'){$('#pjFiles').click();return}if(k==='dl'){if(v) downloadVersion(p,v);return}if(k==='share'){if(v) openShare(p,v);return}}
+  if(b=c('[data-vact]')){const k=b.dataset.vact;PV.vmenu=false;pvMenu();if(k==='up'){$('#pjFiles').click();return}if(k==='dl'){if(v) downloadVersion(p,v);return}if(k==='share'){if(v) openShare(p,v);return}if(k==='final'){if(v){p.finalDesign=p.finalDesign===v.id?null:v.id;touch(p);save();render();toast(p.finalDesign?`${vLabel(v)} is the final design`:'No final design for this page now')}return}}
   if(c('#pvBack')){if(PV.mode==='compare') endCompare();PV.ver=null;PV.vmenu=false;renderProjects();return}
   if(b=c('[data-proj-del]')){const q=projById(b.dataset.projDel);if(!q) return;const n=versOf(q).length,nt=projTasks(T,q).length;
     if(!await confirmDlg(`Delete ${q.name}?`,`${n?`Its ${plural(n,'design version')} and every comment on them go too.`:'It has no design versions yet.'}${nt?` Its ${plural(nt,'task')} go too.`:''} This cannot be undone.`,'Delete page')) return;
@@ -622,13 +636,14 @@ $('#vProj').addEventListener('click',async e=>{
   if((b=c('[data-ver-del]'))||c('[data-vact="del"]')){const id=b?b.dataset.verDel:null,q=id?verById(p,id):v;if(!q||!p) return;
     if(!await confirmDlg(`Delete ${vLabel(q)}?`,`${q.cm.length?`Its ${plural(q.cm.length,'comment')} go too. `:''}${q===curVer(p)&&prevVer(p,q)?`${vLabel(prevVer(p,q))} becomes the current version. `:''}This cannot be undone.`,'Delete version')) return;
     for(const t of tasksOf(T)) if(t.ver===q.id) t.ver=null;
-    const orphan=orphanFiles(p,q);dropUrls(q);p.versions=versOf(p).filter(x=>x!==q);if(PV.ver===q.id){PV.ver=null;PV.built=null}if(PV.cmp===q.id) PV.cmp=null;if(PV.cl===q.id) PV.cl=null;if(PV.cr===q.id) PV.cr=null;PV.built=null;touch(p);save();render();fdbDel(orphan.ids);removeFiles(orphan.paths);toast(`${vLabel(q)} deleted`);return}
+    const orphan=orphanFiles(p,q);dropUrls(q);p.versions=versOf(p).filter(x=>x!==q);if(p.finalDesign===q.id) p.finalDesign=null;if(PV.ver===q.id){PV.ver=null;PV.built=null}if(PV.cmp===q.id) PV.cmp=null;if(PV.cl===q.id) PV.cl=null;if(PV.cr===q.id) PV.cr=null;PV.built=null;touch(p);save();render();fdbDel(orphan.ids);removeFiles(orphan.paths);toast(`${vLabel(q)} deleted`);return}
   if(b=c('[data-ver-dl]')){const q=verById(p,b.dataset.verDl);if(q) downloadVersion(p,q);return}
+  if(b=c('[data-ver-final]')){const q=verById(p,b.dataset.verFinal);if(!q) return;p.finalDesign=p.finalDesign===q.id?null:q.id;touch(p);save();render();toast(p.finalDesign?`${vLabel(q)} is the final design`:'No final design for this page now');return}
   if(b=c('[data-proj-open]')){if(c('.tk-x')||c('.fd-acts')) return;PV.proj=b.dataset.projOpen;PV.ver=null;PV.pick=false;renderProjects();return}
   if(b=c('[data-ver-cmp]')){openCompare(b.dataset.verCmp,null);return}
   if(b=c('[data-ver-share]')){const q=verById(p,b.dataset.verShare);if(q) openShare(p,q);return}
   if(b=c('[data-ver-open]')){if(c('.tk-x')||c('.ver-acts .btn:not([data-ver-open])')) return;openVer(b.dataset.verOpen);return}
-  if(c('#pjAddBtn')){PV.pick=!PV.pick;renderProject(p);return}
+  if(c('#pjAddBtn')){PV.pick=!PV.pick;renderProjects();return}
   if(b=c('[data-pjav]')){if(!p.to.includes(b.dataset.pjav)) p.to.push(b.dataset.pjav);PV.pick=false;touch(p);save();render();return}
   if(b=c('[data-pjrm]')){p.to=p.to.filter(id=>id!==b.dataset.pjrm);touch(p);save();render();return}
   if(b=c('#pvDev [data-dev]')){PV.dev=b.dataset.dev;PV.draft=null;pvUpdate();pvLayout();return}
@@ -679,11 +694,11 @@ document.addEventListener('pointerdown',e=>{if(PV.pick&&!(e.target.closest&&e.ta
   const dk=$('#tkDetail');if(!dk.hidden&&dk.classList.contains('docked')&&e.target.closest&&e.target.closest('#vProj')){UI.tkEdit=null;renderTaskDetail();$$('.st-row.sel').forEach(x=>x.classList.remove('sel'))}});
 // drag and drop onto the project or the list
 {let depth=0;const el=$('#vProj'),hasFiles=e=>e.dataTransfer&&[...e.dataTransfer.types].includes('Files');
-  const onSteps=()=>!!(PV.proj&&!PV.ver&&!PV.flows&&PV.tab!=='design');
+  const onCopy=()=>!!(PV.proj&&!PV.flows&&PV.tab==='copy'),onSteps=()=>!!(PV.proj&&!PV.flows&&(((PV.tab==='flow'||PV.tab==='history')&&!PV.ver)||(onCopy()&&CP.edit)));
   el.addEventListener('dragenter',e=>{if(!hasFiles(e)||onSteps()) return;e.preventDefault();depth++;const d=$('#pjDrop');if(d) d.classList.add('over')});
   el.addEventListener('dragover',e=>{if(!hasFiles(e)) return;e.preventDefault();e.dataTransfer.dropEffect=onSteps()&&!e.target.closest('.st-row[data-st-task]')?'none':'copy'});
   el.addEventListener('dragleave',e=>{if(!e.dataTransfer) return;depth=Math.max(0,depth-1);if(!depth){const d=$('#pjDrop');if(d) d.classList.remove('over')}});
-  el.addEventListener('drop',e=>{if(!hasFiles(e)) return;e.preventDefault();depth=0;const d=$('#pjDrop');if(d) d.classList.remove('over');if(!onSteps()) dropFiles(e.dataTransfer)});
+  el.addEventListener('drop',e=>{if(!hasFiles(e)) return;e.preventDefault();depth=0;const d=$('#pjDrop');if(d) d.classList.remove('over');if(onSteps()) return;if(onCopy()) cpDrop(e.dataTransfer);else dropFiles(e.dataTransfer)});
 }
 document.addEventListener('pointerdown',e=>{if(PV.vmenu&&!(e.target.closest&&e.target.closest('.vpick-wrap'))){PV.vmenu=false;pvMenu()}if(PV.smenu&&!(e.target.closest&&e.target.closest('.cslot'))){PV.smenu=null;const p=projById(PV.proj);if(p) pvCaps(p)}});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.view!=='projects'||document.querySelector('dialog[open]')) return;

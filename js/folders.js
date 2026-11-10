@@ -25,7 +25,7 @@ function pagesUnder(T,id){const ids=new Set(fdTree(T,id));return projectsOf(T).f
 function fdStats(T,id){
   const pg=pagesUnder(T,id),f=fdById(id,T);let last=f;
   for(const p of pg) if((p.at||0)>((last&&last.at)||0)) last=p;
-  return {pages:pg.length,open:pg.reduce((n,p)=>n+projOpen(p),0),last};
+  return {pages:pg.length,open:pg.reduce((n,p)=>n+pageOpen(p),0),last};
 }
 const fdTouch=f=>{f.at=Date.now();f.who=me().id};
 // a page or folder whose folder is gone shows at the top again rather than nowhere
@@ -64,27 +64,29 @@ function fdRowHtml(T,f){
   return `<div class="pj-row fd" role="button" tabindex="0" data-fd-open="${f.id}">
     <div class="pj-main"><span class="fd-ic${top?' cl':''}">${top?esc(initials(f.name)||'?'):PI.folder}</span><div class="pj-name"><b>${esc(f.name)}</b><small>${chips?`<span class="cats">${chips}</span>`:kids?esc(plural(kids,'folder')):top?'<span class="pj-none">No categories yet</span>':''}</small></div></div>
     <div class="pj-cell" data-l="Pages">${s.pages?`<b>${s.pages}</b><small>${s.pages===1?'page':'pages'}</small>`:'<span class="pj-none">No pages yet</span>'}</div>
+    <div class="pj-cell" data-l="Folders">${kids?`<b>${kids}</b><small>${kids===1?'folder':'folders'}</small>`:'<span class="pj-none">None</span>'}</div>
     <div class="pj-cell" data-l="Open">${s.open?`<b>${s.open}</b><small>open ${s.open===1?'comment':'comments'}</small>`:'<span class="pj-none">Nothing open</span>'}</div>
     <div class="pj-cell" data-l="Changed">${s.last&&s.last.at?`<b>${esc(agoLabel(s.last.at))}</b><small>by ${esc(changedBy(T,s.last))}</small>`:'<span class="pj-none">Not yet</span>'}</div>
     <span class="fd-go" aria-hidden="true">${FDI.go}</span></div>`;
 }
 function pgRowHtml(T,p){
-  const cv=curVer(p),o=projOpen(p),chips=catChipsHtml(p.cats,T);
+  const cv=curVer(p),cc=cpCur(p),o=pageOpen(p),chips=catChipsHtml(p.cats,T),fc=p.finalCopy&&cpById(p,p.finalCopy),fd=p.finalDesign&&verById(p,p.finalDesign);
   return `<div class="pj-row fd" role="button" tabindex="0" data-proj-open="${p.id}">
     <div class="pj-main">${cv?thumbHtml(cv,'mini'):'<div class="thumb mini empty"></div>'}<div class="pj-name"><b>${esc(p.name)}${shareOn(p)?'<span class="pj-shared">Shared</span>':''}</b><small>${chips?`<span class="cats">${chips}</span>`:'<span class="pj-none">No page type yet</span>'}</small></div></div>
-    <div class="pj-cell" data-l="Design">${cv?`<b>${vLabel(cv)}</b><small>${plural(versOf(p).length,'version')}</small>`:'<span class="pj-none">No design yet</span>'}</div>
+    <div class="pj-cell" data-l="Copy">${cc?`<b>v${cc.n}</b><small>${fc?`v${fc.n} is final`:plural(copyOf(p).length,'version')}</small>`:'<span class="pj-none">No copy yet</span>'}</div>
+    <div class="pj-cell" data-l="Design">${cv?`<b>${vLabel(cv)}</b><small>${fd?`${vLabel(fd)} is final`:plural(versOf(p).length,'version')}</small>`:'<span class="pj-none">No design yet</span>'}</div>
     <div class="pj-cell" data-l="Open">${o?`<b>${o}</b><small>open ${o===1?'comment':'comments'}</small>`:'<span class="pj-none">Nothing open</span>'}</div>
     <div class="pj-cell" data-l="Changed"><b>${esc(agoLabel(p.at||Date.now()))}</b><small>by ${esc(changedBy(T,p))}</small></div>
     <span class="fd-acts"><button type="button" class="fd-act" data-fd-move-pg="${p.id}" title="Move to another client or folder" aria-label="Move ${esc(p.name)}">${FDI.move}</button><button type="button" class="fd-act" data-proj-del="${p.id}" title="Delete page" aria-label="Delete ${esc(p.name)}">${I.trash}</button></span></div>`;
 }
-const fdHead=(a,b)=>`<div class="pj-row fd head"><span>${a}</span><span>${b}</span><span>Open comments</span><span>Last change</span><span></span></div>`;
+const fdHead=(a,b,c)=>`<div class="pj-row fd head"><span>${a}</span><span>${b}</span><span>${c}</span><span>Open comments</span><span>Last change</span><span></span></div>`;
 function renderHome(){
   const T=team(),C=kidsOf(T,null),loose=pagesIn(T,null).sort(byAt),all=projectsOf(T).length;FD.menu=false;
   $('#vProj').innerHTML=`<header class="top"><div class="ttl-wrap"><h1>Projects</h1><span class="sub">${C.length||all?`${plural(C.length,'client')} · ${plural(all,'page')}`:'Every client, with the copy and the design of each page'}</span></div>
       <div class="topnav">${FEAT.tasks?`<button type="button" class="lbtn quiet" id="pjFlows" title="The steps you repeat on every project">${FI.flow}<span>Templates</span></button>`:''}<button type="button" class="lbtn dark" id="fdNewClient">${I.plus}<span>New client</span></button></div></header>
     <div class="pj-body pj-drop" id="pjDrop">
-      ${C.length?`<div class="pj-rows">${fdHead('Client','Pages')}${C.map(f=>fdRowHtml(T,f)).join('')}</div>`:''}
-      ${loose.length?`<div class="fd-sec"><h3>Not in a client yet</h3><small>Move each page into its client with the folder button on its row.</small></div><div class="pj-rows">${fdHead('Page','Design')}${loose.map(p=>pgRowHtml(T,p)).join('')}</div>`:''}
+      ${C.length?`<div class="pj-rows">${fdHead('Client','Pages','Folders')}${C.map(f=>fdRowHtml(T,f)).join('')}</div>`:''}
+      ${loose.length?`<div class="fd-sec"><h3>Not in a client yet</h3><small>Move each page into its client with the folder button on its row.</small></div><div class="pj-rows">${fdHead('Page','Copy','Design')}${loose.map(p=>pgRowHtml(T,p)).join('')}</div>`:''}
       ${!C.length&&!loose.length?`<div class="pj-dz big calm"><span class="ic">${PI.folder}</span><b>Add your first client</b><small>Each client holds its pages. A page keeps its copy and its design together, every version of both, with the comments on each.</small><span class="pj-dz-acts"><button type="button" class="btn dark" id="fdNewClient2">${I.plus}New client</button></span></div>`:''}
       <div class="pj-over">${PI.up}<b>Drop to start a page from these files</b></div></div>`;
   fitThumbs();fillThumbs(loose.map(curVer).filter(Boolean));
@@ -103,14 +105,12 @@ function renderFolder(f){
       <div class="topnav"><button type="button" class="lbtn quiet" id="fdNewFolder">${FDI.addFolder}<span>New folder</span></button><button type="button" class="lbtn dark" id="fdNewPage">${I.plus}<span>New page</span></button><div class="fd-more"><button type="button" class="lbtn quiet icon" id="fdMore" aria-label="More for ${esc(f.name)}" aria-haspopup="menu" aria-expanded="${FD.menu}">${I.more}</button>${FD.menu?fdMenuHtml(T,f):''}</div></div></header>
     ${top&&catGroups('client',T).length?`<div class="pj-meta">${catMetaHtml('client',f,T)}</div>`:''}
     <div class="pj-body pj-drop" id="pjDrop">
-      ${kids.length?`<div class="pj-rows">${fdHead('Folder','Pages')}${kids.map(k=>fdRowHtml(T,k)).join('')}</div>`:''}
-      ${pages.length?`<div class="pj-rows">${fdHead('Page','Design')}${pages.map(p=>pgRowHtml(T,p)).join('')}</div>`:''}
+      ${kids.length?`<div class="pj-rows">${fdHead('Folder','Pages','Folders')}${kids.map(k=>fdRowHtml(T,k)).join('')}</div>`:''}
+      ${pages.length?`<div class="pj-rows">${fdHead('Page','Copy','Design')}${pages.map(p=>pgRowHtml(T,p)).join('')}</div>`:''}
       ${!kids.length&&!pages.length?`<div class="pj-dz big calm"><span class="ic">${PI.page}</span><b>No pages in ${esc(f.name)} yet</b><small>Add a page, then its copy and its design go inside it. You can also drop a page's HTML file here: it becomes a new page with that file as design version 1.</small><span class="pj-dz-acts"><button type="button" class="btn dark" id="fdNewPage2">${I.plus}New page</button><button type="button" class="btn" id="fdNewFolder2">${FDI.addFolder}New folder</button></span></div>`:''}
       <div class="pj-over">${PI.up}<b>Drop to start a page in ${esc(f.name)} from these files</b></div></div>`;
   fitThumbs();fillThumbs(pages.map(curVer).filter(Boolean));
 }
-// a page's Copy tab, until copy versions arrive
-function copyTabHtml(p){return `<div class="pj-dz big calm"><span class="ic">${FDI.doc}</span><b>The copy for ${esc(p.name)} goes here</b><small>Write it right here, or upload a Markdown or Word file. Every upload becomes a version the team can comment on and compare, the same way as the design. This part is being built next.</small></div>`}
 
 /* ---------- the dialog: new client, folder or page, names and categories, putting things in a folder, moving ---------- */
 function moveTargets(T,skip){const out=[],walk=(pid,d)=>{for(const f of kidsOf(T,pid)){if(skip.has(f.id)) continue;out.push({f,d});walk(f.id,d+1)}};walk(null,0);return out}
@@ -224,7 +224,7 @@ $('#vProj').addEventListener('click',e=>{
   if(b=c('[data-fd-open]')){openFolder(b.dataset.fdOpen);return}
   if(b=c('[data-fd-move-pg]')){const q=projById(b.dataset.fdMovePg);if(q) fdDlg({mode:'move',page:q.id,name:q.name});return}
   if(c('#pjMove')&&p){fdDlg({mode:'move',page:p.id,name:p.name});return}
-  if(c('[data-edit-cats]')){if(p&&!PV.ver) fdDlg({mode:'editPage',page:p.id,name:p.name,cats:[...(p.cats||[])]});else if(f) fdDlg({mode:'editClient',id:f.id,name:f.name,cats:[...(f.cats||[])]});return}
+  if(c('[data-edit-cats]')){if(p) fdDlg({mode:'editPage',page:p.id,name:p.name,cats:[...(p.cats||[])]});else if(f) fdDlg({mode:'editClient',id:f.id,name:f.name,cats:[...(f.cats||[])]});return}
   if(c('#fdMore')){FD.menu=!FD.menu;renderProjects();return}
   if(b=c('[data-fd-do]')){if(b.disabled||!f) return;const k=b.dataset.fdDo;FD.menu=false;
     if(k==='edit'){fdDlg({mode:f.parent?'editFolder':'editClient',id:f.id,name:f.name,cats:[...(f.cats||[])]});return}
