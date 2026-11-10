@@ -38,10 +38,10 @@ function copyFlow(f){const m={},id=x=>m[x]||(m[x]=uid()),o=JSON.parse(JSON.strin
 const stepOn=(s,ans)=>!s.when||!s.when.q||!ans[s.when.q]||ans[s.when.q]===s.when.is;
 const stepCount=(s,ans)=>s.each?clamp(parseInt(ans[s.each],10)||1,1,30):1;
 const stepPerson=s=>!s.who?'':s.who.t==='creator'?me().id:(team().members.some(z=>z.id===s.who.id)?s.who.id:'');
-// tasks in a project wait on the step above them; steps marked "same time" and the copies of a repeated step run together
+// tasks in a project wait on the step above them; steps marked "same time" and the copies of a repeated step run together; a task added on the side (free) neither waits nor holds anything up
 function flowChain(T,p){
   let prev=[],cur=[];
-  for(const t of p.flow.phases.flatMap(ph=>phaseTasks(T,p,ph))){t.fl=t.fl||{};if(!t.fl.with||!cur.length){prev=cur;cur=[]}t.fl.after=prev.map(x=>x.id);cur.push(t)}
+  for(const t of p.flow.phases.flatMap(ph=>phaseTasks(T,p,ph))){t.fl=t.fl||{};if(t.fl.free){t.fl.after=[];continue}if(!t.fl.with||!cur.length){prev=cur;cur=[]}t.fl.after=prev.map(x=>x.id);cur.push(t)}
 }
 function logEvent(p,type,data={},task=null){(p.log=p.log||[]).push({id:uid(),at:Date.now(),by:me().id,type,data,...(task?{task}:{})})}
 function flowStart(T,p,f,ans,picks){
@@ -60,7 +60,7 @@ function flowEnsure(p){if(!p.flow) p.flow={id:null,name:'Steps',qs:[],ans:{},pha
 const phaseTasks=(T,p,ph)=>{const first=p.flow.phases[0];return projTasks(T,p).filter(t=>{const v=t.fl&&p.flow.phases.some(x=>x.id===t.fl.ph)?t.fl.ph:first.id;return v===ph.id}).sort((a,b)=>((a.fl&&a.fl.seq)||0)-((b.fl&&b.fl.seq)||0))};
 const pjPhaseNow=(T,p)=>p.flow?p.flow.phases.find(ph=>phaseTasks(T,p,ph).some(t=>!t.done))||null:null;
 function flowAddTask(T,p,ph,title,to,extra={},alongside=false){
-  const list=phaseTasks(T,p,ph),t=addTask(title,to,null,null,extra.note||'',{pj:p.id,...(extra.ver?{ver:extra.ver}:{}),fl:{ph:ph.id,seq:list.length?Math.max(...list.map(x=>(x.fl&&x.fl.seq)||0))+1:0,...(alongside?{with:true}:{})}});
+  const list=phaseTasks(T,p,ph),t=addTask(title,to,null,null,extra.note||'',{pj:p.id,...(extra.ver?{ver:extra.ver}:{}),fl:{ph:ph.id,seq:list.length?Math.max(...list.map(x=>(x.fl&&x.fl.seq)||0))+1:0,...(alongside?{free:true}:{})}});
   flowChain(T,p);tkJoinProject(t);logEvent(p,'added',{title:t.title},t.id);touch(p);save();return t;
 }
 // what a project is up to, in one line for the project list
@@ -150,12 +150,11 @@ function stepsTabHtml(p){
 }
 function taskRowHtml(T,t){
   const my=me().id,st=t.done?'done':tkLocked(t,T)?'wait':'now',mine=st==='now'&&t.to.includes(my),ppl=t.to.map(id=>findM(id,T)).filter(Boolean),du=taskDue(t),vv=st==='done'?null:tkVer(t),cm=(t.cm||[]).length;
-  const waits=st==='wait'?tkWaits(t,T):[],on=[...new Set(waits.flatMap(x=>x.to))].map(id=>{const z=findM(id,T);return z?(z.isMe?'you':first(z.name)):''}).filter(Boolean);
-  const sub=st==='done'?du.label:st==='wait'?`Waiting for ${on.length?on.slice(0,2).join(' and '):'the step above'}`:[mine?'Your turn':ppl.length?'In progress':'Needs someone',t.day?du.label:''].filter(Boolean).join(' · ');
+  const sub=st==='done'?du.label:st==='wait'?tkWaitLabel(t,T):[mine?'Your turn':ppl.length?'In progress':'Needs someone',t.day?du.label:''].filter(Boolean).join(' · ');
   return `<div class="st-row is-${st}${mine?' mine':''}${st==='now'&&du.state==='overdue'?' late':''}${UI.tkEdit===t.id?' sel':''}" role="button" tabindex="0" data-st-task="${t.id}">
     <button type="button" class="st-ck" data-st-done="${t.id}" aria-label="${st==='done'?'Mark not done':st==='wait'?'Not its turn yet':'Mark done'}">${st==='done'?I.check:''}</button>
-    <div class="st-main"><div class="st-title">${esc(t.title)}${t.pri==='high'?`<span class="st-high">${I.flag}High priority</span>`:''}</div><div class="st-sub"><span class="st-state">${esc(sub)}</span>${vv?`<button type="button" class="ptk-ver" data-st-ver="${t.id}">Open ${esc(vLabel(vv))}</button>`:''}${cm?`<span class="cm-n">${PI.bubble}${cm}</span>`:''}</div></div>
-    <div class="st-acts">${mine?`<button type="button" class="btn sm dark" data-st-done="${t.id}">Mark done</button>`:''}${whoBtn(`data-st-who="${t.id}"`,t.to)}</div></div>`;
+    <div class="st-main"><div class="st-title">${esc(t.title)}${t.pri==='high'?`<span class="st-high">${I.flag}High priority</span>`:''}</div><div class="st-sub"><span class="st-state">${esc(sub)}</span>${vv?`<button type="button" class="ptk-ver" data-st-ver="${t.id}">Open ${esc(vLabel(vv))}</button>`:''}${cm?`<span class="cm-n">${PI.bubble}${cm}</span>`:''}</div>${(t.files||[]).length?`<div class="st-files">${t.files.slice(0,3).map((x,i)=>`<button type="button" class="st-file" data-st-file="${i}" data-t="${t.id}" title="Open ${esc(x.name)}">${I.file}<span>${esc(x.name)}</span></button>`).join('')}${t.files.length>3?`<button type="button" class="st-file more" data-st-task="${t.id}">+${t.files.length-3} more</button>`:''}</div>`:''}</div>
+    <div class="st-acts">${mine?`<button type="button" class="btn sm dark" data-st-done="${t.id}">Mark done</button>`:''}<button type="button" class="st-x st-clip" data-st-attach="${t.id}" aria-label="Attach a file to ${esc(t.title)}" title="Attach a file">${I.clip}</button>${whoBtn(`data-st-who="${t.id}"`,t.to)}</div></div>`;
 }
 function stepsHtml(p){
   const T=team(),fl=p.flow,cur=pjPhaseNow(T,p),qs=fl.qs||[];
@@ -174,7 +173,7 @@ function stepsRefresh(){
   const n=$('#stNew');if(n) n.focus();
 }
 function historyTabHtml(p){
-  const T=team(),txt=e=>{const d=e.data||{};return {started:`Started from the ${d.flow||''} template`,done:`Finished ${d.title||'a step'}`,reopened:`Reopened ${d.title||'a step'}`,round:`Repeated ${d.phase||'a stage'}`,added:`Added ${d.title||'a step'}`,assigned:`Put ${d.who||'someone'} on ${d.title||'a step'}`,priority:`${d.high?'Marked':'Unmarked'} ${d.title||'a step'} as high priority`}[e.type]||null};
+  const T=team(),txt=e=>{const d=e.data||{};return {started:`Started from the ${d.flow||''} template`,done:`Finished ${d.title||'a step'}`,reopened:`Reopened ${d.title||'a step'}`,round:`Repeated ${d.phase||'a stage'}`,added:`Added ${d.title||'a step'}`,assigned:`Put ${d.who||'someone'} on ${d.title||'a step'}`,priority:`${d.high?'Marked':'Unmarked'} ${d.title||'a step'} as high priority`,file:`Attached ${d.name||'a file'} to ${d.title||'a step'}`}[e.type]||null};
   const ev=[...(p.log||[]).map(e=>({at:e.at,by:e.by,text:txt(e)})).filter(e=>e.text),...versOf(p).map(v=>({at:v.at||0,by:v.by,text:`Uploaded ${vLabel(v)}, ${v.name}`}))].sort((a,b)=>b.at-a.at);
   const row=e=>{const z=e.by&&findM(e.by,T);return `<div class="fl-ev">${z?avatar(z,'xs'):'<span class="av xs">?</span>'}<span><b>${esc(z?(z.isMe?'You':first(z.name)):'Someone')}</b> ${esc(e.text)}</span><time>${esc(agoLabel(e.at))}</time></div>`};
   return `<div class="st-page"><div class="fl-hist">${ev.length?ev.map(row).join(''):'<p class="ptk-hint">Nothing here yet. Everything that happens on this project is kept here.</p>'}</div></div>`;
@@ -279,6 +278,8 @@ $('#vProj').addEventListener('click',async e=>{
     if(b=c('[data-st-done]')){const t=taskById(b.dataset.stDone);if(!t) return;if(tkLocked(t,T)){toast("It isn't this step's turn yet.");return}const undo=snapshot(),freed=tkTick(t);render();toast(tickMsg(t,freed),undo);return}
     if(b=c('[data-st-ver]')){const t=taskById(b.dataset.stVer);if(t) openTaskVersion(t);return}
     if(c('.dd-btn')) return;
+    if(b=c('[data-st-attach]')){UI.fileFor=b.dataset.stAttach;$('#fileIn').click();return}
+    if(b=c('[data-st-file]')){const t=taskById(b.dataset.t);if(t) openFile(t,+b.dataset.stFile);return}
     if(b=c('[data-st-task]')){openTask(b.dataset.stTask);return}
     return;
   }
@@ -323,6 +324,12 @@ $('#vProj').addEventListener('focusout',e=>{
   if(t.dataset&&t.dataset.stAns){const p=projById(PV.proj);if(p&&p.flow){logEvent(p,'brief',{answer:t.dataset.stAns,value:t.value});save()}return}
   if(t.id==='stNew'&&!t.value.trim()&&FB.adding) setTimeout(()=>{if(FB.adding&&!(document.activeElement&&document.activeElement.id==='stNew')){FB.adding=null;stepsRefresh()}},150);
 });
+// drop a file on a step to attach it
+{const el=$('#vProj'),has=e=>e.dataTransfer&&[...e.dataTransfer.types].includes('Files'),clear=()=>$$('.st-row.drop').forEach(x=>x.classList.remove('drop'));
+  el.addEventListener('dragover',e=>{if(!has(e)) return;clear();const r=e.target.closest&&e.target.closest('.st-row[data-st-task]');if(r) r.classList.add('drop')});
+  el.addEventListener('dragleave',e=>{if(!e.relatedTarget||!el.contains(e.relatedTarget)) clear()});
+  el.addEventListener('drop',e=>{if(!has(e)) return;clear();const r=e.target.closest&&e.target.closest('.st-row[data-st-task]'),t=r&&taskById(r.dataset.stTask);if(t) tkUpload(t,[...e.dataTransfer.files])});
+}
 // drag a step by its handle to another place in the template
 {let dragId=null,mark=null;const clear=()=>{if(mark){mark.remove();mark=null}};const el=$('#vProj');
   el.addEventListener('dragstart',e=>{const g=e.target.closest&&e.target.closest('[data-st-drag]');if(!g) return;dragId=g.dataset.stDrag;e.dataTransfer.setData('text/x-noon-step',dragId);e.dataTransfer.effectAllowed='move';const r=g.closest('.st-row');if(r) e.dataTransfer.setDragImage(r,12,16)});

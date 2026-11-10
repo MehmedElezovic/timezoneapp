@@ -39,7 +39,7 @@ function renderOnb(){
 function obNext(){if(OB.step<OB.plan.length-1){OB.step++;renderOnb()}else obFinish()}
 async function obFinish(){
   await saveProfile({prefs:{...obPrefs(),onboarded:true}});
-  setAuthState('in');UI.day=today();setView(team().members.length>1?'calendar':'team',true);render();scrollToDay();
+  setAuthState('in');UI.day=today();setView(team().members.length>1?'projects':'team',true);render();scrollToDay();
   if(CLOUD.invites.length) showInvites();else toast(`Welcome to Noon, ${first(user().name)}.`);
 }
 $('#gateOnb').addEventListener('submit',async e=>{

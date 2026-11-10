@@ -91,7 +91,7 @@ const connOf=m=>m.isMe?Object.keys(CONN).filter(k=>(S.integ||{})[k]):(m.conn||[]
 const KIND_LABEL={me:'You',joined:'Joined with their own account',invited:'Invited, not joined yet',manual:'Added by you'};
 
 /* UI state that the logic needs: the day in view (home-zone 'YYYY-MM-DD') and the default meeting length */
-const UI={day:null,dur:30,view:'calendar',cal:'week',sel:null,draft:null,tkf:(()=>{try{return localStorage.getItem('noon.tkf')||'mine'}catch(e){return 'mine'}})(),tkWho:null,tkPri:false,tkEdit:null,tkAssign:null,filter:new Set(),hover:null,teamCursor:null,inbox:false,menu:null,evThread:null};
+const UI={day:null,dur:30,view:'calendar',cal:'week',sel:null,draft:null,tkf:(()=>{try{return localStorage.getItem('noon.tkf')||'open'}catch(e){return 'open'}})(),tkScope:(()=>{try{return localStorage.getItem('noon.tkscope')||'mine'}catch(e){return 'mine'}})(),tkWho:null,tkProj:null,tkEdit:null,filter:new Set(),hover:null,teamCursor:null,inbox:false,menu:null,evThread:null};
 
 function dayRange(day=UI.day){const [y,m,d]=day.split('-').map(Number),h=home();return [zonedToUtc(h,y,m,d,0,0),zonedToUtc(h,y,m,d+1,0,0)]}
 const shiftDay=(day,n)=>{const [y,m,d]=day.split('-').map(Number);return new Date(Date.UTC(y,m-1,d+n)).toISOString().slice(0,10)};
@@ -279,6 +279,7 @@ function tkJoinProject(t){const p=tkProject(t);if(!p) return;p.to=p.to||[];for(c
 // a step stays out of everyone's lists until the step before it is done
 const tkWaits=(t,T=team())=>((t.fl&&t.fl.after)||[]).map(id=>tasksOf(T).find(x=>x.id===id)).filter(x=>x&&!x.done);
 const tkLocked=(t,T=team())=>!t.done&&tkWaits(t,T).length>0;
+const tkWaitLabel=(t,T=team())=>{const on=[...new Set(tkWaits(t,T).flatMap(x=>x.to))].map(id=>{const z=findM(id,T);return z?(z.isMe?'you':first(z.name)):''}).filter(Boolean);return `Waiting for ${on.length?on.slice(0,2).join(' and '):'the step before it'}`};
 // tick a task off, or back on; returns the tasks that just came up because of it
 function tkTick(t){
   const T=team(),was=tasksOf(T).filter(x=>tkLocked(x,T));

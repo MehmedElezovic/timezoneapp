@@ -692,10 +692,11 @@ document.addEventListener('pointerdown',e=>{if(PV.pick&&!(e.target.closest&&e.ta
   const dk=$('#tkDetail');if(!dk.hidden&&dk.classList.contains('docked')&&e.target.closest&&e.target.closest('#vProj')){UI.tkEdit=null;renderTaskDetail();$$('.st-row.sel').forEach(x=>x.classList.remove('sel'))}});
 // drag and drop onto the project or the list
 {let depth=0;const el=$('#vProj'),hasFiles=e=>e.dataTransfer&&[...e.dataTransfer.types].includes('Files');
-  el.addEventListener('dragenter',e=>{if(!hasFiles(e)) return;e.preventDefault();depth++;const d=$('#pjDrop');if(d) d.classList.add('over')});
-  el.addEventListener('dragover',e=>{if(!hasFiles(e)) return;e.preventDefault();e.dataTransfer.dropEffect='copy'});
+  const onSteps=()=>!!(PV.proj&&!PV.ver&&!PV.flows&&PV.tab!=='versions');
+  el.addEventListener('dragenter',e=>{if(!hasFiles(e)||onSteps()) return;e.preventDefault();depth++;const d=$('#pjDrop');if(d) d.classList.add('over')});
+  el.addEventListener('dragover',e=>{if(!hasFiles(e)) return;e.preventDefault();e.dataTransfer.dropEffect=onSteps()&&!e.target.closest('.st-row[data-st-task]')?'none':'copy'});
   el.addEventListener('dragleave',e=>{if(!e.dataTransfer) return;depth=Math.max(0,depth-1);if(!depth){const d=$('#pjDrop');if(d) d.classList.remove('over')}});
-  el.addEventListener('drop',e=>{if(!hasFiles(e)) return;e.preventDefault();depth=0;const d=$('#pjDrop');if(d) d.classList.remove('over');dropFiles(e.dataTransfer)});
+  el.addEventListener('drop',e=>{if(!hasFiles(e)) return;e.preventDefault();depth=0;const d=$('#pjDrop');if(d) d.classList.remove('over');if(!onSteps()) dropFiles(e.dataTransfer)});
 }
 document.addEventListener('pointerdown',e=>{if(PV.vmenu&&!(e.target.closest&&e.target.closest('.vpick-wrap'))){PV.vmenu=false;pvMenu()}if(PV.smenu&&!(e.target.closest&&e.target.closest('.cslot'))){PV.smenu=null;const p=projById(PV.proj);if(p) pvCaps(p)}});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.view!=='projects'||document.querySelector('dialog[open]')) return;

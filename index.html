@@ -80,10 +80,13 @@
 
 <div class="app" id="app">
   <aside class="side" id="side">
-    <div class="card profile" id="profileCard"></div>
-    <nav class="card nav" id="nav" aria-label="Sections"></nav>
-    <div class="card next" id="nextCard"></div>
-    <button type="button" class="card theme-sw" id="themeSwitch" role="switch" aria-checked="false"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><span>Dark mode</span><i aria-hidden="true"></i></button>
+    <div class="profile" id="profileCard"></div>
+    <nav class="nav" id="nav" aria-label="Sections"></nav>
+    <div class="rail-next">
+      <button type="button" class="rail-btn" id="nextBtn" aria-label="Up next" aria-expanded="false" data-tip="Up next"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg></button>
+      <div class="card next" id="nextCard" hidden></div>
+    </div>
+    <button type="button" class="rail-btn theme-sw" id="themeSwitch" role="switch" aria-checked="false" aria-label="Dark mode" data-tip="Dark mode"><svg class="tm-moon" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="tm-sun" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
   </aside>
 
   <section class="main" id="main">
@@ -136,30 +139,9 @@
     <div class="view" id="vTasks" hidden>
       <header class="top">
         <div class="ttl-wrap"><h1>Tasks</h1><span class="sub" id="tkSum"></span></div>
+        <div class="topnav"><button type="button" class="lbtn dark" id="tkNew"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg><span>New task</span></button></div>
       </header>
-      <form class="tk-add" id="fTask" autocomplete="off">
-        <input name="title" class="tk-in" placeholder="Add a task for anyone on the team…" maxlength="120" aria-label="Task title">
-        <div class="tk-dd-wrap">
-          <button type="button" class="chipbtn" id="tkForBtn" aria-expanded="false"><span class="avs sm" id="tkWho"></span><span id="tkForLbl">For me</span></button>
-          <div class="dd" id="tkForDd" hidden><input id="tkForQ" class="dd-q" placeholder="Search people" aria-label="Search people"><div class="dd-list" id="tkForList"></div></div>
-        </div>
-        <div class="tk-dd-wrap">
-          <button type="button" class="chipbtn" id="tkDueBtn" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span id="tkDueLbl">Due</span></button>
-          <div class="dd pad" id="tkDueDd" hidden>
-            <label class="lbl">Day <input type="date" name="day"></label>
-            <label class="lbl">Time <input type="time" name="time"></label>
-            <div class="dd-acts"><button type="button" class="btn ghost sm" id="tkDueClear">Clear</button><button type="button" class="btn dark sm" id="tkDueOk">Done</button></div>
-          </div>
-        </div>
-        <button type="button" class="chipbtn" id="tkPriBtn" aria-pressed="false" title="High priority"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 21V4.5c3.5-2 6.5 1.8 12 0v9.5c-5.5 1.8-8.5-2-12 0"/></svg><span>High</span></button>
-        <button type="submit" class="btn dark">Add</button>
-      </form>
-      <div class="tk-bar">
-        <div class="seg sm" id="tkSeg" role="tablist">
-          <button type="button" data-tkf="mine">Your tasks<i></i></button><button type="button" data-tkf="due">Due<i></i></button><button type="button" data-tkf="high">High priority<i></i></button><button type="button" data-tkf="proj">Projects<i></i></button><button type="button" data-tkf="done">Done<i></i></button>
-        </div>
-        <div class="tk-people" id="tkPeople" aria-label="Filter by team member" hidden></div>
-      </div>
+      <div class="tk-bar" id="tkBar" aria-label="Filter tasks"></div>
       <div class="tk-body">
         <div class="tk-list" id="tkList"></div>
         <div class="tk-detail" id="tkDetail" hidden></div>
@@ -289,6 +271,8 @@
 
 <!-- New project: pick a flow, answer its questions, see the plan -->
 <dialog id="dFlow" class="dlg"></dialog>
+<dialog id="dTask" class="dlg"></dialog>
+<dialog id="dFile" class="dlg fv"></dialog>
 
 <!-- Share a project with a client -->
 <dialog id="dShare" class="dlg">
@@ -332,6 +316,7 @@
 <script src="js/core.js"></script>
 <script src="js/app.js"></script>
 <script src="js/flows.js"></script>
+<script src="js/files.js"></script>
 <script src="js/projects.js"></script>
 <script src="js/sync.js"></script>
 <script src="js/welcome.js"></script>
