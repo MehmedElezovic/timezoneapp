@@ -68,7 +68,9 @@ const linkish=s=>/^(https?:\/\/|www\.)\S+$/i.test(String(s||'').trim());
 const hrefOf=s=>/^https?:/i.test(s)?s:'https://'+s;
 
 /* ---------- navigation ---------- */
+const viewOn=v=>v==='projects'||v==='team'||(v==='tasks'&&FEAT.tasks)||(v==='calendar'&&FEAT.calendar);
 function setView(v,quiet){
+  if(!viewOn(v)) v='projects';
   UI.view=v;closeMenu();
   for(const [id,k] of [['vCal','calendar'],['vTeam','team'],['vTasks','tasks'],['vProj','projects']]) $('#'+id).hidden=k!==v;
   if(v!=='calendar'&&UI.draft&&!UI.draft.id) closePop();
@@ -90,9 +92,9 @@ function renderSide(){
   $('#profileCard').innerHTML=`<button type="button" class="rail-me" data-open-settings="account" aria-label="${esc(name)}, your account" data-tip="${esc(name)} · ${esc(tzLabel(home()))} ${fmtT(now,home())}">${avatar(m,'',statusNow(m)[0])}</button><span class="sync" id="syncState"></span>
     <button type="button" class="rail-btn" id="bellBtn" aria-label="Inbox${ib.count?`, ${ib.count} waiting`:''}" data-tip="Inbox${ib.count?`, ${ib.count} waiting`:''}">${I.bell}<span class="badge">${ib.count||''}</span></button>`;
   const T=team(),open=tasksOf(T).filter(t=>!t.done&&!t.cleared&&!tkLocked(t,T)),late=open.filter(t=>taskDue(t).state==='overdue').length,inv=(m.events||[]).filter(x=>x.pend&&x.e>now).length;
-  const navItems=[['projects',I.proj,'Projects',''],['tasks',I.task,'Tasks',late?`<span class="cnt bad">${late}</span>`:open.length?`<span class="cnt quiet">${open.length}</span>`:''],['team',I.team,'Team',''],['calendar',I.cal,'Calendar',inv?`<span class="cnt">${inv}</span>`:''],['settings',I.gear,'Settings','']];
+  const navItems=[['projects',I.proj,'Projects',''],['tasks',I.task,'Tasks',late?`<span class="cnt bad">${late}</span>`:open.length?`<span class="cnt quiet">${open.length}</span>`:''],['team',I.team,'Team',''],['calendar',I.cal,'Calendar',inv?`<span class="cnt">${inv}</span>`:''],['settings',I.gear,'Settings','']].filter(([k])=>k==='settings'||viewOn(k));
   $('#nav').innerHTML=navItems.map(([k,ic,l,b])=>`<button type="button" data-nav="${k}" ${UI.view===k?'aria-current="page"':''}>${ic}<span>${l}</span>${b}</button>`).join('');
-  $('#tabbar').innerHTML=navItems.slice(0,4).map(([k,ic,l,b])=>`<button type="button" data-nav="${k}" ${UI.view===k?'aria-current="page"':''}>${ic}<span>${l}</span>${b}</button>`).join('')+`<button type="button" data-tab-inbox>${I.bell}<span>Inbox</span>${ib.count?`<span class="cnt">${ib.count}</span>`:''}</button><button type="button" data-nav="settings">${I.gear}<span>Settings</span></button>`;
+  $('#tabbar').innerHTML=navItems.filter(([k])=>k!=='settings').map(([k,ic,l,b])=>`<button type="button" data-nav="${k}" ${UI.view===k?'aria-current="page"':''}>${ic}<span>${l}</span>${b}</button>`).join('')+`<button type="button" data-tab-inbox>${I.bell}<span>Inbox</span>${ib.count?`<span class="cnt">${ib.count}</span>`:''}</button><button type="button" data-nav="settings">${I.gear}<span>Settings</span></button>`;
   renderNext();
 }
 document.addEventListener('click',e=>{
@@ -667,6 +669,7 @@ $('#ibList').addEventListener('click',e=>{
 function openSettings(page='account'){const d=$('#dSettings');renderSettings(page);if(!d.open) d.showModal()}
 function renderSettings(page){
   page=page||UI.setPage||'account';UI.setPage=page;
+  if(page==='cats'&&typeof renderCatSettings==='function') renderCatSettings();
   $$('#setNav button').forEach(b=>b.setAttribute('aria-current',b.dataset.page===page?'page':'false'));
   $$('#dSettings .set-main > section').forEach(s=>s.hidden=s.dataset.page!==page);
   const u=typeof user==='function'?user():null,m=me(),T=team();

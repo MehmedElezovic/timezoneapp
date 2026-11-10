@@ -242,7 +242,7 @@ function fwStart(){
   const T=team(),f=fwFlow();let p=FW.proj&&projById(FW.proj);
   if(!p){const name=FW.name.trim();if(!name){const n=$('#fwName');if(n) n.focus();return}p={id:uid(),name,at:Date.now(),by:me().id,who:me().id,to:[],versions:[],...(FW.due?{due:FW.due}:{})};projectsOf(T).push(p)}
   if(f) flowStart(T,p,f,FW.ans,FW.picks);
-  PV.proj=p.id;PV.ver=null;PV.flows=false;PV.flowId=null;PV.tab=f?'flow':'versions';PV.tabFor=p.id;save();$('#dFlow').close();if(UI.view!=='projects') setView('projects',true);render();
+  PV.proj=p.id;PV.ver=null;PV.flows=false;PV.flowId=null;PV.tab=f?'flow':'design';PV.tabFor=p.id;save();$('#dFlow').close();if(UI.view!=='projects') setView('projects',true);render();
   if(f){const n=[...new Set(projTasks(T,p).filter(t=>!tkLocked(t,T)).flatMap(t=>t.to))].map(id=>{const z=findM(id,T);return z?(z.isMe?'you':first(z.name)):''}).filter(Boolean);toast(`Project started.${n.length?` First up: ${n.join(', ')}.`:''}`)}else toast('Project created. Drop the first HTML file in for version 1.');
 }
 $('#dFlow').addEventListener('click',e=>{

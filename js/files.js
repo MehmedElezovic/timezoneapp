@@ -70,7 +70,7 @@ $('#dFile').addEventListener('click',async e=>{
   if(c('[data-fv-dl]')&&FV.blob){dlBlob(FV.blob,FV.file.name);return}
   if(c('[data-fv-version]')&&FV.blob){
     const t=FV.task,file=new File([FV.blob],FV.file.name,{type:'text/html'});e.currentTarget.close();
-    PV.proj=t.pj;PV.ver=null;PV.flows=false;PV.tab='versions';PV.tabFor=t.pj;UI.tkEdit=null;if(UI.view!=='projects') setView('projects',true);
+    PV.proj=t.pj;PV.ver=null;PV.flows=false;PV.tab='design';PV.tabFor=t.pj;UI.tkEdit=null;if(UI.view!=='projects') setView('projects',true);
     await handleFiles([{file,path:file.name}]);
   }
 });

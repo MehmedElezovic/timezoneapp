@@ -149,10 +149,13 @@ function buildTeams(R,uidMe){
     }
     T.tasks=(R.tasks||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,title:x.title,note:x.note||'',to:(R.tas||[]).filter(y=>y.task_id===x.id).map(y=>y.member_id),by:x.created_by||null,day:x.due_day||null,time:x.due_time||null,tz:x.due_tz||null,at:msOf(x.created_at),done:msOf(x.done_at),cleared:!!x.cleared,files:Array.isArray(x.files)?x.files:[],re:{},cm:[],...(x.project_id?{pj:x.project_id}:{}),...(x.version_id?{ver:x.version_id}:{}),...(x.flow?{fl:x.flow}:{}),...(x.priority?{pri:x.priority}:{})}));
     T.flows=(R.flows||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,by:x.created_by||null,at:msOf(x.updated_at)||msOf(x.created_at),qs:(x.body&&x.body.qs)||[],phases:(x.body&&x.body.phases)||[]}));
-    T.projects=(R.projects||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,due:x.due_day||null,to:(R.pas||[]).filter(y=>y.project_id===x.id).map(y=>y.member_id),by:x.created_by||null,who:x.changed_by||null,whoGuest:x.changed_guest||null,share:x.share_token?{on:!!x.share_on,token:x.share_token}:null,at:msOf(x.changed_at)||msOf(x.created_at),...(x.flow?{flow:x.flow}:{}),log:(R.pev||[]).filter(e=>e.project_id===x.id).sort((a,b)=>msOf(a.at)-msOf(b.at)).map(e=>({id:e.id,at:msOf(e.at),by:e.actor||null,type:e.type,data:e.data||{},...(e.task_id?{task:e.task_id}:{})})),
+    T.projects=(R.projects||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,due:x.due_day||null,folder:x.folder_id||null,cats:Array.isArray(x.cats)?x.cats:[],to:(R.pas||[]).filter(y=>y.project_id===x.id).map(y=>y.member_id),by:x.created_by||null,who:x.changed_by||null,whoGuest:x.changed_guest||null,share:x.share_token?{on:!!x.share_on,token:x.share_token}:null,at:msOf(x.changed_at)||msOf(x.created_at),...(x.flow?{flow:x.flow}:{}),log:(R.pev||[]).filter(e=>e.project_id===x.id).sort((a,b)=>msOf(a.at)-msOf(b.at)).map(e=>({id:e.id,at:msOf(e.at),by:e.actor||null,type:e.type,data:e.data||{},...(e.task_id?{task:e.task_id}:{})})),
       versions:(R.versions||[]).filter(v=>v.project_id===x.id).sort((a,b)=>a.n-b.n).map(v=>({id:v.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:Array.isArray(v.assets)?v.assets:[],by:v.created_by||null,at:msOf(v.created_at),...(v.share_token?{share:{on:!!v.share_on,token:v.share_token}}:{}),
         cm:(R.vcm||[]).filter(c=>c.version_id===v.id).sort((a,b)=>a.n-b.n).map(c=>({id:c.id,n:c.n,sel:c.sel||'',rx:c.rx??.5,ry:c.ry??.5,px:c.px||0,py:c.py||0,dev:c.dev||'desktop',text:c.body,by:c.guest_name||nameOf(c.author_id),byId:c.author_id||null,...(c.guest_name?{guest:true}:{}),...(c.layer==='client'?{layer:'client'}:{}),...(c.snippet?{snip:c.snippet}:{}),at:msOf(c.created_at),status:c.status||'open',...(c.from_version?{from:{v:c.from_version,c:c.from_comment}}:{}),
           re:(R.vre||[]).filter(r=>r.comment_id===c.id).sort((a,b)=>msOf(a.created_at)-msOf(b.created_at)).map(r=>({id:r.id,by:r.guest_name||nameOf(r.author_id),byId:r.author_id||null,...(r.guest_name?{guest:true}:{}),text:r.body,at:msOf(r.created_at)}))}))}))}));
+    // clients and folders, and the team's category lists: a group row has no parent, its choices point at it
+    if(CLOUD.fdOn){T.folders=(R.folders||[]).filter(x=>x.team_id===t.id).map(x=>({id:x.id,name:x.name,parent:x.parent_id||null,cats:Array.isArray(x.cats)?x.cats:[],by:x.created_by||null,who:x.changed_by||null,at:msOf(x.changed_at)||msOf(x.created_at)}));
+      const C=(R.cats||[]).filter(x=>x.team_id===t.id).sort((a,b)=>a.sort-b.sort);T.cats=C.filter(x=>!x.parent_id).map(g=>({id:g.id,level:g.level,name:g.name,items:C.filter(x=>x.parent_id===g.id).map(x=>({id:x.id,name:x.name}))}))}
     const cmsBy={};for(const c of R.comments)(cmsBy[c.thread_id]=cmsBy[c.thread_id]||[]).push(c);
     const reTh={},reCm={};for(const r of R.reactions){const o=r.thread_id?(reTh[r.thread_id]=reTh[r.thread_id]||{}):(reCm[r.comment_id]=reCm[r.comment_id]||{});(o[r.emoji]=o[r.emoji]||[]).push(r.member_id)}
     const cmList=th=>(cmsBy[th.id]||[]).sort((a,b)=>msOf(a.created_at)-msOf(b.created_at)).map(c=>({id:c.id,by:nameOf(c.author_id),byId:c.author_id,text:c.body,at:msOf(c.created_at),re:reCm[c.id]||{}}));
@@ -166,13 +169,15 @@ function buildTeams(R,uidMe){
   return out;
 }
 function toImage(T){
-  const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{},projects:{},pas:{},versions:{},vcm:{},vre:{},flows:{},pev:{}};
+  const I={name:T.name,members:{},events:{},att:{},threads:{},comments:{},re:{},tasks:{},tkas:{},projects:{},pas:{},versions:{},vcm:{},vre:{},flows:{},pev:{},folders:{},cats:{}};
   if(CLOUD.flOn){for(const f of T.flows||[]) I.flows[f.id]={id:f.id,name:f.name,by:f.by||null,body:{qs:f.qs||[],phases:f.phases||[]}};
     for(const p of T.projects||[]) for(const e of p.log||[]) I.pev[e.id]={id:e.id,project_id:p.id,task_id:e.task||null,type:e.type,actor:e.by||null,data:e.data||{},at:e.at}}
-  if(CLOUD.pjOn) for(const p of T.projects||[]){I.projects[p.id]={id:p.id,name:p.name,due:p.due||null,by:p.by||null,who:p.who||null,at:p.at||Date.now(),...(CLOUD.shareCols?{share_on:!!(p.share&&p.share.on),share_token:(p.share&&p.share.token)||null,guest:p.who?null:(p.whoGuest||null)}:{}),...(CLOUD.flOn?{flow:p.flow||null}:{})};for(const mid of p.to||[]) I.pas[p.id+':'+mid]={project_id:p.id,member_id:mid};
+  if(CLOUD.pjOn) for(const p of T.projects||[]){I.projects[p.id]={id:p.id,name:p.name,due:p.due||null,by:p.by||null,who:p.who||null,at:p.at||Date.now(),...(CLOUD.shareCols?{share_on:!!(p.share&&p.share.on),share_token:(p.share&&p.share.token)||null,guest:p.who?null:(p.whoGuest||null)}:{}),...(CLOUD.flOn?{flow:p.flow||null}:{}),...(CLOUD.fdOn?{folder:p.folder||null,cats:p.cats||[]}:{})};for(const mid of p.to||[]) I.pas[p.id+':'+mid]={project_id:p.id,member_id:mid};
     for(const v of p.versions||[]){I.versions[v.id]={id:v.id,project_id:p.id,n:v.n,name:v.name,path:v.path,size:v.size||0,file:v.file||null,assets:(v.assets||[]).map(a=>({id:a.id,path:a.path,size:a.size||0,type:a.type||'',file:a.file||null})),by:v.by||null,...(CLOUD.vShare?{share_on:!!(v.share&&v.share.on),share_token:(v.share&&v.share.token)||null}:{})};
       for(const c of v.cm||[]){I.vcm[c.id]={id:c.id,version_id:v.id,n:c.n,sel:c.sel||null,rx:c.rx??null,ry:c.ry??null,px:c.px??null,py:c.py??null,dev:c.dev||null,body:c.text,author_id:c.byId||null,status:c.status||'open',from_version:c.from?c.from.v:null,from_comment:c.from?c.from.c:null,snippet:c.snip||null,layer:c.layer==='client'?'client':'team',at:c.at||null};
         for(const r of c.re||[]) I.vre[r.id]={id:r.id,comment_id:c.id,author_id:r.byId||null,body:r.text,at:r.at||null}}}}
+  if(CLOUD.fdOn){for(const f of T.folders||[]) I.folders[f.id]={id:f.id,name:f.name,parent:f.parent||null,cats:f.cats||[],by:f.by||null,who:f.who||null,at:f.at||null};
+    (T.cats||[]).forEach((g,i)=>{I.cats[g.id]={parent:null,level:g.level,name:g.name,sort:i};g.items.forEach((it,j)=>{I.cats[it.id]={parent:g.id,level:g.level,name:it.name,sort:j}})})}
   for(const t of T.tasks||[]){I.tasks[t.id]={id:t.id,title:t.title,note:t.note||'',day:t.day||null,time:t.time||null,tz:t.tz||null,done:t.done||null,cleared:!!t.cleared,by:t.by||null,files:t.files||[],...(CLOUD.flOn?{pj:t.pj||null,ver:t.ver||null,fl:t.fl||null,pri:t.pri||null}:{})};for(const mid of t.to||[]) I.tkas[t.id+':'+mid]={task_id:t.id,member_id:mid}}
   const addRe=(tid,cid,re)=>{for(const [e,l] of Object.entries(re||{})) for(const mid of l) I.re[(tid||cid)+'|'+mid+'|'+e]={thread_id:tid,comment_id:cid,member_id:mid,emoji:e}};
   const addCms=(tid,cms)=>{for(const c of cms||[]){I.comments[c.id]={id:c.id,thread_id:tid,author_id:c.byId||null,body:c.text,at:c.at||Date.now()};addRe(null,c.id,c.re)}};
@@ -218,9 +223,21 @@ async function pushTeam(T){
   if(attUp.length) await run(sb.from('attendees').upsert(attUp,{onConflict:'event_id,member_id'}));
   for(const k in L.att) if(!N.att[k]) await run(sb.from('attendees').delete().match({event_id:L.att[k].event_id,member_id:L.att[k].member_id}));
   const evDel=Object.keys(L.events).filter(id=>!N.events[id]);if(evDel.length) await run(sb.from('events').delete().in('id',evDel));
+  if(CLOUD.fdOn){
+    const LF=L.folders||{},LK=L.cats||{},depth=id=>{let d=0,x=N.folders[id];while(x&&x.parent&&d<40){d++;x=N.folders[x.parent]}return d};
+    const fdRow=n=>({name:n.name,parent_id:n.parent,cats:n.cats,changed_by:n.who||myId,changed_at:isoOf(n.at||Date.now())});
+    const fIns=Object.keys(N.folders).filter(id=>!LF[id]).sort((a,b)=>depth(a)-depth(b)).map(id=>({id,team_id:T.id,created_by:N.folders[id].by||myId,...fdRow(N.folders[id])}));
+    if(fIns.length) await run(sb.from('folders').insert(fIns));
+    for(const id in N.folders) if(LF[id]&&!sameJ(N.folders[id],LF[id])) await run(sb.from('folders').update(fdRow(N.folders[id])).eq('id',id));
+    const kRow=n=>({parent_id:n.parent,level:n.level,name:n.name,sort:n.sort});
+    const kIns=Object.keys(N.cats).filter(id=>!LK[id]).sort((a,b)=>(N.cats[a].parent?1:0)-(N.cats[b].parent?1:0)).map(id=>({id,team_id:T.id,...kRow(N.cats[id])}));
+    if(kIns.length) await run(sb.from('categories').insert(kIns));
+    for(const id in N.cats) if(LK[id]&&!sameJ(N.cats[id],LK[id])) await run(sb.from('categories').update(kRow(N.cats[id])).eq('id',id));
+    const kDel=Object.keys(LK).filter(id=>!N.cats[id]);if(kDel.length) await run(sb.from('categories').delete().in('id',kDel));
+  }
   if(CLOUD.pjOn){
     const LP=L.projects||{},LPA=L.pas||{},LV=L.versions||{},LC=L.vcm||{},LR=L.vre||{};
-    const pjRow=n=>({name:n.name,due_day:n.due,changed_by:n.who||(n.guest?null:myId),changed_at:isoOf(n.at),...(CLOUD.shareCols?{share_on:n.share_on,share_token:n.share_token,changed_guest:n.who?null:n.guest}:{}),...(CLOUD.flOn?{flow:n.flow}:{})});
+    const pjRow=n=>({name:n.name,due_day:n.due,changed_by:n.who||(n.guest?null:myId),changed_at:isoOf(n.at),...(CLOUD.shareCols?{share_on:n.share_on,share_token:n.share_token,changed_guest:n.who?null:n.guest}:{}),...(CLOUD.flOn?{flow:n.flow}:{}),...(CLOUD.fdOn?{folder_id:n.folder,cats:n.cats}:{})});
     const pjIns=[];for(const id in N.projects){const n=N.projects[id],o=LP[id];if(!o) pjIns.push({id,team_id:T.id,created_by:n.by||myId,...pjRow(n)});else if(!sameJ(n,o)) await run(sb.from('projects').update(pjRow(n)).eq('id',id))}
     if(pjIns.length) await run(sb.from('projects').insert(pjIns));
     const paIns=[];for(const k in N.pas) if(!LPA[k]) paIns.push(N.pas[k]);if(paIns.length) await run(sb.from('project_assignees').upsert(paIns,{onConflict:'project_id,member_id'}));
@@ -236,6 +253,8 @@ async function pushTeam(T){
     const cDel=Object.keys(LC).filter(id=>!N.vcm[id]);if(cDel.length) await run(sb.from('version_comments').delete().in('id',cDel));
     const vDel=Object.keys(LV).filter(id=>!N.versions[id]);if(vDel.length) await run(sb.from('versions').delete().in('id',vDel));
     const pjDel=Object.keys(LP).filter(id=>!N.projects[id]);if(pjDel.length) await run(sb.from('projects').delete().in('id',pjDel));
+    // folders go last, once the pages in them have moved out
+    if(CLOUD.fdOn){const LF=L.folders||{},fDel=Object.keys(LF).filter(id=>!N.folders[id]);if(fDel.length) await run(sb.from('folders').delete().in('id',fDel))}
   }
   if(CLOUD.flOn){
     const LF=L.flows||{},LE=L.pev||{};
@@ -279,10 +298,11 @@ async function pull(){
     const [teams,members,events,attendees,threads,comments,reactions,profiles,tasks,tas]=await Promise.all(['teams','v_members','events','attendees','threads','comments','reactions','profiles','tasks','task_assignees'].map(q));
     const [projects,pas,versions,vcm,vre]=CLOUD.pjOn?await Promise.all(['projects','project_assignees','versions','version_comments','version_replies'].map(q)):[[],[],[],[],[]];
     const [flows,pev]=CLOUD.flOn?await Promise.all(['flows','project_events'].map(q)):[[],[]];
+    const [folders,cats]=CLOUD.fdOn?await Promise.all(['folders','categories'].map(q)):[[],[]];
     CLOUD.profile=profiles.find(p=>p.id===CLOUD.user.id)||CLOUD.profile;
     {const pf=(CLOUD.profile&&CLOUD.profile.prefs)||{};if(pf.hour12!=null) S.hour12=!!pf.hour12;if(pf.dur) UI.dur=+pf.dur;if(pf.weekStart!=null) S.weekStart=+pf.weekStart;if(pf.theme&&pf.theme!==document.documentElement.dataset.theme) setTheme(pf.theme,true)}
     for(const k of CLOUD.metaKeys) delete S.meta[k];CLOUD.metaKeys=new Set();CLOUD.evThread={};CLOUD.tkThread={};
-    const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas,projects,pas,versions,vcm,vre,flows,pev},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
+    const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas,projects,pas,versions,vcm,vre,flows,pev,folders,cats},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
     S.teams=[...built,...local];if(!S.teams.length) S.teams=seed().teams; // a new account with no team yet still needs one to show
     CLOUD.last={};for(const T of built) CLOUD.last[T.id]=toImage(T);
     if(CLOUD.invOn){const {data}=await sb.rpc('my_invites');CLOUD.invites=Array.isArray(data)?data:[]}
@@ -361,7 +381,7 @@ async function joinByCode(code){
 }
 function listen(){
   if(CLOUD.chan||!sb) return;CLOUD.chan=sb.channel('noon-'+CLOUD.user.id);
-  for(const t of ['teams','members','profiles','events','attendees','threads','comments','reactions','tasks','task_assignees',...(CLOUD.pjOn?['projects','project_assignees','versions','version_comments','version_replies']:[]),...(CLOUD.flOn?['flows','project_events']:[])]) CLOUD.chan.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pullSoon());
+  for(const t of ['teams','members','profiles','events','attendees','threads','comments','reactions','tasks','task_assignees',...(CLOUD.pjOn?['projects','project_assignees','versions','version_comments','version_replies']:[]),...(CLOUD.flOn?['flows','project_events']:[]),...(CLOUD.fdOn?['folders','categories']:[])]) CLOUD.chan.on('postgres_changes',{event:'*',schema:'public',table:t},()=>pullSoon());
   CLOUD.chan.subscribe();
 }
 async function cloudStart(u){
@@ -378,6 +398,7 @@ async function startAccount(u){
   try{const {error}=await sb.from('versions').select('share_on').limit(1);CLOUD.vShare=CLOUD.shareCols&&!error}catch(e){CLOUD.vShare=false} // a client link per version
   try{const {error}=await sb.rpc('my_invites');CLOUD.invOn=!error}catch(e){CLOUD.invOn=false} // invites wait as requests (2026-10-28 migration)
   try{const a=await sb.from('tasks').select('project_id,version_id,flow,priority').limit(1),b=await sb.from('project_events').select('id').limit(1),c=await sb.from('flows').select('id').limit(1);CLOUD.flOn=CLOUD.pjOn&&!a.error&&!b.error&&!c.error}catch(e){CLOUD.flOn=false} // templates and steps in a project (2026-11-03 migration)
+  try{const a=await sb.from('folders').select('id').limit(1),b=await sb.from('categories').select('id').limit(1),c=await sb.from('projects').select('folder_id,cats').limit(1);CLOUD.fdOn=CLOUD.pjOn&&!a.error&&!b.error&&!c.error}catch(e){CLOUD.fdOn=false} // clients, folders and categories (2026-11-10 migration)
   const fresh=document.documentElement.dataset.auth!=='in';
   await pull();
   try{const {data}=await sb.from('profiles').select('*').eq('id',u.id).maybeSingle();if(data) CLOUD.profile={...(CLOUD.profile||{}),...data}}catch(e){}

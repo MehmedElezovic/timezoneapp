@@ -7,6 +7,8 @@ const $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16)});
 const LS='noon.v1';
+// parked for now: Noon is about copy and page reviews first. Flip one back to true to bring that part back; its code and data are kept.
+const FEAT={tasks:false,calendar:false};
 const MIN=60000, HR=3600000, DAY=86400000;
 const pad2=n=>String(n).padStart(2,'0');
 const initials=n=>String(n||'').split(/\s+/).map(x=>x[0]||'').slice(0,2).join('').toUpperCase();
@@ -312,7 +314,7 @@ function inbox(){
     if(x.pend) rq.push({kind:'inv',ev:x,s:x.s,who:from||m,t:`${from?gname(from):'Someone'} invited you to ${x.title}`,sub:`${whenLabel(x.s)} to ${fmtT(x.e,H)}. ${past?'It passed without an answer.':'Waiting for your answer.'}`,id:x.id,act:true,missed:past});
     else if(!past){const wait=(x.who||[]).map(find).filter(z=>z&&!z.isMe&&(z.events||[]).some(q=>q.id===x.id&&q.pend));if(wait.length) rq.push({kind:'wait',ev:x,s:x.s,who:wait[0],t:`${x.title}: waiting for ${wait.map(z=>first(z.name)).join(', ')}`,sub:`${whenLabel(x.s)}. Not accepted yet.`,id:x.id})}
   }
-  for(const t of T.tasks||[]) if(!t.done&&t.to.includes(my)&&!tkLocked(t,T)){
+  if(FEAT.tasks) for(const t of T.tasks||[]) if(!t.done&&t.to.includes(my)&&!tkLocked(t,T)){
     const d=taskDue(t),from=find(t.by),pj=tkProject(t,T),deps=((t.fl&&t.fl.after)||[]).map(id=>(T.tasks||[]).find(x=>x.id===id)).filter(Boolean).sort((a,b)=>(b.done||0)-(a.done||0)),inPj=pj?`In ${pj.name}. `:'';
     // a step comes up when the one before it is done, your own included; anything else is news only when someone else gave it to you
     if(deps.length){const by=deps[0].to.map(find).filter(Boolean),w=by[0];rq.push({kind:'task',s:d.ms===Infinity?now+365*DAY:d.ms,who:w||m,t:`It's your turn: ${t.title}`,sub:`${by.length?`${w.isMe?'You':gname(w)} finished ${deps[0].title}. `:''}${inPj}${d.state==='none'?'':d.label+'.'}`.trim(),act:true,late:d.state==='overdue',task:t.id})}
@@ -327,7 +329,7 @@ function inbox(){
     }
     if(live(mt)&&mineEv) th.push({o:mt,s:ev.s,t:ev.title||'Meeting',id:ev.id,who:z});
   }
-  for(const t of T.tasks||[]) if(live(t)&&(t.to.includes(my)||t.by===my)){const d=taskDue(t);th.push({o:t,s:d.ms===Infinity?t.at:d.ms,t:'Task: '+t.title,task:t.id,who:find(t.by)||m})}
+  if(FEAT.tasks) for(const t of T.tasks||[]) if(live(t)&&(t.to.includes(my)||t.by===my)){const d=taskDue(t);th.push({o:t,s:d.ms===Infinity?t.at:d.ms,t:'Task: '+t.title,task:t.id,who:find(t.by)||m})}
   for(const n of th){
     const cm=n.o.cm||[],mine=q=>!q.byId||q.byId===my,lastMine=cm.map(mine).lastIndexOf(true);
     n.mention=cm.some((q,i)=>i>lastMine&&!mine(q)&&mentionsMe(q.text));
