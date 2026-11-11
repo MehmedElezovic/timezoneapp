@@ -40,7 +40,7 @@ const cpLayerOf=c=>c.layer==='client'?'client':'team';
 // open means still waiting on someone: an open comment or suggestion, or accepted wording not in a newer version yet
 const cpOpen=c=>c.status==='open'||(c.status==='accepted'&&!c.done);
 const cpOpenCount=p=>copyOf(p).reduce((n,v)=>n+v.cm.filter(cpOpen).length,0);
-const pageOpen=p=>projOpen(p)+cpOpenCount(p);
+const pageOpen=p=>projOpen(p)+cpOpenCount(p)+adOpenCount(p);
 const cpLabel=v=>'Copy v'+v.n;
 const cpSrc=v=>!v.src||v.src==='written'?'Written in Noon':`From ${v.src}`;
 const clip=(s,n)=>{s=String(s||'');return s.length>n?s.slice(0,n-1).trimEnd()+'…':s};
