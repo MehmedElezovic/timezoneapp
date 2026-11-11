@@ -251,16 +251,24 @@ function pageTab(p){
 // the top of a page: its name and place, categories, deadline, people and the tabs. It stays put while the part under
 // the tabs changes: a list of versions, one version open, or the copy being written.
 function pageChrome(p){
-  const T=team(),vs=versOf(p),cv=curVer(p),du=dueInfo(p.due),ppl=(p.to||[]).map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!(p.to||[]).includes(z.id));
+  const T=team(),vs=versOf(p),du=dueInfo(p.due),ppl=(p.to||[]).map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!(p.to||[]).includes(z.id));
   const tab=pageTab(p),design=tab==='design',all=FEAT.tasks?projTasks(T,p):[],doneN=all.filter(t=>t.done).length,up=fdById(p.folder,T);
   return `<header class="top"><button type="button" class="chev" id="pjBack" aria-label="Back to ${esc(up?up.name:'all clients')}">${PI.back}</button><div class="ttl-wrap"><h1 class="editable" id="pjName" contenteditable="true" spellcheck="false" title="Click to rename">${esc(p.name)}</h1><span class="sub crumbs">${crumbsHtml(T,p.folder)}${up?'':'<i>/</i><span>Not in a client</span>'}</span></div>
-      <div class="topnav"><button type="button" class="lbtn quiet" id="pjMove" title="Move to another client or folder">${FDI.move}<span>Move</span></button><button type="button" class="lbtn quiet icon" id="pjLink" title="Copy a link to this page, for a teammate or for Claude" aria-label="Copy a link to this page">${I.link||PI.page}</button>${design?`<button type="button" class="lbtn quiet" id="pjUploadDir" title="Upload a folder">${PI.folder}<span>Folder</span></button><button type="button" class="lbtn dark" id="pjUpload" title="Upload design ${cv?'version '+(cv.n+1):'version 1'}">${PI.up}<span>Upload ${cv?'v'+(cv.n+1):'version 1'}</span></button>`:''}</div></header>
+      <div class="topnav pg-nav"><div class="fd-more"><button type="button" class="lbtn quiet icon" id="pgMore" aria-label="More for ${esc(p.name)}" aria-haspopup="menu" aria-expanded="${PV.menu===p.id}">${I.more}</button>${PV.menu===p.id?pgMenuHtml(p):''}</div></div></header>
     <div class="pj-meta">${catMetaHtml('page',p,T)}
       <div class="pj-meta-i"><label for="pjDue">Deadline</label><div class="pj-due"><input type="date" id="pjDue" class="pj-date" value="${p.due||''}" aria-label="Deadline">${du?`<small class="${du.state}">${esc(du.rel)}</small>`:''}</div></div>
       <div class="pj-meta-i"><label>${all.length?'People':'Assigned to'}</label>${all.length?`<div class="whochips">${[...new Set(all.flatMap(t=>t.to))].map(id=>findM(id,T)).filter(Boolean).map(z=>`<span class="who1">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}</span>`).join('')||'<span class="pj-none">Nobody yet</span>'}</div>`:`<div class="whochips">${ppl.map(z=>`<button type="button" class="who1" data-pjrm="${z.id}" title="Remove">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}<i>×</i></button>`).join('')}${cand.length?`<button type="button" class="addc" id="pjAddBtn" aria-label="Add someone" aria-expanded="${PV.pick}">${I.plus}</button>`:''}${PV.pick&&cand.length?`<div class="dd" id="pjDd"><div class="dd-list">${cand.map(z=>`<button type="button" class="opt" data-pjav="${z.id}">${avatar(z,'sm')}<span class="n">${esc(z.isMe?'Me':z.name)}<small>${esc(tzLabel(z.tz))}</small></span></button>`).join('')}</div></div>`:''}${!ppl.length&&!PV.pick?'<span class="pj-none">Nobody yet</span>':''}</div>`}</div>
       <div class="pj-meta-i"><label>Last change</label><div class="pj-last"><b>${esc(agoLabel(p.at||Date.now()))}</b><small>by ${esc(changedBy(T,p))}</small></div></div>
     </div>
     <div class="pj-tabs"><div class="seg sm" id="pjTabs" role="tablist"><button type="button" class="${tab==='copy'?'on':''}" data-pj-tab="copy">Copy<i>${copyOf(p).length||''}</i></button><button type="button" class="${design?'on':''}" data-pj-tab="design">Design<i>${vs.length||''}</i></button>${FEAT.tasks?`<button type="button" class="${tab==='flow'?'on':''}" data-pj-tab="flow">Steps<i>${all.length-doneN||''}</i></button><button type="button" class="${tab==='history'?'on':''}" data-pj-tab="history">History</button>`:''}</div>${FEAT.tasks&&p.flow&&all.length?`<div class="pj-prog"><span>${doneN} of ${plural(all.length,'step')} done</span><div class="ptk-bar"><i style="width:${Math.round(doneN/all.length*100)}%"></i></div></div>`:''}</div>`;
+}
+// the page's own menu, the same on the Copy and Design tabs: what applies to the whole page, copy and design together
+function pgMenuHtml(p){
+  return `<div class="dd fd-menu" role="menu">
+    <button type="button" class="opt" role="menuitem" data-pg-do="edit">${I.pen}<span class="n">Name and categories</span></button>
+    <button type="button" class="opt" role="menuitem" data-pg-do="link">${I.link}<span class="n">Copy link to this page<small>For a teammate, or for Claude</small></span></button>
+    <button type="button" class="opt" role="menuitem" data-pg-do="move">${FDI.move}<span class="n">Move to…</span></button>
+    <hr class="dd-sep"><button type="button" class="opt danger" role="menuitem" data-pg-do="del">${I.trash}<span class="n">Delete page<small>Its copy, its design and every comment</small></span></button></div>`;
 }
 // redrawing the top while a version is open, unless someone is typing in it
 function pageChromeRefresh(p){const ch=$('#pjChrome'),a=document.activeElement;if(ch&&!(ch.contains(a)&&a.matches('input,textarea,[contenteditable]'))) ch.innerHTML=pageChrome(p)}
@@ -275,8 +283,8 @@ function renderProject(p){
   const tab=pageTab(p),design=tab==='design';
   $('#vProj').innerHTML=`<div class="pj-chrome" id="pjChrome">${pageChrome(p)}</div>
     <div class="pj-body pj-drop${tab==='flow'||tab==='history'?' st-canvas':tab==='copy'&&cpMode(p)!=='list'?' cp-host':''}" id="pjDrop">${tab==='copy'?copyViewHtml(p):tab==='flow'?stepsTabHtml(p):tab==='history'?historyTabHtml(p):`${vs.length?`<div class="ver-list">${vs.map(card).join('')}</div>`:''}
-      <div class="pj-dz${vs.length?'':' big'}"><span class="ic">${PI.up}</span><b>${vs.length?`Drop the next version here, it becomes v${cv.n+1}`:'Drop the first HTML file here, it becomes version 1'}</b>${vs.length?'<small>A new version starts with no comments. Compare puts any two versions side by side, and Share sends one version out for review. A lone HTML file reuses the previous version\'s images and styles; drop a folder to bring new ones.</small>':`<ul class="pj-need"><li><b>The page's HTML file</b>, such as index.html. Every HTML file you add becomes its own version.</li><li><b>The images, styles, scripts and fonts it uses.</b> Drop or choose the whole folder, so links like images/hero.jpg keep working.</li><li><b>Only the HTML file</b> is enough when its images and styles load from web addresses (https://…).</li></ul><small>Files up to 25 MB each. Unzip a .zip first.</small>`}<span class="pj-dz-acts"><button type="button" class="btn dark" data-pick="files">Choose files</button><button type="button" class="btn" data-pick="folder">Choose a folder</button>${vs.length?'':`<button type="button" class="btn claude" data-pick="claude">${PI.spark}Upload with Claude</button>`}</span></div>`}
-      ${design?`<div class="pj-over">${PI.up}<b>Drop to add design ${cv?'version '+(cv.n+1):'version 1'} to ${esc(p.name)}</b></div>`:''}</div>`;
+      <div class="pj-dz${vs.length?'':' big'}"><span class="ic">${PI.page}</span><b>${vs.length?`Upload v${cv.n+1}, or drop the files here`:`No design for ${esc(p.name)} yet`}</b>${vs.length?`<small>A lone HTML file reuses v${cv.n}'s images and styles; upload the folder to bring new ones. Every version keeps its own comments.</small>`:`<small>Upload the page with everything it uses, or drop the files here. It becomes design v1.</small><ul class="pj-need"><li><b>The page's HTML file</b>, such as index.html. Every HTML file you add becomes its own version.</li><li><b>The images, styles, scripts and fonts it uses.</b> Drop or choose the whole folder, so links like images/hero.jpg keep working.</li><li><b>Only the HTML file</b> is enough when its images and styles load from web addresses (https://…).</li></ul><small>Files up to 25 MB each. Unzip a .zip first.</small>`}<span class="pj-dz-acts"><button type="button" class="btn dark" data-pick="files">${PI.up}Upload files</button><button type="button" class="btn" data-pick="folder">${PI.folder}Upload a folder</button>${vs.length?'':`<button type="button" class="btn claude" data-pick="claude">${PI.spark}Upload with Claude</button>`}</span></div>`}
+      ${design?`<div class="pj-over">${PI.up}<b>Drop the files to make design v${cv?cv.n+1:1}</b></div>`:''}</div>`;
   fitThumbs();fillThumbs(vs);if(tab==='copy') cpAfter(p);
   {const n=$('#stNew');if(n) n.focus()}
 }
@@ -285,15 +293,15 @@ function renderProject(p){
 const SB='allow-same-origin allow-scripts allow-forms allow-popups allow-modals';
 // a frame counts only once its page has loaded: the blank document it starts with has a body too
 function frameOf(side){const f=$(side==='A'?'#pvIfA':'#pvIf'),ok=f&&PV.loaded[side];return {f,doc:ok?f.contentDocument:null,win:ok?f.contentWindow:null}}
-function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.ro=[];PV.built=null;PV.draft=null;PV.sel=null;PV.reply=null;PV.hov=null;PV.loaded={A:false,B:false};PV.lead=null;PV.dy=0;PV.align=null}
+function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.ro=[];PV.built=null;PV.draft=null;PV.sel=null;PV.reply=null;PV.hov=null;PV.more=false;PV.loaded={A:false,B:false};PV.lead=null;PV.dy=0;PV.align=null}
 async function pvBuild(p,v,cmp){
   pvTeardown();const key=pvKey(v);PV.built=key;
   const vers=versOf(p),cm=PV.mode==='compare';
   $('#vProj').innerHTML=`${SHARE?'':`<div class="pj-chrome" id="pjChrome">${pageChrome(p)}</div><div class="pj-body pv-host pj-drop" id="pjDrop">`}<div class="pv"><div class="pv-bar"><div class="pv-bl"><div class="pv-left"><button type="button" class="chev" id="pvBack" aria-label="All design versions" title="All design versions">${PI.back}</button>
-      <div class="vpick-wrap"><button type="button" class="vpick" id="pvVerBtn" aria-haspopup="menu" aria-expanded="false" title="Switch version"><span class="pv-ttl" id="pvTtl"></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd vmenu" id="pvVerMenu" role="menu" hidden></div></div></div>
-      <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div><span></span></div>
+      <div class="vpick-wrap"><button type="button" class="vpick" id="pvVerBtn" aria-haspopup="menu" aria-expanded="false" title="Switch version"><span class="pv-ttl" id="pvTtl"></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd vmenu" id="pvVerMenu" role="menu" hidden></div></div><span class="pv-chips" id="pvChips"></span></div>
+      <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div>${SHARE?'<span></span>':'<div class="pv-acts" id="pvActs"></div>'}</div>
       <div class="pv-br"><div class="seg sm" id="pvMode" aria-label="Mode"><button type="button" data-mode="comment">${PI.bubble}<span>Comment</span></button><button type="button" data-mode="browse">${PI.cursor}<span>Browse</span></button><button type="button" data-mode="compare" ${vers.length>1?'':'disabled title="Upload a second version to compare"'}>${PI.cmp}<span>Compare</span></button></div></div></div>
-    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div>${cm?'<div class="pv-align" id="pvAlign" hidden></div>':''}<div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>${SHARE?'':`<div class="pj-over">${PI.up}<b>Drop to add design version ${curVer(p).n+1}</b></div></div>`}`;
+    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div>${cm?'<div class="pv-align" id="pvAlign" hidden></div>':''}<div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>${SHARE?'':`<div class="pj-over">${PI.up}<b>Drop the files to make design v${curVer(p).n+1}</b></div></div>`}`;
   pvLayout();pvUpdate();
   const [hb,ha]=await Promise.all([pageHtml(v),cmp?pageHtml(cmp):null]);
   if(PV.built!==key||!$('#pvIf')) return;
@@ -485,14 +493,22 @@ function cmpFocus(c){
   if(ea&&A.win){PV.lead=null;ea.scrollIntoView({block:'center',behavior:'instant'});if(eb) cmpLine(ea,eb,'A');else if(B.win) B.win.scrollTo({left:A.win.scrollX,top:A.win.scrollY+PV.dy,behavior:'instant'})}
   pvUpdate();const card=$(`#pvSide .pc[data-cc="${c.id}"]`);if(card) card.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
-// the version menu: every version, newest first, and what can be done with the one on screen
+// the version menu: every version, newest first. What can be done with the one on screen sits in the bar, as on the Copy tab
 function pvMenu(){
   const p=projById(PV.proj),v=p&&verById(p,PV.ver),m=$('#pvVerMenu'),btn=$('#pvVerBtn');if(!m||!v) return;
   m.hidden=!PV.vmenu;btn.setAttribute('aria-expanded',!!PV.vmenu);if(!PV.vmenu){m.innerHTML='';return}
   const T=team(),cur=curVer(p);
   const cm=PV.mode==='compare';
-  m.innerHTML=`<div class="dd-list">${[...versOf(p)].reverse().map(x=>{const o=openIn(x).length,on=!cm&&x===v;return `<button type="button" class="opt${on?' on':''}" role="menuitemradio" aria-checked="${on}" data-vpick="${x.id}"><span class="vn">${esc(vLabel(x))}</span><span class="n">${esc(x.name)}${x===cur?' <i>current</i>':''}<small>${esc(agoLabel(x.at||Date.now()))}${SHARE?'':` by ${esc(whoName(T,x.by))}`} · ${o?`${o} open`:'nothing open'}</small></span>${on?`<span class="tick">${I.check}</span>`:''}</button>`}).join('')}</div>
-    ${SHARE||cm?'':`<div class="vmenu-acts"><button type="button" class="opt" data-vact="up">${PI.up}<span class="n">Upload v${cur.n+1}</span></button><button type="button" class="opt" data-vact="share">${PI.share}<span class="n">${verShared(v)?`${esc(vLabel(v))} is shared · review link`:`Share ${esc(vLabel(v))} for review`}</span></button><button type="button" class="opt" data-vact="final">${I.check}<span class="n">${p.finalDesign===v.id?'Not final any more':`Mark ${esc(vLabel(v))} as final`}</span></button><button type="button" class="opt" data-vact="dl">${PI.dl}<span class="n">Download ${esc(vLabel(v))}</span></button><button type="button" class="opt danger" data-vact="del">${I.trash}<span class="n">Delete ${esc(vLabel(v))}</span></button></div>`}`;
+  m.innerHTML=`<div class="dd-list">${[...versOf(p)].reverse().map(x=>{const o=openIn(x).length,on=!cm&&x===v;return `<button type="button" class="opt${on?' on':''}" role="menuitemradio" aria-checked="${on}" data-vpick="${x.id}"><span class="vn">${esc(vLabel(x))}</span><span class="n">${esc(x.name)}${x===cur?' <i>current</i>':''}${!SHARE&&p.finalDesign===x.id?' <i class="fin">final</i>':''}<small>${esc(agoLabel(x.at||Date.now()))}${SHARE?'':` by ${esc(whoName(T,x.by))}`} · ${o?`${o} open`:'nothing open'}</small></span>${on?`<span class="tick">${I.check}</span>`:''}</button>`}).join('')}</div>`;
+}
+const dsLabel=v=>'Design '+vLabel(v);
+function pvMoreHtml(p,v){
+  const fin=p.finalDesign===v.id,sh=verShared(v),L=dsLabel(v).toLowerCase();
+  return `<div class="dd fd-menu" role="menu">
+    <button type="button" class="opt" role="menuitem" data-vact="final">${I.check}<span class="n">${fin?'Not final any more':`Mark ${L} as final`}<small>${fin?'The page goes back to having no final design':'The design the page goes live with'}</small></span></button>
+    <button type="button" class="opt" role="menuitem" data-vact="share">${PI.share}<span class="n">Share for review…<small>${sh?'On: people with the link can comment':'Let someone review it with no account'}</small></span></button>
+    <button type="button" class="opt" role="menuitem" data-vact="dl">${PI.dl}<span class="n">Download<small>${v.assets.length?'A zip with its images and styles':'The HTML file'}</small></span></button>
+    <hr class="dd-sep"><button type="button" class="opt danger" role="menuitem" data-vact="del">${I.trash}<span class="n">Delete ${L}</span></button></div>`;
 }
 const chevSvg='<svg class="vc" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>';
 function slotChoices(p,k){const other=k==='L'?PV.cr:PV.cl;return [...versOf(p)].reverse().filter(x=>x.id!==other)}
@@ -513,7 +529,11 @@ function pvUpdate(){
   const p=projById(PV.proj),v=p&&verById(p,PV.ver);if(!v||!$('#pvTtl')) return;
   const cm=PV.mode==='compare',cmp=cmpOf(p),open=openIn(v).length,res=allIn(v).length-open;
   if(PV.vmenu) pvMenu();
-  $('#pvTtl').innerHTML=cm?`<b>Comparing ${[PV.cl,PV.cr].map(id=>id?vLabel(verById(p,id)):'…').join(' and ')}</b><small>${esc(p.name)} · side by side</small>`:`<b>${esc(vLabel(v))} · ${esc(v.name)}${!SHARE&&p.finalDesign===v.id?' <i class="cp-final">Final</i>':''}</b><small>${esc(p.name)} · ${v===curVer(p)?'current':'older version'} · ${open?`${open} open`:'nothing open'}${res?` · ${res} resolved`:''}</small>`;
+  $('#pvTtl').innerHTML=cm?`<b>Comparing ${[PV.cl,PV.cr].map(id=>id?vLabel(verById(p,id)):'…').join(' and ')}</b><small>${SHARE?esc(p.name)+' · ':''}side by side</small>`
+    :SHARE?`<b>${esc(vLabel(v))} · ${esc(v.name)}</b><small>${esc(p.name)} · ${v===curVer(p)?'current':'older version'} · ${open?`${open} open`:'nothing open'}${res?` · ${res} resolved`:''}</small>`
+    :`<b>${dsLabel(v)}${v===curVer(p)?'':' <i class="cp-old">older version</i>'}</b><small>${esc(v.name)} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(team(),v.by))}</small>`;
+  {const ch=$('#pvChips');if(ch) ch.innerHTML=cm||SHARE?'':`${p.finalDesign===v.id?`<span class="cp-final">${I.check}Final</span>`:''}${verShared(v)?'<span class="pj-shared" title="The review link for this version is on">Shared</span>':''}`;
+   const ac=$('#pvActs');if(ac) ac.innerHTML=cm?'':`<button type="button" class="btn sm" data-vact="up" title="Upload design v${curVer(p).n+1}">${PI.up}<span>Upload</span></button><div class="fd-more"><button type="button" class="btn sm icon" id="pvMore" aria-label="More for ${esc(dsLabel(v))}" aria-haspopup="menu" aria-expanded="${!!PV.more}">${I.more}</button>${PV.more?pvMoreHtml(p,v):''}</div>`}
   $$('#pvDev button').forEach(b=>b.classList.toggle('on',b.dataset.dev===PV.dev));
   $$('#pvMode button').forEach(b=>b.classList.toggle('on',b.dataset.mode===PV.mode));
   const B=frameOf('B');if(B.doc&&B.doc.documentElement){B.doc.documentElement.dataset.noonMode=cm?'compare':PV.mode;if(PV.mode!=='comment') pvUnhov()}
@@ -543,7 +563,7 @@ function pvSideRender(p,v){
   const keep=side.querySelector('.pv-list'),top=keep?keep.scrollTop:0;
   const myTasks=SHARE||!FEAT.tasks?'':projTasks(T,p).filter(t=>!t.done&&t.to.includes(my)&&!tkLocked(t,T)&&tkVer(t)===v).map(t=>`<div class="pv-task" role="button" tabindex="0" data-pv-open="${t.id}"><button type="button" class="tk-ck" data-pv-done="${t.id}" aria-label="Mark done"></button><span><b>${esc(t.title)}</b><small>Your task on ${vLabel(v)}${t.day?` · ${esc(taskDue(t).label)}`:''}</small></span></div>`).join('');
   const banner=pv&&!SHARE?`<button type="button" class="pv-banner" data-mode-cmp="1">${PI.cmp}<span><b>${openIn(pv).length?`${plural(openIn(pv).length,'open comment')} on ${vLabel(pv)}`:`Compare with ${vLabel(pv)}`}</b><small>${openIn(pv).length?`See how ${vLabel(v)} answers each one, side by side.`:'The two versions side by side, comment by comment.'}</small></span>${PI.arrow}</button>`:'';
-  side.innerHTML=`<div class="pv-sh"><h3>Comments on ${vLabel(v)}</h3>${layerSeg(p,v)}<div class="seg sm" id="pvFilter"><button type="button" data-pfilter="open" class="${PV.filter==='open'?'on':''}">Open<i>${open||''}</i></button><button type="button" data-pfilter="resolved" class="${PV.filter==='resolved'?'on':''}">Resolved<i>${res||''}</i></button><button type="button" data-pfilter="all" class="${PV.filter==='all'?'on':''}">All</button></div></div>
+  side.innerHTML=`<div class="pv-sh"><h3>Comments on ${dsLabel(v).toLowerCase()}</h3>${layerSeg(p,v)}<div class="seg sm" id="pvFilter"><button type="button" data-pfilter="open" class="${PV.filter==='open'?'on':''}">Open<i>${open||''}</i></button><button type="button" data-pfilter="resolved" class="${PV.filter==='resolved'?'on':''}">Resolved<i>${res||''}</i></button><button type="button" data-pfilter="all" class="${PV.filter==='all'?'on':''}">All</button></div></div>
     <div class="pv-list">${myTasks}${banner}${list.length?list.map(card).join(''):`<p class="pv-empty">${allIn(v).length?PV.filter==='open'?'Everything here is resolved.':'Nothing resolved yet.':PV.layer==='client'&&!SHARE?`Nothing on the review link for ${vLabel(v)} yet. What people leave there shows up here.`:`No comments on ${vLabel(v)} yet. Click anywhere on the page to leave the first one. Each comment pins to the exact element you clicked, so it stays put at every width.`}</p>`}</div>`;
   side.querySelector('.pv-list').scrollTop=top;
   if(PV.reply&&PV.sel){const ta=$('#pvReply');if(ta){ta.focus();if(PV.replyText) ta.value=PV.replyText}}
@@ -586,6 +606,16 @@ function pvPost(){
   const el=$('#pvSide .pc.sel');if(el) el.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function cmById(v,id){return v.cm.find(c=>c.id===id)}
+// a page goes with its copy and its design, every version of both and the comments on them
+async function deletePage(q){
+  const T=team(),n=versOf(q).length,nc=copyOf(q).length,nt=FEAT.tasks?projTasks(T,q).length:0,has=[nc?plural(nc,'copy version'):'',n?plural(n,'design version'):''].filter(Boolean);
+  if(!await confirmDlg(`Delete ${q.name}?`,`${has.length?`Its ${has.join(' and ')} go too, with every comment on them.`:'It has no copy or design yet.'}${nt?` Its ${plural(nt,'task')} go too.`:''} This cannot be undone.`,'Delete page')) return;
+  T.tasks=tasksOf(T).filter(t=>t.pj!==q.id);
+  const ids=[],paths=[];for(const x of versOf(q)){dropUrls(x);ids.push(x.id);if(x.file) paths.push(x.file);for(const a of x.assets){ids.push(a.id);if(a.file) paths.push(a.file)}}
+  T.projects=projectsOf(T).filter(x=>x!==q);draftDel(q);
+  if(PV.proj===q.id){PV.folder=fdById(q.folder,T)?q.folder:null;PV.proj=null;PV.ver=null;PV.menu=null}
+  save();render();fdbDel([...new Set(ids)]);removeFiles([...new Set(paths)]);toast(`${q.name} deleted`);
+}
 
 /* ---------- version 1 through Claude: the prompt goes to the clipboard, and a dialog says where to paste it and what to fill in ---------- */
 const projUrl=p=>`${location.origin}${location.pathname}?view=projects&proj=${p.id}`;
@@ -616,23 +646,25 @@ $('#dClaude').addEventListener('click',e=>{
 $('#vProj').addEventListener('click',async e=>{
   const c=s=>e.target.closest(s);let b;const T=team(),p=PV.proj&&projById(PV.proj),v=p&&PV.ver&&verById(p,PV.ver);
   if(c('#pjNew')||c('#pjNew2')){fwOpen();return}
-  if(c('#pjUpload')||c('[data-pick="files"]')){$('#pjFiles').click();return}
-  if(c('#pjUploadDir')||c('[data-pick="folder"]')){$('#pjFolder').click();return}
+  if(c('[data-pick="files"]')){$('#pjFiles').click();return}
+  if(c('[data-pick="folder"]')){$('#pjFolder').click();return}
   if(c('#pjBack')){PV.folder=fdById(p&&p.folder)?p.folder:null;PV.proj=null;PV.ver=null;PV.pick=false;renderProjects();return}
   if(c('[data-pick="claude"]')){claudeUpload(p);return}
-  if(c('#pjLink')){const u=projUrl(p);navigator.clipboard.writeText(u).then(()=>toast(T.cloud?'Link copied. Teammates open it straight here, and Claude can find the page from it.':'Link copied. It opens here on this device; sign in so teammates and Claude can use it.'),()=>toast('Could not copy'));return}
+  if(c('#pgMore')&&p){PV.menu=PV.menu===p.id?null:p.id;pageChromeRefresh(p);return}
+  if((b=c('[data-pg-do]'))&&p){const k=b.dataset.pgDo;PV.menu=null;pageChromeRefresh(p);
+    if(k==='edit'){fdDlg({mode:'editPage',page:p.id,name:p.name,cats:[...(p.cats||[])]});return}
+    if(k==='move'){fdDlg({mode:'move',page:p.id,name:p.name});return}
+    if(k==='del'){deletePage(p);return}
+    if(k==='link') navigator.clipboard.writeText(projUrl(p)).then(()=>toast(T.cloud?'Link copied. Teammates open it straight here, and Claude can find the page from it.':'Link copied. It opens here on this device; sign in so teammates and Claude can use it.'),()=>toast('Could not copy'));return}
   if(c('#pvAlignX')){cmpReset();return}
   if(b=c('[data-pv-done]')){const t=taskById(b.dataset.pvDone);if(!t) return;const undo=snapshot(),freed=tkTick(t);render();toast(tickMsg(t,freed),undo);return}
   if(b=c('[data-pv-open]')){openTask(b.dataset.pvOpen);return}
   if(c('#pvVerBtn')){PV.vmenu=!PV.vmenu;pvMenu();return}
   if(b=c('[data-vpick]')){PV.vmenu=false;if(b.dataset.vpick!==PV.ver) openVer(b.dataset.vpick);else pvMenu();return}
-  if(b=c('[data-vact]')){const k=b.dataset.vact;PV.vmenu=false;pvMenu();if(k==='up'){$('#pjFiles').click();return}if(k==='dl'){if(v) downloadVersion(p,v);return}if(k==='share'){if(v) openShare(p,v);return}if(k==='final'){if(v){p.finalDesign=p.finalDesign===v.id?null:v.id;touch(p);save();render();toast(p.finalDesign?`${vLabel(v)} is the final design`:'No final design for this page now')}return}}
+  if(c('#pvMore')){PV.more=!PV.more;PV.vmenu=false;pvMenu();pvUpdate();return}
+  if(b=c('[data-vact]')){const k=b.dataset.vact;PV.vmenu=false;PV.more=false;pvMenu();pvUpdate();if(k==='up'){$('#pjFiles').click();return}if(k==='dl'){if(v) downloadVersion(p,v);return}if(k==='share'){if(v) openShare(p,v);return}if(k==='final'){if(v){p.finalDesign=p.finalDesign===v.id?null:v.id;touch(p);save();render();toast(p.finalDesign?`${vLabel(v)} is the final design`:'No final design for this page now')}return}}
   if(c('#pvBack')){if(PV.mode==='compare') endCompare();PV.ver=null;PV.vmenu=false;renderProjects();return}
-  if(b=c('[data-proj-del]')){const q=projById(b.dataset.projDel);if(!q) return;const n=versOf(q).length,nt=projTasks(T,q).length;
-    if(!await confirmDlg(`Delete ${q.name}?`,`${n?`Its ${plural(n,'design version')} and every comment on them go too.`:'It has no design versions yet.'}${nt?` Its ${plural(nt,'task')} go too.`:''} This cannot be undone.`,'Delete page')) return;
-    T.tasks=tasksOf(T).filter(t=>t.pj!==q.id);
-    const ids=[],paths=[];for(const x of versOf(q)){dropUrls(x);ids.push(x.id);if(x.file) paths.push(x.file);for(const a of x.assets){ids.push(a.id);if(a.file) paths.push(a.file)}}
-    T.projects=projectsOf(T).filter(x=>x!==q);if(PV.proj===q.id){PV.proj=null;PV.ver=null}save();render();fdbDel([...new Set(ids)]);removeFiles([...new Set(paths)]);toast('Page deleted');return}
+  if(b=c('[data-proj-del]')){const q=projById(b.dataset.projDel);if(q) deletePage(q);return}
   if((b=c('[data-ver-del]'))||c('[data-vact="del"]')){const id=b?b.dataset.verDel:null,q=id?verById(p,id):v;if(!q||!p) return;
     if(!await confirmDlg(`Delete ${vLabel(q)}?`,`${q.cm.length?`Its ${plural(q.cm.length,'comment')} go too. `:''}${q===curVer(p)&&prevVer(p,q)?`${vLabel(prevVer(p,q))} becomes the current version. `:''}This cannot be undone.`,'Delete version')) return;
     for(const t of tasksOf(T)) if(t.ver===q.id) t.ver=null;
@@ -700,10 +732,10 @@ document.addEventListener('pointerdown',e=>{if(PV.pick&&!(e.target.closest&&e.ta
   el.addEventListener('dragleave',e=>{if(!e.dataTransfer) return;depth=Math.max(0,depth-1);if(!depth){const d=$('#pjDrop');if(d) d.classList.remove('over')}});
   el.addEventListener('drop',e=>{if(!hasFiles(e)) return;e.preventDefault();depth=0;const d=$('#pjDrop');if(d) d.classList.remove('over');if(onSteps()) return;if(onCopy()) cpDrop(e.dataTransfer);else dropFiles(e.dataTransfer)});
 }
-document.addEventListener('pointerdown',e=>{if(PV.vmenu&&!(e.target.closest&&e.target.closest('.vpick-wrap'))){PV.vmenu=false;pvMenu()}if(PV.smenu&&!(e.target.closest&&e.target.closest('.cslot'))){PV.smenu=null;const p=projById(PV.proj);if(p) pvCaps(p)}});
+document.addEventListener('pointerdown',e=>{if(PV.vmenu&&!(e.target.closest&&e.target.closest('.vpick-wrap'))){PV.vmenu=false;pvMenu()}if(PV.smenu&&!(e.target.closest&&e.target.closest('.cslot'))){PV.smenu=null;const p=projById(PV.proj);if(p) pvCaps(p)}if(PV.more&&!(e.target.closest&&e.target.closest('.pv-acts .fd-more'))){PV.more=false;pvUpdate()}});
 document.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.view!=='projects'||document.querySelector('dialog[open]')) return;
   {const dk=$('#tkDetail');if(!dk.hidden&&dk.classList.contains('docked')){closeTask();return}if(flowsEscape(e)) return}
-  if(PV.vmenu){PV.vmenu=false;pvMenu();$('#pvVerBtn').focus();return}if(PV.smenu){PV.smenu=null;pvCaps(projById(PV.proj));return}if(e.target.matches&&e.target.matches('textarea,input,select,[contenteditable]')){e.target.blur();return}pvEscape()});
+  if(PV.vmenu){PV.vmenu=false;pvMenu();$('#pvVerBtn').focus();return}if(PV.more){PV.more=false;pvUpdate();$('#pvMore').focus();return}if(PV.smenu){PV.smenu=null;pvCaps(projById(PV.proj));return}if(e.target.matches&&e.target.matches('textarea,input,select,[contenteditable]')){e.target.blur();return}pvEscape()});
 addEventListener('resize',()=>{if(UI.view!=='projects') return;if(PV.ver) pvLayout();else fitThumbs()});
 
 upgradeProjects();

@@ -682,7 +682,7 @@ function renderSettings(page){
     :'';
   if(page==='schedule'){const f=$('#fSched'),[ss,se]=sleepOf(m);setTz(f.tz,m.tz);f.start.value=hhmm(m.start);f.end.value=hhmm(m.end);f.start2.value=m.start2!=null?hhmm(m.start2):'';f.end2.value=m.end2!=null?hhmm(m.end2):'';f.weekends.checked=!!m.weekends;f.sleepStart.value=hhmm(ss);f.sleepEnd.value=hhmm(se)}
   $$('#clockSeg button').forEach(b=>b.classList.toggle('on',(b.dataset.clock==='12')===!!S.hour12));
-  $$('#wsSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.ws===(S.weekStart??1)));
+  $$('#wsSeg button').forEach(b=>b.classList.toggle('on',+b.dataset.ws===(S.weekStart??1)));$('#prefWs').style.display=FEAT.calendar?'':'none';
   $$('#themeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.theme===(document.documentElement.dataset.theme||'light')));
   $('#prefDur').value=String(UI.dur);
   // each team is a card: click it for who is in it, when it started, and the ways to bring people in

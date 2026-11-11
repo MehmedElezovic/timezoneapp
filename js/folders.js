@@ -87,7 +87,7 @@ function renderHome(){
     <div class="pj-body pj-drop" id="pjDrop">
       ${C.length?`<div class="pj-rows">${fdHead('Client','Pages','Folders')}${C.map(f=>fdRowHtml(T,f)).join('')}</div>`:''}
       ${loose.length?`<div class="fd-sec"><h3>Not in a client yet</h3><small>Move each page into its client with the folder button on its row.</small></div><div class="pj-rows">${fdHead('Page','Copy','Design')}${loose.map(p=>pgRowHtml(T,p)).join('')}</div>`:''}
-      ${!C.length&&!loose.length?`<div class="pj-dz big calm"><span class="ic">${PI.folder}</span><b>Add your first client</b><small>Each client holds its pages. A page keeps its copy and its design together, every version of both, with the comments on each.</small><span class="pj-dz-acts"><button type="button" class="btn dark" id="fdNewClient2">${I.plus}New client</button></span></div>`:''}
+      ${!C.length&&!loose.length?`<div class="pj-dz big"><span class="ic">${PI.folder}</span><b>Add your first client</b><small>Each client holds its pages. A page keeps its copy and its design together, every version of both, with the comments on each.</small><span class="pj-dz-acts"><button type="button" class="btn dark" id="fdNewClient2">${I.plus}New client</button></span></div>`:''}
       <div class="pj-over">${PI.up}<b>Drop to start a page from these files</b></div></div>`;
   fitThumbs();fillThumbs(loose.map(curVer).filter(Boolean));
 }
@@ -107,7 +107,7 @@ function renderFolder(f){
     <div class="pj-body pj-drop" id="pjDrop">
       ${kids.length?`<div class="pj-rows">${fdHead('Folder','Pages','Folders')}${kids.map(k=>fdRowHtml(T,k)).join('')}</div>`:''}
       ${pages.length?`<div class="pj-rows">${fdHead('Page','Copy','Design')}${pages.map(p=>pgRowHtml(T,p)).join('')}</div>`:''}
-      ${!kids.length&&!pages.length?`<div class="pj-dz big calm"><span class="ic">${PI.page}</span><b>No pages in ${esc(f.name)} yet</b><small>Add a page, then its copy and its design go inside it. You can also drop a page's HTML file here: it becomes a new page with that file as design version 1.</small><span class="pj-dz-acts"><button type="button" class="btn dark" id="fdNewPage2">${I.plus}New page</button><button type="button" class="btn" id="fdNewFolder2">${FDI.addFolder}New folder</button></span></div>`:''}
+      ${!kids.length&&!pages.length?`<div class="pj-dz big"><span class="ic">${PI.page}</span><b>No pages in ${esc(f.name)} yet</b><small>Add a page, then its copy and its design go inside it. You can also drop a page's HTML file here: it becomes a new page with that file as design version 1.</small><span class="pj-dz-acts"><button type="button" class="btn dark" id="fdNewPage2">${I.plus}New page</button><button type="button" class="btn" id="fdNewFolder2">${FDI.addFolder}New folder</button></span></div>`:''}
       <div class="pj-over">${PI.up}<b>Drop to start a page in ${esc(f.name)} from these files</b></div></div>`;
   fitThumbs();fillThumbs(pages.map(curVer).filter(Boolean));
 }
@@ -223,7 +223,6 @@ $('#vProj').addEventListener('click',e=>{
   if(b=c('[data-crumb]')){openFolder(b.dataset.crumb);return}
   if(b=c('[data-fd-open]')){openFolder(b.dataset.fdOpen);return}
   if(b=c('[data-fd-move-pg]')){const q=projById(b.dataset.fdMovePg);if(q) fdDlg({mode:'move',page:q.id,name:q.name});return}
-  if(c('#pjMove')&&p){fdDlg({mode:'move',page:p.id,name:p.name});return}
   if(c('[data-edit-cats]')){if(p) fdDlg({mode:'editPage',page:p.id,name:p.name,cats:[...(p.cats||[])]});else if(f) fdDlg({mode:'editClient',id:f.id,name:f.name,cats:[...(f.cats||[])]});return}
   if(c('#fdMore')){FD.menu=!FD.menu;renderProjects();return}
   if(b=c('[data-fd-do]')){if(b.disabled||!f) return;const k=b.dataset.fdDo;FD.menu=false;
@@ -234,8 +233,11 @@ $('#vProj').addEventListener('click',e=>{
 });
 $('#vProj').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='fdName'){e.preventDefault();e.target.blur()}});
 $('#vProj').addEventListener('focusout',e=>{if(e.target.id!=='fdName') return;const f=PV.folder&&fdById(PV.folder);if(!f) return;const n=newName(e.target.textContent);if(n&&n!==f.name){f.name=n;fdTouch(f);save();toast('Renamed')}else e.target.textContent=f.name});
-document.addEventListener('pointerdown',e=>{if(FD.menu&&!(e.target.closest&&e.target.closest('.fd-more'))){FD.menu=false;const m=$('#vProj .fd-menu');if(m) m.remove();const b=$('#fdMore');if(b) b.setAttribute('aria-expanded','false')}});
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&FD.menu&&UI.view==='projects'&&!document.querySelector('dialog[open]')){e.stopImmediatePropagation();FD.menu=false;renderProjects();const b=$('#fdMore');if(b) b.focus()}},true);
+document.addEventListener('pointerdown',e=>{if(FD.menu&&!(e.target.closest&&e.target.closest('.fd-more'))){FD.menu=false;const m=$('#vProj .fd-menu');if(m) m.remove();const b=$('#fdMore');if(b) b.setAttribute('aria-expanded','false')}
+  if(PV.menu&&!(e.target.closest&&e.target.closest('#pjChrome .fd-more'))){PV.menu=null;const m=$('#pjChrome .fd-menu');if(m) m.remove();const b=$('#pgMore');if(b) b.setAttribute('aria-expanded','false')}});
+document.addEventListener('keydown',e=>{if(e.key!=='Escape'||UI.view!=='projects'||document.querySelector('dialog[open]')) return;
+  if(FD.menu){e.stopImmediatePropagation();FD.menu=false;renderProjects();const b=$('#fdMore');if(b) b.focus()}
+  else if(PV.menu){e.stopImmediatePropagation();const p=projById(PV.menu);PV.menu=null;if(p) pageChromeRefresh(p);const b=$('#pgMore');if(b) b.focus()}},true);
 
 /* ---------- Settings › Categories: the team's lists ---------- */
 function renderCatSettings(){
