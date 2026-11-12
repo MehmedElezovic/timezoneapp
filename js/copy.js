@@ -21,6 +21,7 @@ const LIBS={
   quill:['https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js','https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.core.css'],
   marked:['https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js'],
   mammoth:['https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js'],
+  diff:['https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js'],
 };
 const libP={};
 function lib(name){return libP[name]||(libP[name]=new Promise((res,rej)=>{const [js,css]=LIBS[name];
@@ -270,9 +271,9 @@ function cpListHtml(p){
   return `<div class="ver-list">${[...copyOf(p)].reverse().map(card).join('')}</div>
     <div class="pj-dz"><span class="ic">${FDI.doc}</span><b>${d?`Your draft of v${next} is waiting`:`Write v${next}, or drop a file to make it`}</b><small>Writing starts from v${cur.n}${acc?`, with ${plural(acc,'accepted change')} already in`:''}. A Markdown, Word, text or HTML file becomes v${next} as it is. Every version keeps its own comments.</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-cp-write>${I.pen}${d?'Continue the draft':`Write v${next}`}</button><button type="button" class="btn" data-cp-up>${PI.up}Upload a file</button></span></div>`;
 }
-/* ---------- compare: two versions of the copy side by side, the earlier one on the left. Red and green belong to the
-   suggestions inside one version; here each version reads as it is, and the two columns scroll together until one is
-   dragged by its scrollbar. ---------- */
+/* ---------- compare: two versions of the copy side by side, the earlier one on the left. Each version reads as it is,
+   and the two columns scroll together until one is dragged by its scrollbar. See changes marks what changed between
+   them: words that went from the left one in red, struck through, and words that came into the right one in green. ---------- */
 function cpCmpPick(p,k,v,other){
   const open=CP.menu==='cmp'+k;
   return `<div class="vpick-wrap"><button type="button" class="vpick" data-cpcmp="${k}" aria-haspopup="menu" aria-expanded="${open}"><span class="pv-ttl"><b>${k==='a'?'Before':'After'}: v${v.n}</b><small>${esc(cpSrc(v))} · ${esc(agoLabel(v.at||Date.now()))}</small></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -281,7 +282,7 @@ function cpCmpPick(p,k,v,other){
 function cpCompareHtml(p){
   const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b);
   const col=(k,v,o)=>`<div class="cp-col"><div class="cp-colhead">${cpCmpPick(p,k,v,o)}<span class="cp-words">${plural(cpWords(v),'word')}</span></div><div class="cp-scroll" id="cpScroll${k.toUpperCase()}"><article class="cp-doc" aria-label="Copy v${v.n}">${cleanCopy(v.body)}</article></div></div>`;
-  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button><span class="pv-ttl"><b>Copy v${a.n} and v${b.n} side by side</b><small id="cpCmpHint">${cpCmpHint(cpCmpState().solo)}</small></span><span class="sp"></span>${cmpLinkBtn(cpCmpState().solo,'id="cpCmpLink"')}</div>
+  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button><span class="pv-ttl"><b>Copy v${a.n} and v${b.n} side by side</b><small id="cpCmpHint">${cpCmpSub()}</small></span><span class="sp"></span>${cpChgBtn()}${cmpLinkBtn(cpCmpState().solo,'id="cpCmpLink"')}</div>
       <div class="cp-sbs">${col('a',a,b)}${col('b',b,a)}</div></div></div>`;
 }
 // the two sides keep the same place: scroll one and the other follows, at the same share of its length, plus the gap they had
@@ -293,7 +294,7 @@ const cpCmpHint=solo=>solo?'Each side scrolls on its own. Scroll together moves 
 function cpCmpSolo(on){
   const s=cpCmpState(),A=$('#cpScrollA'),B=$('#cpScrollB');s.solo=on;
   if(!on&&A&&B) s.dy=B.scrollTop-(cpSpan(A)>0?A.scrollTop/cpSpan(A):0)*cpSpan(B);
-  const b=$('#cpCmpLink');if(b) b.outerHTML=cmpLinkBtn(on,'id="cpCmpLink"');const h=$('#cpCmpHint');if(h) h.textContent=cpCmpHint(on);
+  const b=$('#cpCmpLink');if(b) b.outerHTML=cmpLinkBtn(on,'id="cpCmpLink"');const h=$('#cpCmpHint');if(h) h.innerHTML=cpCmpSub();
 }
 function cpCompareAfter(p){
   const A=$('#cpScrollA'),B=$('#cpScrollB');if(!A||!B) return;
@@ -310,7 +311,57 @@ function cpCompareAfter(p){
     for(const k of ['wheel','touchstart','keydown']) el.addEventListener(k,()=>{grab=null},{passive:true});
   }
   A.scrollTop=s.a;B.scrollTop=s.b;requestAnimationFrame(()=>requestAnimationFrame(()=>{mute=false}));
+  if(CP.chg) cpChgMark(p);
 }
+// See changes: the two columns compared word by word, each in its own text positions. A stretch that went is marked in the
+// left column, one that came in is marked in the right one; changed words with only spaces between them are marked as one
+// stretch, so a rewritten phrase reads as one change. Only the words count: new bold alone is no change.
+function cpBlockText(box){
+  let s='',last=null,pos=0;const map=[];
+  for(const t of textNodes(box)){const blk=t.parentElement.closest('p,h1,h2,h3,h4,li,blockquote');if(last&&blk!==last){s+='\n';map.push(pos)}last=blk;s+=t.data;for(let i=0;i<t.data.length;i++) map.push(pos++)}
+  map.push(pos);return {s,map};
+}
+function cpChanges(aBox,bBox){
+  const A=cpBlockText(aBox),B=cpBlockText(bBox),del=[],ins=[];let ia=0,ib=0;
+  for(const pt of Diff.diffWordsWithSpace(A.s,B.s)){const L=pt.value.length;
+    if(pt.removed){if(pt.value.trim()) del.push([ia,ia+L]);ia+=L}else if(pt.added){if(pt.value.trim()) ins.push([ib,ib+L]);ib+=L}else{ia+=L;ib+=L}}
+  const tidy=(R,T)=>{const out=[];
+    for(let [a,b] of R){while(a<b&&/\s/.test(T.s[a])) a++;while(b>a&&/\s/.test(T.s[b-1])) b--;if(a>=b) continue;
+      const l=out[out.length-1];if(l&&/^[ \t ]*$/.test(T.s.slice(l[1],a))) l[1]=b;else out.push([a,b])}
+    return out};
+  const words=(R,T)=>R.reduce((n,[a,b])=>n+(T.s.slice(a,b).match(/\S+/g)||[]).length,0);
+  const dR=tidy(del,A),iR=tidy(ins,B);
+  return {del:dR.map(([a,b])=>[A.map[a],A.map[b]]),ins:iR.map(([a,b])=>[B.map[a],B.map[b]]),dw:words(dR,A),iw:words(iR,B)};
+}
+// wraps the text inside the stretches in <del> or <ins>: text is cut at every stretch's ends first, then each piece inside one is wrapped
+function cpWrap(box,ranges,tag){
+  if(!ranges.length) return;
+  const cuts=[...new Set(ranges.flat())].sort((x,y)=>x-y);
+  let pos=0;for(const t of textNodes(box)){const a=pos,L=t.data.length;pos+=L;let node=t,off=a;for(const c of cuts) if(c>a&&c<a+L){node=node.splitText(c-off);off=c}}
+  pos=0;let ri=0;
+  for(const t of textNodes(box)){const a=pos,b=pos+t.data.length;pos=b;if(b===a||t.parentElement===box) continue;
+    while(ri<ranges.length&&ranges[ri][1]<=a) ri++;
+    if(ri<ranges.length&&ranges[ri][0]<=a&&b<=ranges[ri][1]){const w=document.createElement(tag);w.className='rd';t.replaceWith(w);w.append(t)}}
+}
+async function cpChgMark(p){
+  const key=cpCmpKey(),A=$('#cpScrollA .cp-doc'),B=$('#cpScrollB .cp-doc');if(!A||!B) return;CP.chgN=null;cpChgUi();
+  try{await lib('diff')}catch(e){CP.chg=false;cpChgUi();toast('See changes could not load. Check your connection, then try again.');return}
+  if(!CP.chg||!A.isConnected||!CP.cmp||cpCmpKey()!==key||A.querySelector('.rd')||B.querySelector('.rd')) return;
+  const c=cpChanges(A,B);cpWrap(A,c.del,'del');cpWrap(B,c.ins,'ins');CP.chgN={dw:c.dw,iw:c.iw};cpChgUi();
+}
+function cpChgToggle(p){
+  CP.chg=!CP.chg;CP.chgN=null;
+  if(CP.chg) cpChgMark(p);
+  else{const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b),A=$('#cpScrollA .cp-doc'),B=$('#cpScrollB .cp-doc');if(A&&a) A.innerHTML=cleanCopy(a.body);if(B&&b) B.innerHTML=cleanCopy(b.body)}
+  cpChgUi();
+}
+const cpChgBtn=()=>`<button type="button" class="btn sm cp-chg${CP.chg?' on':''}" id="cpChg" aria-label="See changes" aria-pressed="${!!CP.chg}" title="${CP.chg?'Hide the changes':'Mark what changed: removed words in red on the left, added words in green on the right'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8h7M7.5 4.5v7M13 17h7"/></svg><span>See changes</span></button>`;
+// the line under the title: how the columns scroll, or with See changes on, the key and how much changed
+function cpCmpSub(){
+  if(!CP.chg) return esc(cpCmpHint(cpCmpState().solo));const n=CP.chgN;
+  return `<span class="cp-key del">Removed</span><span class="cp-key ins">Added</span>${!n?'Comparing the words…':n.dw||n.iw?`${plural(n.iw,'word')} added, ${n.dw} removed`:'The words are the same in both versions'}`;
+}
+function cpChgUi(){const b=$('#cpChg');if(b) b.outerHTML=cpChgBtn();const h=$('#cpCmpHint');if(h) h.innerHTML=cpCmpSub()}
 // compare a version with the one before it (or after it, for the first)
 function cpStartCompare(p,id){const L=copyOf(p),v=cpById(p,id),i=L.indexOf(v);if(L.length<2||!v) return;const o=i>0?L[i-1]:L[i+1];CP.cmp=v.n>o.n?{a:o.id,b:v.id}:{a:v.id,b:o.id};delete CP.scroll[cpCmpKey()];CP.menu=null;CP.sel=null;CP.draft=null;cpPopHide();render()}
 function cpOpenVer(id){CP.open=id;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;CP.filter='open';render()}
@@ -596,6 +647,7 @@ $('#vProj').addEventListener('click',async e=>{
   if(b=c('[data-cpv-cmp]')){cpStartCompare(p,b.dataset.cpvCmp);return}
   if(b=c('[data-cpv-open]')){cpOpenVer(b.dataset.cpvOpen);return}
   if(c('#cpCmpLink')){cpCmpSolo(!cpCmpState().solo);return}
+  if(c('#cpChg')){cpChgToggle(p);return}
   if(c('#cpCmpBack')){const id=CP.cmp&&CP.cmp.b;CP.cmp=null;CP.menu=null;cpOpenVer(id);return}
   if(b=c('[data-cpcmp]')){const k='cmp'+b.dataset.cpcmp;CP.menu=CP.menu===k?null:k;render();return}
   if(b=c('[data-cpcmp-pick]')){const k=b.dataset.cpcmpPick,x=cpById(p,b.dataset.v),o=cpById(p,k==='a'?CP.cmp.b:CP.cmp.a);CP.menu=null;if(x&&o) CP.cmp=x.n<o.n?{a:x.id,b:o.id}:{a:o.id,b:x.id};render();return}

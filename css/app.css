@@ -1859,3 +1859,12 @@ input,textarea,select,[contenteditable=true],.copyrow input{-webkit-user-select:
 @keyframes adShim{from{background-position:100% 0}to{background-position:0 0}}
 @media (prefers-reduced-motion:reduce){.ad-ph .ad-th{animation:none}.ad-ph-bar i,.ad-upbar i{transition:none}}
 @media (max-width:860px){.ad-upbar{width:64px}}
+
+/* copy compare, See changes: removed words red and struck on the left, added words green on the right */
+.btn.sm.cp-chg.on{background:var(--lav-soft);color:var(--tag-purple)}
+.btn.sm.cp-chg svg{width:14px;height:14px}
+.cp-sbs .cp-doc del.rd{text-decoration:line-through;text-decoration-color:var(--bad);text-decoration-thickness:1.5px;color:var(--tag-red);background:var(--tag-red-bg);border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.cp-sbs .cp-doc ins.rd{text-decoration:none;color:var(--tag-green);background:var(--tag-green-bg);border-radius:3px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.cp-key{display:inline-block;padding:0 6px;border-radius:5px;font-weight:600;margin-right:6px}
+.cp-key.del{color:var(--tag-red);background:var(--tag-red-bg);text-decoration:line-through;text-decoration-color:var(--bad)}
+.cp-key.ins{color:var(--tag-green);background:var(--tag-green-bg)}
