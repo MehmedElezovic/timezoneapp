@@ -281,7 +281,7 @@ async function pushTeam(T){
     if(CLOUD.adOn){
       const LA=L.ads||{},LAC=L.acm||{},LAR=L.are||{},aRow=n=>({n:n.n,batch:n.batch,name:n.name,w:n.w,h:n.h,size:n.size,original:n.original,review:n.review,thumb:n.thumb,status:n.status,decided_by:n.decided_by,decided_at:n.decided_at?isoOf(n.decided_at):null});
       const aIns=[];for(const id in N.ads){const n=N.ads[id],o=LA[id];if(!o) aIns.push({id,project_id:n.project_id,team_id:T.id,created_by:n.by||myId,created_at:isoOf(n.at||Date.now()),...aRow(n)});else if(!sameJ(n,o)) await run(sb.from('ads').update(aRow(n)).eq('id',id))}
-      if(aIns.length) await run(sb.from('ads').insert(aIns));
+      if(aIns.length){await run(sb.from('ads').insert(aIns));if(typeof AD!=='undefined') for(const r of aIns) delete AD.pend[r.id]}
       const acIns=[];for(const id in N.acm){const n=N.acm[id],o=LAC[id];if(!o) acIns.push({id,ad_id:n.ad_id,team_id:T.id,n:n.n,x:n.x,y:n.y,body:n.body,author_id:n.author_id||myId,status:n.status,created_at:isoOf(n.at||Date.now())});else if(n.status!==o.status) await run(sb.from('ad_comments').update({status:n.status}).eq('id',id))}
       if(acIns.length) await run(sb.from('ad_comments').insert(acIns));
       const arIns=[];for(const id in N.are) if(!LAR[id]){const n=N.are[id];arIns.push({id,comment_id:n.comment_id,team_id:T.id,author_id:n.author_id||myId,body:n.body,created_at:isoOf(n.at||Date.now())})}
@@ -350,6 +350,7 @@ async function pull(){
     const built=buildTeams({teams,members,events,attendees,threads,comments,reactions,tasks,tas,projects,pas,versions,vcm,vre,flows,pev,folders,cats,cv,ccm,cre,ads,acm,are},CLOUD.user.id),local=S.teams.filter(t=>!t.cloud);
     S.teams=[...built,...local];if(!S.teams.length) S.teams=seed().teams; // a new account with no team yet still needs one to show
     CLOUD.last={};for(const T of built) CLOUD.last[T.id]=toImage(T);
+    if(typeof adPendMerge==='function'&&adPendMerge()) pushSoon(); // ads still on their way in (ads.js)
     if(CLOUD.invOn){const {data}=await sb.rpc('my_invites');CLOUD.invites=Array.isArray(data)?data:[]}
     if(!S.teams.find(t=>t.id===S.active)) S.active=S.teams[0].id;
     try{localStorage.setItem(LS,JSON.stringify(S))}catch(e){}

@@ -11,8 +11,9 @@ const ADI={
   next:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
   ok:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   no:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></svg>',
+  again:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.5 4.5v4.2h-4.2"/></svg>',
 };
-const AD={page:null,open:null,filter:'all',cf:'open',sel:null,draft:null,reply:false,replyText:'',menu:null,busy:null,urls:{},io:null,scroll:0};
+const AD={page:null,open:null,filter:'all',cf:'open',sel:null,draft:null,reply:false,replyText:'',menu:null,up:null,pend:{},urls:{},io:null,scroll:0};
 const AD_MAX=50*1048576,AD_REVIEW=2000,AD_THUMB=480,AD_TYPES=/\.(png|jpe?g|webp|avif)$/i;
 const adsOf=p=>(p.ads=p.ads||[]);
 const adById=(p,id)=>adsOf(p).find(a=>a.id===id)||null;
@@ -27,8 +28,6 @@ const adList=p=>adOrder(p).filter(adIn);
 const adCounts=p=>{const L=adsOf(p);return {all:L.length,open:L.filter(a=>a.status==='open').length,approved:L.filter(a=>a.status==='approved').length,rejected:L.filter(a=>a.status==='rejected').length}};
 function adReset(p){if(AD.page===p.id) return;AD.page=p.id;AD.open=null;AD.filter='all';AD.sel=null;AD.draft=null;AD.reply=false;AD.menu=null;AD.scroll=0}
 function adMode(p){adReset(p);return AD.open&&adById(p,AD.open)?'view':'list'}
-const adBusyText=()=>AD.busy?`Adding ads… ${AD.busy.done} of ${AD.busy.total}`:'';
-function adBusyShow(){const el=$('#adBusy');if(el) el.textContent=adBusyText()}
 
 /* ---------- the files: a thumbnail, a review copy and the original, each kept on this device once seen ---------- */
 async function adUrl(a,kind){
@@ -49,39 +48,162 @@ async function adCopy(bmp,max,q){
 const adExt=b=>({'image/webp':'.webp','image/jpeg':'.jpg','image/png':'.png','image/avif':'.avif'})[b.type]||'';
 const adSafe=s=>String(s||'').replace(/[\\/:*?"<>|]+/g,'-');
 
-/* ---------- taking a batch in: every image becomes the next ad, with its two light copies made right here ---------- */
+/* ---------- taking a batch in ----------
+   A batch shows up at once as one card per image, in name order: grey while it waits, then its light copy, faint, filling
+   up as its three files go to the account. Three images go at a time. Each ad is saved the moment it is in, in name
+   order, so a reload of the team from the account (a teammate's change, or the echo of our own saves) never loses the
+   rest; ads saved here that such a reload has not brought back yet are put back in (adPendMerge, called by sync). An
+   image that cannot be added stays as a card that says why, with Try again when trying again can help. */
+const AD_PAR=3;
+const adUpOf=p=>AD.up&&AD.up.pid===p.id?AD.up:null;
+const adUpLive=up=>up.items.filter(it=>!it.gone);
+const adUpBusy=()=>!!(AD.up&&adUpLive(AD.up).some(it=>it.st==='wait'||it.st==='prep'||it.st==='send'||it.st==='ready'));
+const adUpCount=up=>{const L=adUpLive(up);return {all:L.length,todo:L.filter(it=>!it.fixed).length,done:L.filter(it=>it.st==='done').length,fail:L.filter(it=>it.st==='fail').length}};
+const adUpPct=up=>{const L=adUpLive(up).filter(it=>!it.fixed);return L.length?L.reduce((s,it)=>s+(it.st==='done'||it.st==='fail'?1:it.pct),0)/L.length:1};
+const adUpProj=up=>{const T=S.teams.find(t=>t.id===up.tid);return {T,p:T?projectsOf(T).find(x=>x.id===up.pid)||null:null}};
+const adPhLabel=it=>it.st==='wait'?'Waiting':it.st==='prep'?'Preparing':it.st==='ready'?'Saving':Math.round(it.pct*100)+'%';
+function adWhy(e){
+  const m=String((e&&e.message)||e||'').trim();
+  if(/maximum allowed size|too large|payload|\b413\b/i.test(m)) return 'Too big for the account: 50 MB at most';
+  if(/row-level security|not authori[sz]ed|unauthori[sz]ed|\b403\b/i.test(m)) return 'Your account could not save it here';
+  return m?m.replace(/\.$/,''):'It did not go through';
+}
 async function adUpload(p,files){
   const T=team();
   if(T.cloud&&cloudOn()&&!CLOUD.adOn){toast('Ads need the latest database update, and it is not there yet. Reload the page; if this stays, the update has not run.');return}
-  if(AD.busy){toast('Still adding the last batch');return}
-  files=[...files].filter(f=>AD_TYPES.test(f.name)||/^image\/(png|jpeg|webp|avif)$/.test(f.type));
-  if(!files.length){toast('Upload PNG, JPG or WebP images');return}
-  const big=files.filter(f=>f.size>AD_MAX);files=files.filter(f=>f.size<=AD_MAX).sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
-  if(!files.length){toast(`Over 50 MB: ${big.map(f=>f.name).join(', ')}`);return}
-  const batch=adsOf(p).reduce((m,a)=>Math.max(m,a.batch||0),0)+1,cloud=cloudFiles(T),bad=[];
-  let n=adsOf(p).reduce((m,a)=>Math.max(m,a.n),0),made=0;
-  AD.busy={done:0,total:files.length};if(AD.filter==='approved'||AD.filter==='rejected') AD.filter='all';render();
-  for(const f of files){
-    try{
-      const bmp=await createImageBitmap(f),w=bmp.width,h=bmp.height,rv=await adCopy(bmp,AD_REVIEW,.86),th=await adCopy(bmp,AD_THUMB,.8);if(bmp.close) bmp.close();
-      const a={id:uid(),n:n+1,batch,name:f.name.slice(0,200),w,h,size:f.size,orig:null,review:null,thumb:null,status:'open',by:me().id,at:Date.now(),cm:[]};
-      await fdbPut(a.id+':t',th);await fdbPut(a.id+':r',rv);
-      if(cloud){const dir='ads/'+a.id;
-        a.thumb=await putFile(T,p.id,dir,'thumb'+adExt(th),th,th.type);a.review=await putFile(T,p.id,dir,'review'+adExt(rv),rv,rv.type);
-        a.orig=await putFile(T,p.id,dir,'original'+(adExt(f)||'.'+(f.name.split('.').pop()||'png').toLowerCase()),f,f.type||typeOfName(f.name));
-        if(!a.thumb||!a.review||!a.orig){bad.push(f.name);removeFiles([a.thumb,a.review,a.orig].filter(Boolean));fdbDel([a.id+':t',a.id+':r']);continue}}
-      else await fdbPut(a.id+':o',f); // a team on this device only: the original lives here
-      n++;made++;adsOf(p).push(a);
-      if(made%5===0){touch(p);save()}
-      if(PV.proj===p.id&&PV.tab==='ads'&&!AD.open) render();
-    }catch(e){console.warn('ad',e);bad.push(f.name)}
-    finally{AD.busy.done++;adBusyShow()}
-  }
-  AD.busy=null;if(made){touch(p);save()}render();
-  toast(made?`${plural(made,'ad')} added as batch ${batch}${bad.length?`, ${bad.length} could not be`:''}`:'None of those images could be added');
-  if(bad.length) setTimeout(()=>toast(`Not added: ${bad.slice(0,3).join(', ')}${bad.length>3?` and ${bad.length-3} more`:''}. Upload them again.`),3300);
-  if(big.length) setTimeout(()=>toast(`Skipped ${big.map(f=>f.name).join(', ')}: over 50 MB`),bad.length?6600:3300);
+  if(adUpBusy()){toast(AD.up.pid===p.id?'Still adding the last batch':'Still adding ads to another page');return}
+  files=[...files].filter(f=>!f.name.startsWith('.')); // hidden files a folder brings along (.DS_Store)
+  const ok=f=>AD_TYPES.test(f.name)||/^image\/(png|jpeg|webp|avif)$/.test(f.type);
+  if(!files.some(ok)){if(files.length) toast('Upload PNG, JPG or WebP images');return}
+  files.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+  const batch=adsOf(p).reduce((m,a)=>Math.max(m,a.batch||0),0)+1;
+  AD.up={tid:T.id,pid:p.id,batch,next:0,workers:0,at:Date.now(),by:me().id,items:files.map((f,i)=>{
+    const why=!ok(f)?'Not a PNG, JPG or WebP image':f.size>AD_MAX?`Over 50 MB (${fmtSize(f.size)})`:'';
+    return {key:uid(),i,f,st:why?'fail':'wait',why,fixed:!!why,pct:0,thumb:null,a:null,id:null,gone:false}})};
+  if(AD.filter==='approved'||AD.filter==='rejected') AD.filter='all';
+  const b=$('#pjDrop');if(b&&PV.proj===p.id&&!AD.open) b.scrollTop=0;AD.scroll=0;
+  render();adUpRun(AD.up);
 }
+function adUpRun(up){
+  while(AD.up===up&&up.workers<AD_PAR&&up.items.some(it=>it.st==='wait'&&!it.gone)){up.workers++;adUpWorker(up)}
+}
+async function adUpWorker(up){
+  try{for(;;){if(AD.up!==up) break;const it=up.items.find(x=>x.st==='wait'&&!x.gone);if(!it) break;await adUpOne(up,it)}}
+  finally{up.workers--;if(!up.workers) adUpEnd(up)}
+}
+async function adUpOne(up,it){
+  it.st='prep';it.pct=0;it.why='';adUpPaint(it);
+  const f=it.f,{T}=adUpProj(up),cloud=!!(T&&cloudFiles(T)),paths=[];let a=null;
+  try{
+    if(!T) throw new Error('The team is not here any more');
+    const unreadable=()=>Object.assign(new Error('This image could not be read'),{fixed:true}); // trying again would not help
+    let bmp;try{bmp=await createImageBitmap(f)}catch(e){throw unreadable()}
+    const w=bmp.width,h=bmp.height,rv=await adCopy(bmp,AD_REVIEW,.86),th=await adCopy(bmp,AD_THUMB,.8);if(bmp.close) bmp.close();
+    if(!rv||!th) throw unreadable();
+    a={id:uid(),n:0,batch:up.batch,name:f.name.slice(0,200),w,h,size:f.size,orig:null,review:null,thumb:null,status:'open',by:up.by,at:Date.now(),cm:[]};
+    await fdbPut(a.id+':t',th);await fdbPut(a.id+':r',rv);
+    it.thumb=AD.urls[a.id+':t']=URL.createObjectURL(th);it.st='send';adUpPaint(it);
+    if(cloud){
+      const dir='ads/'+a.id,tot=th.size+rv.size+f.size||1;let sent=0;
+      const go=async(name,b,type)=>{const path=await adPut(T,up.pid,dir,name,b,type,x=>{it.pct=Math.min(.99,(sent+x)/tot);adUpPaint(it)});paths.push(path);sent+=b.size;return path};
+      a.thumb=await go('thumb'+adExt(th),th,th.type);
+      a.review=await go('review'+adExt(rv),rv,rv.type);
+      a.orig=await go('original'+(adExt(f)||'.'+(f.name.split('.').pop()||'png').toLowerCase()),f,f.type||typeOfName(f.name));
+    }else await fdbPut(a.id+':o',f); // a team on this device only: the original lives here
+    it.pct=1;it.a=a;it.st='ready';
+  }catch(e){
+    console.warn('ad',f.name,e);
+    if(paths.length) removeFiles(paths);
+    if(a){fdbDel([a.id+':t',a.id+':r',a.id+':o']).catch(()=>{});adDropUrls(a)}
+    it.st='fail';it.why=adWhy(e);it.fixed=!!e.fixed;it.thumb=null;it.a=null;
+  }
+  adUpCommit(up);adUpRender(up);
+}
+// one file into the account's storage, reporting the bytes sent: the request supabase-js makes, through XHR because
+// fetch cannot report upload progress
+async function adPut(T,pid,dir,rel,blob,type,onp){
+  const path=`${T.id}/${pid}/${dir}/${rel}`,{data}=await sb.auth.getSession(),tok=data&&data.session&&data.session.access_token;
+  if(!tok) throw new Error('You are signed out. Sign in, then try again');
+  await new Promise((done,fail)=>{const x=new XMLHttpRequest();
+    x.open('POST',`${SB_URL}/storage/v1/object/${BUCKET}/${path.split('/').map(encodeURIComponent).join('/')}`);
+    x.setRequestHeader('authorization','Bearer '+tok);x.setRequestHeader('apikey',SB_KEY);x.setRequestHeader('x-upsert','true');
+    x.setRequestHeader('content-type',type||'application/octet-stream');x.setRequestHeader('cache-control','max-age=3600');
+    x.upload.onprogress=e=>{if(e.lengthComputable) onp(Math.min(e.loaded,blob.size))};
+    x.onload=()=>{if(x.status>=200&&x.status<300){onp(blob.size);done();return}
+      let m='';try{const j=JSON.parse(x.responseText);m=j.message||j.error||''}catch(e){}fail(new Error(m||`The upload was refused (${x.status})`))};
+    x.onerror=()=>fail(new Error('The connection dropped'));x.ontimeout=()=>fail(new Error('The upload timed out'));
+    x.send(blob)});
+  return path;
+}
+// ads go into the page in name order: one goes in once every image before it is in or has failed; one tried again
+// after the rest went in goes in at the end
+function adUpCommit(up){
+  if(AD.up!==up) return;let p=null;
+  const put=it=>{p=p||adUpProj(up).p;if(!p){it.st='fail';it.why='The page is not here any more';return}
+    const a=it.a;a.n=adsOf(p).reduce((m,x)=>Math.max(m,x.n||0),0)+1;adsOf(p).push(a);if(adUpProj(up).T.cloud) AD.pend[a.id]={tid:up.tid,pid:up.pid,a};it.id=a.id;it.a=null;it.st='done'};
+  while(up.next<up.items.length){const it=up.items[up.next];if(it.st==='ready') put(it);else if(it.st!=='fail'&&!it.gone) break;up.next++}
+  for(const it of up.items) if(it.st==='ready'&&it.i<up.next) put(it);
+  if(p){touch(p);save()}
+}
+function adUpEnd(up){
+  if(AD.up!==up) return;adUpCommit(up);
+  const c=adUpCount(up);if(!c.fail) AD.up=null;adUpRender(up);
+  toast(!c.fail?`${plural(c.done,'ad')} added as batch ${up.batch}`:c.done?`${c.done} of ${plural(c.all,'image')} added. ${c.fail} could not be: each of those cards says why.`:`None of those images could be added: each card says why.`);
+}
+function adUpRetry(key){
+  const up=AD.up,it=up&&up.items.find(x=>x.key===key);if(!it||it.st!=='fail'||it.fixed) return;
+  it.st='wait';it.why='';it.pct=0;adUpRender(up);adUpRun(up);
+}
+function adUpDrop(key){
+  const up=AD.up,it=up&&up.items.find(x=>x.key===key);if(!it||it.st!=='fail') return;
+  it.gone=true;if(!adUpLive(up).some(x=>x.st!=='done')) AD.up=null;adUpRender(up);
+}
+// ads saved here that a reload from the account has not brought back yet: they go back in, and the next save sends them
+function adPendMerge(){
+  let back=false;
+  for(const [id,x] of Object.entries(AD.pend)){
+    const T=S.teams.find(t=>t.id===x.tid),p=T&&projectsOf(T).find(q=>q.id===x.pid);
+    if(!p||adById(p,id)){delete AD.pend[id];continue}
+    adsOf(p).push(x.a);back=true;
+  }
+  return back;
+}
+addEventListener('beforeunload',e=>{if(adUpBusy()){e.preventDefault();e.returnValue=''}});
+
+/* the cards of a batch on its way in, and the bar above the grid */
+function adPhHtml(it){
+  const name=esc(it.f.name);
+  if(it.st==='fail') return `<div class="ad-card ad-ph fail" data-adup="${it.key}"><div class="ad-th"><span class="ad-ph-why"><b>Not added</b><small>${esc(it.why)}</small></span></div>
+    <div class="ad-cf"><span class="ad-ph-name" title="${name}">${name}</span>${it.fixed?'':`<button type="button" class="ad-tick" data-adup-retry="${it.key}" title="Try again" aria-label="Try ${name} again">${ADI.again}</button>`}<button type="button" class="ad-tick" data-adup-x="${it.key}" title="Remove this card" aria-label="Remove the card for ${name}">${ADI.no}</button></div></div>`;
+  return `<div class="ad-card ad-ph ${it.st}" data-adup="${it.key}" title="${name}"><div class="ad-th${it.thumb?' has':''}"><img alt=""${it.thumb?` src="${it.thumb}"`:''}><span class="ad-ph-bar"><i style="width:${Math.round(it.pct*100)}%"></i></span></div>
+    <div class="ad-cf"><span class="ad-ph-line"></span><span class="sp"></span><small class="ad-ph-pct">${adPhLabel(it)}</small></div></div>`;
+}
+function adUpSecHtml(p,up,all){
+  const T=team(),c=adUpCount(up),busy=adUpBusy(),seen=new Set(),cards=[];
+  for(const it of adUpLive(up)){
+    if(it.st==='done'){const a=adById(p,it.id);if(a){seen.add(a.id);if(adIn(a)) cards.push(adCardHtml(a))}}
+    else cards.push(adPhHtml(it));
+  }
+  for(const a of all) if(!seen.has(a.id)&&adIn(a)) cards.push(adCardHtml(a));
+  const sub=busy?`Adding ${c.done} of ${plural(c.todo,'ad')}`:`${plural(c.done,'ad')} added${c.fail?` · ${c.fail} not added`:''} · ${esc(agoLabel(up.at))} by ${esc(whoName(T,up.by))}`;
+  return `<section class="ad-batch"><div class="ad-bh"><b>Batch ${up.batch}</b><small>${sub}</small><span class="sp"></span>${!busy&&all.length?`<button type="button" class="fd-act" data-ad-delbatch="${up.batch}" title="Delete batch ${up.batch}" aria-label="Delete batch ${up.batch}">${I.trash}</button>`:''}</div>
+    <div class="ad-grid">${cards.join('')}</div></section>`;
+}
+function adUpBarHtml(p){
+  const up=adUpOf(p);if(!up||!adUpBusy()) return '';const c=adUpCount(up),pc=Math.round(adUpPct(up)*100);
+  return `<span class="ad-upt">Adding ${c.done} of ${c.todo}</span><span class="ad-upbar" role="progressbar" aria-label="Adding ads" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pc}"><i style="width:${pc}%"></i></span>`;
+}
+// while the files go up only the bars move; the grid is drawn again when an ad goes in or an image fails
+function adUpPaint(it){
+  const el=document.querySelector(`[data-adup="${it.key}"]`);
+  if(el){el.className=`ad-card ad-ph ${it.st}`;const th=el.querySelector('.ad-th'),img=th&&th.querySelector('img'),bar=el.querySelector('.ad-ph-bar i'),t=el.querySelector('.ad-ph-pct');
+    if(it.thumb&&img&&!img.getAttribute('src')){img.src=it.thumb;th.classList.add('has')}
+    if(bar) bar.style.width=Math.round(it.pct*100)+'%';if(t) t.textContent=adPhLabel(it)}
+  const up=AD.up,box=$('#adBusy');if(!up||!box||PV.proj!==up.pid) return;
+  const i=box.querySelector('.ad-upbar'),t=box.querySelector('.ad-upt'),c=adUpCount(up),pc=Math.round(adUpPct(up)*100);
+  if(i){i.firstElementChild.style.width=pc+'%';i.setAttribute('aria-valuenow',pc)}if(t) t.textContent=`Adding ${c.done} of ${c.todo}`;
+}
+function adUpRender(up){if(UI.view==='projects'&&PV.proj===up.pid&&PV.tab==='ads') render()}
 function adDrop(dt){const p=PV.proj&&projById(PV.proj);if(p) adUpload(p,[...dt.files])}
 $('#adFiles').addEventListener('change',e=>{const p=PV.proj&&projById(PV.proj),l=[...e.target.files];e.target.value='';if(p) adUpload(p,l)});
 
@@ -89,21 +211,23 @@ $('#adFiles').addEventListener('change',e=>{const p=PV.proj&&projById(PV.proj),l
 function adsViewHtml(p){
   adReset(p);const L=adsOf(p),next=L.reduce((m,a)=>Math.max(m,a.batch||0),0)+1;
   const over=`<div class="pj-over">${PI.up}<b>Drop the images to add them as batch ${next}</b></div>`;
-  if(!L.length) return `<div class="pj-dz big"><span class="ic">${ADI.img}</span><b>No ads for ${esc(p.name)} yet</b><small>Upload a batch of ad images, or drop them here. Noon makes a light copy of each for the team to look at, so even a few hundred ads open fast, and keeps the full-size file for downloading the ones you approve.</small>
+  if(!L.length&&!adUpOf(p)) return `<div class="pj-dz big"><span class="ic">${ADI.img}</span><b>No ads for ${esc(p.name)} yet</b><small>Upload a batch of ad images, or drop them here. Noon makes a light copy of each for the team to look at, so even a few hundred ads open fast, and keeps the full-size file for downloading the ones you approve.</small>
     <ul class="pj-need"><li><b>PNG, JPG or WebP</b>, up to 50 MB each.</li><li><b>A batch at a time</b>, 5, 10 or 20 images: each upload is its own batch.</li><li><b>Approve or reject</b> each ad, and comment on any spot of it.</li></ul>
-    <span class="pj-dz-acts"><button type="button" class="btn dark" data-ad-up>${PI.up}Upload ads</button></span>${AD.busy?`<small class="ad-busy" id="adBusy">${adBusyText()}</small>`:''}</div>${over}`;
+    <span class="pj-dz-acts"><button type="button" class="btn dark" data-ad-up>${PI.up}Upload ads</button></span></div>${over}`;
   return (adMode(p)==='view'?adViewHtml(p,adById(p,AD.open)):adListHtml(p))+over;
 }
 function adListHtml(p){
+  // drawn again in place (an ad going in, a teammate's change): the grid keeps where it was scrolled to
+  {const b=$('#pjDrop');if(b&&!AD.scroll&&AD.listFor===p.id&&b.querySelector('.ad-bar')) AD.scroll=b.scrollTop}AD.listFor=p.id;
   const T=team(),k=adCounts(p),free=adsOf(p).filter(a=>a.status==='rejected'&&!a.gone),freed=free.reduce((n,a)=>n+(a.size||0),0);
   const seg=[['all','All'],['open','To decide'],['approved','Approved'],['rejected','Rejected']].map(([f,l])=>`<button type="button" class="${AD.filter===f?'on':''}" data-ad-filter="${f}">${l}<i>${k[f]||''}</i></button>`).join('');
-  const batches=[...new Set(adsOf(p).map(a=>a.batch||1))].sort((a,b)=>b-a);
-  const secs=batches.map(b=>{const all=adOrder(p).filter(a=>(a.batch||1)===b),vis=all.filter(adIn);if(!vis.length) return '';
+  const up=adUpOf(p),batches=[...new Set([...adsOf(p).map(a=>a.batch||1),...(up?[up.batch]:[])])].sort((a,b)=>b-a);
+  const secs=batches.map(b=>{const all=adOrder(p).filter(a=>(a.batch||1)===b),vis=all.filter(adIn);if(up&&b===up.batch) return adUpSecHtml(p,up,all);if(!vis.length) return '';
     const ap=all.filter(a=>a.status==='approved').length,rj=all.filter(a=>a.status==='rejected').length,f0=all[0];
     return `<section class="ad-batch"><div class="ad-bh"><b>Batch ${b}</b><small>${plural(all.length,'ad')} · ${esc(agoLabel(f0.at||Date.now()))} by ${esc(whoName(T,f0.by))}${ap?` · ${ap} approved`:''}${rj?` · ${rj} rejected`:''}</small><span class="sp"></span><button type="button" class="fd-act" data-ad-delbatch="${b}" title="Delete batch ${b}" aria-label="Delete batch ${b}">${I.trash}</button></div>
       <div class="ad-grid">${vis.map(adCardHtml).join('')}</div></section>`}).join('');
   const menu=AD.menu==='list'?`<div class="dd fd-menu" role="menu"><button type="button" class="opt" role="menuitem" data-ad-do="free" ${free.length?'':'disabled'}>${I.trash}<span class="n">Remove full-size files of rejected ads<small>${free.length?`${plural(free.length,'ad')}, frees ${fmtSize(freed)}. Review copies, decisions and comments stay.`:'No rejected ad has one left'}</small></span></button></div>`:'';
-  return `<div class="ad-bar"><div class="seg sm" id="adFilter" aria-label="Which ads">${seg}</div><span class="sp"></span><span class="ad-busy" id="adBusy">${adBusyText()}</span>
+  return `<div class="ad-bar"><div class="seg sm" id="adFilter" aria-label="Which ads">${seg}</div><span class="sp"></span><span class="ad-busy" id="adBusy">${adUpBarHtml(p)}</span>
       ${k.approved?`<button type="button" class="btn sm" data-ad-zip title="A zip of the full-size files of the ${plural(k.approved,'approved ad')}">${PI.dl}<span>Download approved</span></button>`:''}<button type="button" class="btn sm dark" data-ad-up title="Add the next batch">${PI.up}<span>Upload ads</span></button>
       <div class="fd-more"><button type="button" class="btn sm icon" id="adListMore" aria-label="More for the ads" aria-haspopup="menu" aria-expanded="${AD.menu==='list'}">${I.more}</button>${menu}</div></div>
     ${secs||`<p class="pv-empty ad-none">${AD.filter==='open'?'Every ad has a decision.':`No ${AD.filter} ads yet.`}</p>`}`;
@@ -222,6 +346,7 @@ async function adZip(p){
 async function adDelete(p,list,title,text){
   if(!await confirmDlg(title,text,list.length>1?'Delete ads':'Delete ad')) return;
   const keys=[],paths=[];for(const a of list){adDropUrls(a);keys.push(a.id+':o',a.id+':r',a.id+':t');for(const x of [a.orig,a.review,a.thumb]) if(x) paths.push(x)}
+  for(const a of list) delete AD.pend[a.id];
   p.ads=adsOf(p).filter(a=>!list.includes(a));if(list.some(a=>a.id===AD.open)){AD.open=null;AD.sel=null;AD.draft=null}
   touch(p);save();render();fdbDel(keys);removeFiles(paths);toast(list.length>1?`${plural(list.length,'ad')} deleted`:`${adLabel(list[0])} deleted`);
 }
@@ -248,6 +373,8 @@ $('#vProj').addEventListener('click',async e=>{
   if(!PV.proj||PV.tab!=='ads'||SHARE) return;
   const c=s=>e.target.closest(s),p=projById(PV.proj);if(!p) return;const a=AD.open?adById(p,AD.open):null;let b;
   if(c('[data-ad-up]')){$('#adFiles').click();return}
+  if(b=c('[data-adup-retry]')){adUpRetry(b.dataset.adupRetry);return}
+  if(b=c('[data-adup-x]')){adUpDrop(b.dataset.adupX);return}
   if(b=c('[data-ad-filter]')){AD.filter=b.dataset.adFilter;render();return}
   if(b=c('[data-ad-quick]')){const x=adById(p,b.dataset.id);if(x) adSet(p,x,b.dataset.adQuick,false);return}
   if(b=c('[data-ad-delbatch]')){const n=+b.dataset.adDelbatch,L=adsOf(p).filter(x=>(x.batch||1)===n),ap=L.filter(x=>x.status==='approved').length;
