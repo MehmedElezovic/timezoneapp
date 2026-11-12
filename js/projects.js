@@ -251,18 +251,19 @@ function pageTab(p){
   if(!FEAT.flows&&(PV.tab==='flow'||PV.tab==='history')) PV.tab='design';
   return PV.tab;
 }
-// the top of a page: its name and place, categories, deadline, people and the tabs. It stays put while the part under
-// the tabs changes: a list of versions, one version open, or the copy being written.
+// the top of a page: its name with its place under it, then its categories, deadline, people and last change in the same
+// row, then the tabs. The fields drop to a row of their own when the window is too narrow for them beside the name.
+// It stays put while the part under the tabs changes: a list of versions, one version open, or the copy being written.
 function pageChrome(p){
   const T=team(),vs=versOf(p),du=dueInfo(p.due),ppl=(p.to||[]).map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!(p.to||[]).includes(z.id));
   const tab=pageTab(p),design=tab==='design',all=FEAT.flows?projTasks(T,p):[],doneN=all.filter(t=>t.done).length,up=fdById(p.folder,T);
-  return `<header class="top"><button type="button" class="chev" id="pjBack" aria-label="Back to ${esc(up?up.name:'all clients')}">${PI.back}</button><div class="ttl-wrap"><h1 class="editable" id="pjName" contenteditable="true" spellcheck="false" title="Click to rename">${esc(p.name)}</h1><span class="sub crumbs">${crumbsHtml(T,p.folder)}${up?'':'<i>/</i><span>Not in a client</span>'}</span></div>
-      <div class="topnav pg-nav"><div class="fd-more"><button type="button" class="lbtn quiet icon" id="pgMore" aria-label="More for ${esc(p.name)}" aria-haspopup="menu" aria-expanded="${PV.menu===p.id}">${I.more}</button>${PV.menu===p.id?pgMenuHtml(p):''}</div></div></header>
+  return `<header class="top pg-top"><button type="button" class="chev" id="pjBack" aria-label="Back to ${esc(up?up.name:'all clients')}">${PI.back}</button><div class="ttl-wrap"><h1 class="editable" id="pjName" contenteditable="true" spellcheck="false" title="Click to rename">${esc(p.name)}</h1><span class="sub crumbs">${crumbsHtml(T,p.folder)}${up?'':'<i>/</i><span>Not in a client</span>'}</span></div>
     <div class="pj-meta">${catMetaHtml('page',p,T)}
       <div class="pj-meta-i"><label for="pjDue">Deadline</label><div class="pj-due"><input type="date" id="pjDue" class="pj-date" value="${p.due||''}" aria-label="Deadline">${du?`<small class="${du.state}">${esc(du.rel)}</small>`:''}</div></div>
       <div class="pj-meta-i"><label>${all.length?'People':'Assigned to'}</label>${all.length?`<div class="whochips">${[...new Set(all.flatMap(t=>t.to))].map(id=>findM(id,T)).filter(Boolean).map(z=>`<span class="who1">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}</span>`).join('')||'<span class="pj-none">Nobody yet</span>'}</div>`:`<div class="whochips">${ppl.map(z=>`<button type="button" class="who1" data-pjrm="${z.id}" title="Remove">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}<i>×</i></button>`).join('')}${cand.length?`<button type="button" class="addc" id="pjAddBtn" aria-label="Add someone" aria-expanded="${PV.pick}">${I.plus}</button>`:''}${PV.pick&&cand.length?`<div class="dd" id="pjDd"><div class="dd-list">${cand.map(z=>`<button type="button" class="opt" data-pjav="${z.id}">${avatar(z,'sm')}<span class="n">${esc(z.isMe?'Me':z.name)}<small>${esc(tzLabel(z.tz))}</small></span></button>`).join('')}</div></div>`:''}${!ppl.length&&!PV.pick?'<span class="pj-none">Nobody yet</span>':''}</div>`}</div>
       <div class="pj-meta-i"><label>Last change</label><div class="pj-last"><b>${esc(agoLabel(p.at||Date.now()))}</b><small>by ${esc(changedBy(T,p))}</small></div></div>
     </div>
+      <div class="topnav pg-nav"><div class="fd-more"><button type="button" class="lbtn quiet icon" id="pgMore" aria-label="More for ${esc(p.name)}" aria-haspopup="menu" aria-expanded="${PV.menu===p.id}">${I.more}</button>${PV.menu===p.id?pgMenuHtml(p):''}</div></div></header>
     <div class="pj-tabs"><div class="seg sm" id="pjTabs" role="tablist"><button type="button" class="${tab==='copy'?'on':''}" data-pj-tab="copy">Copy<i>${copyOf(p).length||''}</i></button><button type="button" class="${design?'on':''}" data-pj-tab="design">Design<i>${vs.length||''}</i></button><button type="button" class="${tab==='ads'?'on':''}" data-pj-tab="ads">Ads<i>${adsOf(p).length||''}</i></button>${FEAT.flows?`<button type="button" class="${tab==='flow'?'on':''}" data-pj-tab="flow">Steps<i>${all.length-doneN||''}</i></button><button type="button" class="${tab==='history'?'on':''}" data-pj-tab="history">History</button>`:''}</div>${FEAT.flows&&p.flow&&all.length?`<div class="pj-prog"><span>${doneN} of ${plural(all.length,'step')} done</span><div class="ptk-bar"><i style="width:${Math.round(doneN/all.length*100)}%"></i></div></div>`:''}</div>`;
 }
 // the page's own menu, the same on the Copy and Design tabs: what applies to the whole page, copy and design together
@@ -274,7 +275,9 @@ function pgMenuHtml(p){
     <hr class="dd-sep"><button type="button" class="opt danger" role="menuitem" data-pg-do="del">${I.trash}<span class="n">Delete page<small>Its copy, its design and every comment</small></span></button></div>`;
 }
 // redrawing the top while a version is open, unless someone is typing in it
-function pageChromeRefresh(p){const ch=$('#pjChrome'),a=document.activeElement;if(ch&&!(ch.contains(a)&&a.matches('input,textarea,[contenteditable]'))) ch.innerHTML=pageChrome(p)}
+function pageChromeRefresh(p){const ch=$('#pjChrome'),a=document.activeElement;if(ch&&!(ch.contains(a)&&a.matches('input,textarea,[contenteditable]'))){ch.innerHTML=pageChrome(p);pjDdFit()}}
+// the add-someone list opens to the right of its button, or to the left when the fields sit at the right end of the top
+function pjDdFit(){const d=$('#pjDd'),m=$('.main');if(d&&m&&d.getBoundingClientRect().right>m.getBoundingClientRect().right-8) d.classList.add('flip')}
 function renderProject(p){
   const T=team(),vs=versOf(p).slice().reverse(),cv=curVer(p);
   const card=v=>{const o=openIn(v,'team').length,co=openIn(v,'client').length,r=v.cm.filter(c=>c.status==='resolved').length,many=vs.length>1,cur=v===cv,sh=verShared(v),fin=p.finalDesign===v.id;
@@ -708,7 +711,7 @@ $('#vProj').addEventListener('click',async e=>{
   if(b=c('[data-ver-cmp]')){openCompare(b.dataset.verCmp,null);return}
   if(b=c('[data-ver-share]')){const q=verById(p,b.dataset.verShare);if(q) openShare(p,q);return}
   if(b=c('[data-ver-open]')){if(c('.tk-x')||c('.ver-acts .btn:not([data-ver-open])')) return;openVer(b.dataset.verOpen);return}
-  if(c('#pjAddBtn')){PV.pick=!PV.pick;renderProjects();return}
+  if(c('#pjAddBtn')){PV.pick=!PV.pick;renderProjects();pjDdFit();return}
   if(b=c('[data-pjav]')){const id=b.dataset.pjav,z=findM(id,T);if(!p.to.includes(id)) p.to.push(id);PV.pick=false;const t=pageTaskAdd(T,p,id);touch(p);save();render();if(t&&z) toast(`${z.isMe?'You have':first(z.name)+' has'} a task for this page now`);return}
   if(b=c('[data-pjrm]')){const id=b.dataset.pjrm;p.to=p.to.filter(x=>x!==id);const kept=pageTaskDrop(T,p,id);touch(p);save();render();if(kept) toast('Their task for this page stays: it has details, files, comments or other people on it');return}
   if(b=c('#pvDev [data-dev]')){PV.dev=b.dataset.dev;PV.draft=null;pvUpdate();pvLayout();return}

@@ -1817,3 +1817,20 @@ input,textarea,select,[contenteditable=true],.copyrow input{-webkit-user-select:
 .pv-rail i{position:absolute;left:3px;right:3px;top:0;border-radius:6px;background:rgba(0,0,0,.3);box-shadow:0 0 0 1px rgba(255,255,255,.6);transition:background .12s,left .12s,right .12s}
 .pv-rail:hover i,.pv-rail.drag i{left:2px;right:2px;background:rgba(0,0,0,.5)}
 @media (max-width:860px){.cp-comparing .cmp-link{display:none}}
+
+/* the top of a client and of a page: the path sits under the name. On a page its fields (categories, deadline, people,
+   last change) share the name's row, so the review below gets the height; when they do not fit beside the name they
+   drop to a row of their own under it, and the ⋯ button stays at the top right either way */
+.ttl-wrap:has(.crumbs){flex-direction:column;flex-wrap:nowrap;align-items:flex-start;gap:1px}
+.ttl-wrap:has(.crumbs) h1{max-width:100%;flex-basis:auto}
+.ttl-wrap:has(.crumbs) .sub.crumbs{margin-left:-2px}
+.top.pg-top{position:relative;flex-wrap:wrap;row-gap:12px;padding-right:calc(var(--side-pad) + 58px)}
+.top.pg-top > .ttl-wrap{min-width:min(200px,100%)}
+.top.pg-top > .pj-meta{padding:0;gap:20px;flex:0 1 auto;min-width:0}
+.top.pg-top > .pg-nav{position:absolute;top:30px;right:var(--side-pad);margin:0}
+.pj-meta .whochips .dd.flip{left:auto;right:0}
+@media (max-width:860px){
+  #vProj .top.pg-top{padding-right:68px;row-gap:12px}
+  #vProj .top.pg-top > .pj-meta{flex-basis:calc(100% + 52px);margin-right:-52px;gap:14px 20px}
+  #vProj .top.pg-top > .pg-nav{top:21px;right:16px}
+}
