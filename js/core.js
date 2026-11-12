@@ -8,7 +8,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const uid=()=>crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return (c==='x'?r:(r&3|8)).toString(16)});
 const LS='noon.v1';
 // parked for now: Noon is about copy and page reviews first. Flip one back to true to bring that part back; its code and data are kept.
-const FEAT={tasks:false,calendar:false};
+const FEAT={tasks:true,flows:false,calendar:false}; // flows: a page's template steps, parked
 const MIN=60000, HR=3600000, DAY=86400000;
 const pad2=n=>String(n).padStart(2,'0');
 const initials=n=>String(n||'').split(/\s+/).map(x=>x[0]||'').slice(0,2).join('').toUpperCase();
@@ -267,6 +267,8 @@ function taskDue(t){
   return {state:d<0?'overdue':d===0?'today':d<=7?'week':'later',label:d<0?`Overdue, ${-d} ${-d===1?'day':'days'}`:'Due '+dayLabel(t.day),ms};
 }
 const tasksOf=T=>(T.tasks=T.tasks||[]);
+// a plain task, not a step of a page's template (that flow feature is parked behind FEAT.flows)
+const tkPlain=t=>FEAT.flows||!t.fl||!!t.fl.free;
 const tkCan=t=>{if(!t) return true;const my=me().id;return !!t.pj||!t.by||t.by===my||(t.to||[]).includes(my)};
 const tkName=(T,id)=>{const z=T.members.find(m=>m.id===id);return z?(z.isMe?'you':first(z.name)):(T.gone&&T.gone[id]?first(T.gone[id].name):'someone')};
 const tkNames=(T,ids)=>{const n=ids.map(id=>tkName(T,id));return n.length?n.length>1?n.slice(0,-1).join(', ')+' and '+n[n.length-1]:n[0]:'nobody yet'};
@@ -314,7 +316,7 @@ function inbox(){
     if(x.pend) rq.push({kind:'inv',ev:x,s:x.s,who:from||m,t:`${from?gname(from):'Someone'} invited you to ${x.title}`,sub:`${whenLabel(x.s)} to ${fmtT(x.e,H)}. ${past?'It passed without an answer.':'Waiting for your answer.'}`,id:x.id,act:true,missed:past});
     else if(!past){const wait=(x.who||[]).map(find).filter(z=>z&&!z.isMe&&(z.events||[]).some(q=>q.id===x.id&&q.pend));if(wait.length) rq.push({kind:'wait',ev:x,s:x.s,who:wait[0],t:`${x.title}: waiting for ${wait.map(z=>first(z.name)).join(', ')}`,sub:`${whenLabel(x.s)}. Not accepted yet.`,id:x.id})}
   }
-  if(FEAT.tasks) for(const t of T.tasks||[]) if(!t.done&&t.to.includes(my)&&!tkLocked(t,T)){
+  if(FEAT.tasks) for(const t of T.tasks||[]) if(!t.done&&t.to.includes(my)&&tkPlain(t)&&!tkLocked(t,T)){
     const d=taskDue(t),from=find(t.by),pj=tkProject(t,T),deps=((t.fl&&t.fl.after)||[]).map(id=>(T.tasks||[]).find(x=>x.id===id)).filter(Boolean).sort((a,b)=>(b.done||0)-(a.done||0)),inPj=pj?`In ${pj.name}. `:'';
     // a step comes up when the one before it is done, your own included; anything else is news only when someone else gave it to you
     if(deps.length){const by=deps[0].to.map(find).filter(Boolean),w=by[0];rq.push({kind:'task',s:d.ms===Infinity?now+365*DAY:d.ms,who:w||m,t:`It's your turn: ${t.title}`,sub:`${by.length?`${w.isMe?'You':gname(w)} finished ${deps[0].title}. `:''}${inPj}${d.state==='none'?'':d.label+'.'}`.trim(),act:true,late:d.state==='overdue',task:t.id})}
@@ -329,7 +331,7 @@ function inbox(){
     }
     if(live(mt)&&mineEv) th.push({o:mt,s:ev.s,t:ev.title||'Meeting',id:ev.id,who:z});
   }
-  if(FEAT.tasks) for(const t of T.tasks||[]) if(live(t)&&(t.to.includes(my)||t.by===my)){const d=taskDue(t);th.push({o:t,s:d.ms===Infinity?t.at:d.ms,t:'Task: '+t.title,task:t.id,who:find(t.by)||m})}
+  if(FEAT.tasks) for(const t of T.tasks||[]) if(live(t)&&tkPlain(t)&&(t.to.includes(my)||t.by===my)){const d=taskDue(t);th.push({o:t,s:d.ms===Infinity?t.at:d.ms,t:'Task: '+t.title,task:t.id,who:find(t.by)||m})}
   for(const n of th){
     const cm=n.o.cm||[],mine=q=>!q.byId||q.byId===my,lastMine=cm.map(mine).lastIndexOf(true);
     n.mention=cm.some((q,i)=>i>lastMine&&!mine(q)&&mentionsMe(q.text));

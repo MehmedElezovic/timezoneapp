@@ -21,7 +21,6 @@ const LIBS={
   quill:['https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js','https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.core.css'],
   marked:['https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js'],
   mammoth:['https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js'],
-  diff:['https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js'],
 };
 const libP={};
 function lib(name){return libP[name]||(libP[name]=new Promise((res,rej)=>{const [js,css]=LIBS[name];
@@ -29,7 +28,7 @@ function lib(name){return libP[name]||(libP[name]=new Promise((res,rej)=>{const 
   const s=document.createElement('script');s.src=js;s.onload=()=>res();s.onerror=()=>{delete libP[name];rej(new Error(`${name} did not load`))};document.head.appendChild(s)}))}
 
 /* ---------- state ---------- */
-const CP={page:null,open:null,cmp:null,hsel:null,edit:null,quill:null,q0:'',draft:null,sel:null,filter:'open',layer:'team',reply:null,replyText:'',pop:null,menu:null,link:false,linkAt:null,scroll:{},dt:0,qReady:false};
+const CP={page:null,open:null,cmp:null,edit:null,quill:null,q0:'',draft:null,sel:null,filter:'open',layer:'team',reply:null,replyText:'',pop:null,menu:null,link:false,linkAt:null,scroll:{},dt:0,qReady:false};
 const copyOf=p=>(p.copy=p.copy||[]);
 const cpById=(p,id)=>copyOf(p).find(v=>v.id===id)||null;
 const cpCur=p=>{const L=copyOf(p);return L[L.length-1]||null};
@@ -271,40 +270,8 @@ function cpListHtml(p){
   return `<div class="ver-list">${[...copyOf(p)].reverse().map(card).join('')}</div>
     <div class="pj-dz"><span class="ic">${FDI.doc}</span><b>${d?`Your draft of v${next} is waiting`:`Write v${next}, or drop a file to make it`}</b><small>Writing starts from v${cur.n}${acc?`, with ${plural(acc,'accepted change')} already in`:''}. A Markdown, Word, text or HTML file becomes v${next} as it is. Every version keeps its own comments.</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-cp-write>${I.pen}${d?'Continue the draft':`Write v${next}`}</button><button type="button" class="btn" data-cp-up>${PI.up}Upload a file</button></span></div>`;
 }
-/* ---------- compare: two versions of the copy as one document. The later one is shown; words the earlier one had and
-   the later one dropped are struck through in place, words that came in are marked. Only the words are compared:
-   formatting alone (new bold, say) is not a change here. ---------- */
-// a version's text with a line break between blocks, so words in neighbouring paragraphs never run together, and for
-// every character its position in the version's own text (the one comments use)
-function cpBlockText(box){
-  let s='',last=null,pos=0;const map=[];
-  for(const t of textNodes(box)){const blk=t.parentElement.closest('p,h1,h2,h3,li,blockquote');if(last&&blk!==last){s+='\n';map.push(pos)}last=blk;s+=t.data;for(let i=0;i<t.data.length;i++) map.push(pos++)}
-  map.push(pos);return {s,map};
-}
-// the changes: each a stretch of the earlier text (as..ae) replaced by a stretch of the later one (bs..be)
-function cpDiff(htmlA,htmlB){
-  const a=document.createElement('div'),b=document.createElement('div');a.innerHTML=cleanCopy(htmlA);b.innerHTML=cleanCopy(htmlB);
-  const A=cpBlockText(a),B=cpBlockText(b),hunks=[];let ia=0,ib=0,cur=null;
-  const flush=()=>{if(cur&&(cur.del.trim()||cur.ins.trim())) hunks.push(cur);cur=null};
-  for(const pt of Diff.diffWordsWithSpace(A.s,B.s)){const L=pt.value.length;
-    // a space between two changed words keeps them one change, so a rewritten phrase reads as one
-    if(!pt.added&&!pt.removed){if(cur&&!pt.value.trim()&&!pt.value.includes('\n')){cur.gap=(cur.gap||'')+pt.value;ia+=L;ib+=L;continue}flush();ia+=L;ib+=L;continue}
-    if(!cur) cur={as:A.map[ia],ae:A.map[ia],bs:B.map[ib],be:B.map[ib],del:'',ins:''};
-    if(cur.gap){cur.del+=cur.gap;cur.ins+=cur.gap;cur.gap='';cur.ae=A.map[ia];cur.be=B.map[ib]}
-    if(pt.removed){cur.del+=pt.value;ia+=L;cur.ae=A.map[ia]}else{cur.ins+=pt.value;ib+=L;cur.be=B.map[ib]}}
-  flush();return {hunks,box:b};
-}
-function cpRedline(box,hunks){
-  const cuts=new Set();for(const h of hunks){cuts.add(h.bs);cuts.add(h.be)}
-  let pos=0;for(const t of textNodes(box)){const a=pos,L=t.data.length;pos+=L;let node=t,off=a;for(const c of [...cuts].filter(c=>c>a&&c<a+L).sort((x,y)=>x-y)){node=node.splitText(c-off);off=c}}
-  const at=[];pos=0;
-  for(const t of textNodes(box)){const a=pos,b=pos+t.data.length;pos=b;let w=t;const i=hunks.findIndex(h=>h.be>h.bs&&h.bs<=a&&b<=h.be);
-    if(i>=0&&b>a){const ins=document.createElement('ins');ins.className='rd';ins.dataset.h=i;w.replaceWith(ins);ins.append(w);w=ins}
-    at.push([w,a,b])}
-  hunks.forEach((h,i)=>{if(!h.del.trim()) return;const d=document.createElement('del');d.className='rd';d.dataset.h=i;d.textContent=h.del.replace(/\s*\n\s*/g,' ');
-    const start=at.find(x=>x[1]===h.bs&&x[2]>x[1]),end=[...at].reverse().find(x=>x[2]===h.bs);
-    if(start) start[0].before(d);else if(end) end[0].after(d);else box.append(d)});
-}
+/* ---------- compare: two versions of the copy side by side, the earlier one on the left. Red and green belong to the
+   suggestions inside one version; here each version reads as it is, and the two columns scroll together. ---------- */
 function cpCmpPick(p,k,v,other){
   const open=CP.menu==='cmp'+k;
   return `<div class="vpick-wrap"><button type="button" class="vpick" data-cpcmp="${k}" aria-haspopup="menu" aria-expanded="${open}"><span class="pv-ttl"><b>${k==='a'?'Before':'After'}: v${v.n}</b><small>${esc(cpSrc(v))} · ${esc(agoLabel(v.at||Date.now()))}</small></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -312,42 +279,21 @@ function cpCmpPick(p,k,v,other){
 }
 function cpCompareHtml(p){
   const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b);
-  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button>${cpCmpPick(p,'a',a,b)}<span class="cp-to" aria-hidden="true">${PI.arrow}</span>${cpCmpPick(p,'b',b,a)}<span class="sp"></span><span class="cp-legend"><del>Removed</del><ins>Added</ins></span></div>
-      <div class="cp-scroll" id="cpScroll"><article class="cp-doc" id="cpCmpDoc" aria-label="Copy v${b.n} with the changes from v${a.n}"><p class="cp-wait">Comparing…</p></article></div></div>
-    <aside class="pv-side cp-side" id="cpSide"><div class="pv-sh"><h3>From v${a.n} to v${b.n}</h3><p class="pv-sub">Working out what changed…</p></div></aside></div>`;
+  const col=(k,v,o)=>`<div class="cp-col"><div class="cp-colhead">${cpCmpPick(p,k,v,o)}<span class="cp-words">${plural(cpWords(v),'word')}</span></div><div class="cp-scroll" id="cpScroll${k.toUpperCase()}"><article class="cp-doc" aria-label="Copy v${v.n}">${cleanCopy(v.body)}</article></div></div>`;
+  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button><span class="pv-ttl"><b>Copy v${a.n} and v${b.n} side by side</b><small>Pick any two versions at the top of each side. Scrolling one side scrolls the other.</small></span></div>
+      <div class="cp-sbs">${col('a',a,b)}${col('b',b,a)}</div></div></div>`;
 }
-const cpWordCount=s=>(String(s).match(/\S+/g)||[]).length;
-function cpCompareSide(p,a,b,hunks){
-  const T=team(),add=hunks.reduce((n,h)=>n+cpWordCount(h.ins),0),rem=hunks.reduce((n,h)=>n+cpWordCount(h.del),0);
-  // accepted suggestions on the earlier version that went into a version up to the later one explain their change
-  const sugs=a.cm.filter(c=>c.kind==='suggest'&&c.status==='accepted'&&c.done>a.n&&c.done<=b.n);
-  const hits=(h,c)=>c.s<Math.max(h.ae,h.as+1)&&h.as<c.e;
-  const card=(h,i)=>{const sg=sugs.find(c=>hits(h,c)),kind=h.del.trim()&&h.ins.trim()?'Changed':h.ins.trim()?'Added':'Removed';
-    return `<div class="pc cpc rd-card${CP.hsel===i?' sel':''}" data-hunk="${i}" role="button" tabindex="0"><div class="pc-top"><span class="pin-n">${i+1}</span><b>${kind}</b>${sg?`<span class="cp-tag ok" title="Accepted into v${sg.done}">${esc(nameOf(T,sg.byId,sg.by))}'s suggestion</span>`:''}</div>
-      <p class="pc-sg">${h.del.trim()?`<del>${esc(clip(h.del.replace(/\s+/g,' ').trim(),220))}</del>`:''}${h.ins.trim()?`<ins>${esc(clip(h.ins.replace(/\s+/g,' ').trim(),220))}</ins>`:''}</p></div>`};
-  const open=a.cm.filter(c=>c.status==='open');
-  const state=c=>hunks.some(h=>hits(h,c))?`<span class="cp-tag ok">Words changed in v${b.n}</span>`:`<span class="cp-tag">Same in v${b.n}</span>`;
-  return `<div class="pv-sh"><h3>From v${a.n} to v${b.n}</h3><p class="pv-sub">${hunks.length?`${plural(hunks.length,'change')} · ${plural(add,'word')} added · ${plural(rem,'word')} removed`:'The words are the same in both versions.'}</p></div>
-    <div class="pv-list" id="cpList">${hunks.map(card).join('')}
-      ${open.length?`<h4 class="cp-h4">Still open on v${a.n}</h4>${open.map(c=>`<div class="pc"><div class="pc-top"><span class="pin-n">${c.n}</span><b>${esc(nameOf(T,c.byId,c.by))}</b>${state(c)}</div>${c.kind==='suggest'?`<p class="pc-sg"><del>${esc(clip(c.quote,160))}</del>${c.rep?`<ins>${esc(c.rep)}</ins>`:''}</p>`:`<p class="pc-q">${esc(clip(c.quote,140))}</p><p>${mentionHtml(c.text)}</p>`}</div>`).join('')}`:''}
-      <p class="pv-empty">Only the words are compared: a change to formatting alone, such as new bold, does not show here.</p></div>`;
-}
-async function cpCompareAfter(p){
-  const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b),box=$('#cpCmpDoc'),key=CP.cmp.a+CP.cmp.b;if(!box) return;
-  try{await lib('diff')}catch(e){box.innerHTML='<p class="cp-wait">The compare view could not load. Check your connection, then open it again.</p>';return}
-  if(!box.isConnected||!CP.cmp||CP.cmp.a+CP.cmp.b!==key) return;
-  const {hunks,box:doc}=cpDiff(a.body,b.body);cpRedline(doc,hunks);box.innerHTML='';box.append(...doc.childNodes);
-  CP.hunks=hunks;const side=$('#cpSide');if(side) side.innerHTML=cpCompareSide(p,a,b,hunks);
-  const sc=$('#cpScroll'),k='cmp'+key;if(sc){sc.scrollTop=CP.scroll[k]||0;sc.addEventListener('scroll',()=>{CP.scroll[k]=sc.scrollTop},{passive:true})}
-  if(CP.hsel!=null) cpHunkMark(CP.hsel,false);
-}
-function cpHunkMark(i,scroll=true){
-  CP.hsel=i;for(const x of $$('#cpCmpDoc .rd.on,#cpSide .rd-card.sel')) x.classList.remove('on','sel');
-  const els=$$(`#cpCmpDoc [data-h="${i}"]`);for(const x of els) x.classList.add('on');const c=$(`#cpSide [data-hunk="${i}"]`);if(c) c.classList.add('sel');
-  if(scroll){if(els[0]) els[0].scrollIntoView({block:'center',behavior:'smooth'});if(c) c.scrollIntoView({block:'nearest',behavior:'smooth'})}
+// the two sides keep the same place: scroll one and the other follows, at the same share of its length
+function cpCompareAfter(p){
+  const A=$('#cpScrollA'),B=$('#cpScrollB'),k='cmp'+CP.cmp.a+CP.cmp.b;if(!A||!B) return;
+  let lead=null,t=0;
+  const follow=(from,to)=>()=>{if(lead&&lead!==from) return;lead=from;clearTimeout(t);t=setTimeout(()=>{lead=null},120);
+    const max=from.scrollHeight-from.clientHeight,r=max>0?from.scrollTop/max:0;to.scrollTop=r*(to.scrollHeight-to.clientHeight);CP.scroll[k]=r};
+  A.addEventListener('scroll',follow(A,B),{passive:true});B.addEventListener('scroll',follow(B,A),{passive:true});
+  const r=CP.scroll[k]||0;if(r){lead=A;A.scrollTop=r*(A.scrollHeight-A.clientHeight);B.scrollTop=r*(B.scrollHeight-B.clientHeight);setTimeout(()=>{lead=null},60)}
 }
 // compare a version with the one before it (or after it, for the first)
-function cpStartCompare(p,id){const L=copyOf(p),v=cpById(p,id),i=L.indexOf(v);if(L.length<2||!v) return;const o=i>0?L[i-1]:L[i+1];CP.cmp=v.n>o.n?{a:o.id,b:v.id}:{a:v.id,b:o.id};CP.hsel=null;CP.menu=null;CP.sel=null;CP.draft=null;cpPopHide();render()}
+function cpStartCompare(p,id){const L=copyOf(p),v=cpById(p,id),i=L.indexOf(v);if(L.length<2||!v) return;const o=i>0?L[i-1]:L[i+1];CP.cmp=v.n>o.n?{a:o.id,b:v.id}:{a:v.id,b:o.id};CP.menu=null;CP.sel=null;CP.draft=null;cpPopHide();render()}
 function cpOpenVer(id){CP.open=id;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;CP.filter='open';render()}
 async function cpDelete(p,v){
   if(!await confirmDlg(`Delete ${cpLabel(v).toLowerCase()}?`,`${v.cm.length?`Its ${plural(v.cm.length,'comment')} go too. `:''}This cannot be undone.`,'Delete version')) return;
@@ -632,9 +578,7 @@ $('#vProj').addEventListener('click',async e=>{
   if(b=c('[data-cpv-open]')){cpOpenVer(b.dataset.cpvOpen);return}
   if(c('#cpCmpBack')){const id=CP.cmp&&CP.cmp.b;CP.cmp=null;CP.menu=null;cpOpenVer(id);return}
   if(b=c('[data-cpcmp]')){const k='cmp'+b.dataset.cpcmp;CP.menu=CP.menu===k?null:k;render();return}
-  if(b=c('[data-cpcmp-pick]')){const k=b.dataset.cpcmpPick,x=cpById(p,b.dataset.v),o=cpById(p,k==='a'?CP.cmp.b:CP.cmp.a);CP.menu=null;CP.hsel=null;if(x&&o) CP.cmp=x.n<o.n?{a:x.id,b:o.id}:{a:o.id,b:x.id};render();return}
-  if(b=c('[data-hunk]')){cpHunkMark(+b.dataset.hunk);return}
-  if(b=c('#cpCmpDoc .rd')){cpHunkMark(+b.dataset.h);return}
+  if(b=c('[data-cpcmp-pick]')){const k=b.dataset.cpcmpPick,x=cpById(p,b.dataset.v),o=cpById(p,k==='a'?CP.cmp.b:CP.cmp.a);CP.menu=null;if(x&&o) CP.cmp=x.n<o.n?{a:x.id,b:o.id}:{a:o.id,b:x.id};render();return}
   if(c('[data-cp-write]')){if(SHARE) return;cpStartEdit(p);return}
   if(c('[data-cp-save]')){cpSaveEdit(p);return}
   if(c('[data-cp-cancel-edit]')){cpCancelEdit(p);return}

@@ -247,15 +247,15 @@ const verShared=v=>!!(v.share&&v.share.on);
 const shareOn=p=>versOf(p).some(verShared);
 // which tab a page opens on: Design once it has a design, Copy before that
 function pageTab(p){
-  if(PV.tabFor!==p.id){PV.tabFor=p.id;PV.tab=FEAT.tasks&&p.flow?'flow':versOf(p).length?'design':'copy'}
-  if(!FEAT.tasks&&(PV.tab==='flow'||PV.tab==='history')) PV.tab='design';
+  if(PV.tabFor!==p.id){PV.tabFor=p.id;PV.tab=FEAT.flows&&p.flow?'flow':versOf(p).length?'design':'copy'}
+  if(!FEAT.flows&&(PV.tab==='flow'||PV.tab==='history')) PV.tab='design';
   return PV.tab;
 }
 // the top of a page: its name and place, categories, deadline, people and the tabs. It stays put while the part under
 // the tabs changes: a list of versions, one version open, or the copy being written.
 function pageChrome(p){
   const T=team(),vs=versOf(p),du=dueInfo(p.due),ppl=(p.to||[]).map(id=>findM(id,T)).filter(Boolean),cand=T.members.filter(z=>!(p.to||[]).includes(z.id));
-  const tab=pageTab(p),design=tab==='design',all=FEAT.tasks?projTasks(T,p):[],doneN=all.filter(t=>t.done).length,up=fdById(p.folder,T);
+  const tab=pageTab(p),design=tab==='design',all=FEAT.flows?projTasks(T,p):[],doneN=all.filter(t=>t.done).length,up=fdById(p.folder,T);
   return `<header class="top"><button type="button" class="chev" id="pjBack" aria-label="Back to ${esc(up?up.name:'all clients')}">${PI.back}</button><div class="ttl-wrap"><h1 class="editable" id="pjName" contenteditable="true" spellcheck="false" title="Click to rename">${esc(p.name)}</h1><span class="sub crumbs">${crumbsHtml(T,p.folder)}${up?'':'<i>/</i><span>Not in a client</span>'}</span></div>
       <div class="topnav pg-nav"><div class="fd-more"><button type="button" class="lbtn quiet icon" id="pgMore" aria-label="More for ${esc(p.name)}" aria-haspopup="menu" aria-expanded="${PV.menu===p.id}">${I.more}</button>${PV.menu===p.id?pgMenuHtml(p):''}</div></div></header>
     <div class="pj-meta">${catMetaHtml('page',p,T)}
@@ -263,7 +263,7 @@ function pageChrome(p){
       <div class="pj-meta-i"><label>${all.length?'People':'Assigned to'}</label>${all.length?`<div class="whochips">${[...new Set(all.flatMap(t=>t.to))].map(id=>findM(id,T)).filter(Boolean).map(z=>`<span class="who1">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}</span>`).join('')||'<span class="pj-none">Nobody yet</span>'}</div>`:`<div class="whochips">${ppl.map(z=>`<button type="button" class="who1" data-pjrm="${z.id}" title="Remove">${avatar(z)}${esc(z.isMe?'Me':first(z.name))}<i>×</i></button>`).join('')}${cand.length?`<button type="button" class="addc" id="pjAddBtn" aria-label="Add someone" aria-expanded="${PV.pick}">${I.plus}</button>`:''}${PV.pick&&cand.length?`<div class="dd" id="pjDd"><div class="dd-list">${cand.map(z=>`<button type="button" class="opt" data-pjav="${z.id}">${avatar(z,'sm')}<span class="n">${esc(z.isMe?'Me':z.name)}<small>${esc(tzLabel(z.tz))}</small></span></button>`).join('')}</div></div>`:''}${!ppl.length&&!PV.pick?'<span class="pj-none">Nobody yet</span>':''}</div>`}</div>
       <div class="pj-meta-i"><label>Last change</label><div class="pj-last"><b>${esc(agoLabel(p.at||Date.now()))}</b><small>by ${esc(changedBy(T,p))}</small></div></div>
     </div>
-    <div class="pj-tabs"><div class="seg sm" id="pjTabs" role="tablist"><button type="button" class="${tab==='copy'?'on':''}" data-pj-tab="copy">Copy<i>${copyOf(p).length||''}</i></button><button type="button" class="${design?'on':''}" data-pj-tab="design">Design<i>${vs.length||''}</i></button><button type="button" class="${tab==='ads'?'on':''}" data-pj-tab="ads">Ads<i>${adsOf(p).length||''}</i></button>${FEAT.tasks?`<button type="button" class="${tab==='flow'?'on':''}" data-pj-tab="flow">Steps<i>${all.length-doneN||''}</i></button><button type="button" class="${tab==='history'?'on':''}" data-pj-tab="history">History</button>`:''}</div>${FEAT.tasks&&p.flow&&all.length?`<div class="pj-prog"><span>${doneN} of ${plural(all.length,'step')} done</span><div class="ptk-bar"><i style="width:${Math.round(doneN/all.length*100)}%"></i></div></div>`:''}</div>`;
+    <div class="pj-tabs"><div class="seg sm" id="pjTabs" role="tablist"><button type="button" class="${tab==='copy'?'on':''}" data-pj-tab="copy">Copy<i>${copyOf(p).length||''}</i></button><button type="button" class="${design?'on':''}" data-pj-tab="design">Design<i>${vs.length||''}</i></button><button type="button" class="${tab==='ads'?'on':''}" data-pj-tab="ads">Ads<i>${adsOf(p).length||''}</i></button>${FEAT.flows?`<button type="button" class="${tab==='flow'?'on':''}" data-pj-tab="flow">Steps<i>${all.length-doneN||''}</i></button><button type="button" class="${tab==='history'?'on':''}" data-pj-tab="history">History</button>`:''}</div>${FEAT.flows&&p.flow&&all.length?`<div class="pj-prog"><span>${doneN} of ${plural(all.length,'step')} done</span><div class="ptk-bar"><i style="width:${Math.round(doneN/all.length*100)}%"></i></div></div>`:''}</div>`;
 }
 // the page's own menu, the same on the Copy and Design tabs: what applies to the whole page, copy and design together
 function pgMenuHtml(p){
@@ -562,9 +562,9 @@ function pvSideRender(p,v){
       <p>${mentionHtml(c.text)}</p>
       ${(c.re||[]).length?`<div class="pc-res">${c.re.map(r=>`<div class="pc-re">${avatar(whoOf(T,r.byId,r.guest&&r.by),'xs')}<div><b>${esc(nameOf(T,r.byId,r.by))}</b>${clientTag(r)}<time>${esc(agoLabel(r.at))}</time><p>${mentionHtml(r.text)}</p></div>${ownIt(r,my)?`<button type="button" class="th-x" data-pc-delre="${r.id}" aria-label="Remove reply">×</button>`:'<span></span>'}</div>`).join('')}</div>`:''}
       ${sel&&PV.reply?`<div class="th-box"><textarea class="cbox pbox" id="pvReply" rows="1" maxlength="1000" placeholder="Reply, @ to mention someone"></textarea><button type="button" class="th-send" data-pc-send="${c.id}" aria-label="Send">${I.send}</button></div>`:''}
-      <div class="pc-acts"><button type="button" data-pc-reply="${c.id}">Reply</button><button type="button" data-pc-resolve="${c.id}">${c.status==='resolved'?'Reopen':'Resolve'}</button>${FEAT.tasks?`<button type="button" data-pc-task="${c.id}">Make a task</button>`:''}${own?`<button type="button" class="danger" data-pc-del="${c.id}">Delete</button>`:''}</div></div>`};
+      <div class="pc-acts"><button type="button" data-pc-reply="${c.id}">Reply</button><button type="button" data-pc-resolve="${c.id}">${c.status==='resolved'?'Reopen':'Resolve'}</button>${FEAT.flows?`<button type="button" data-pc-task="${c.id}">Make a task</button>`:''}${own?`<button type="button" class="danger" data-pc-del="${c.id}">Delete</button>`:''}</div></div>`};
   const keep=side.querySelector('.pv-list'),top=keep?keep.scrollTop:0;
-  const myTasks=SHARE||!FEAT.tasks?'':projTasks(T,p).filter(t=>!t.done&&t.to.includes(my)&&!tkLocked(t,T)&&tkVer(t)===v).map(t=>`<div class="pv-task" role="button" tabindex="0" data-pv-open="${t.id}"><button type="button" class="tk-ck" data-pv-done="${t.id}" aria-label="Mark done"></button><span><b>${esc(t.title)}</b><small>Your task on ${vLabel(v)}${t.day?` · ${esc(taskDue(t).label)}`:''}</small></span></div>`).join('');
+  const myTasks=SHARE||!FEAT.flows?'':projTasks(T,p).filter(t=>!t.done&&t.to.includes(my)&&!tkLocked(t,T)&&tkVer(t)===v).map(t=>`<div class="pv-task" role="button" tabindex="0" data-pv-open="${t.id}"><button type="button" class="tk-ck" data-pv-done="${t.id}" aria-label="Mark done"></button><span><b>${esc(t.title)}</b><small>Your task on ${vLabel(v)}${t.day?` · ${esc(taskDue(t).label)}`:''}</small></span></div>`).join('');
   const banner=pv&&!SHARE?`<button type="button" class="pv-banner" data-mode-cmp="1">${PI.cmp}<span><b>${openIn(pv).length?`${plural(openIn(pv).length,'open comment')} on ${vLabel(pv)}`:`Compare with ${vLabel(pv)}`}</b><small>${openIn(pv).length?`See how ${vLabel(v)} answers each one, side by side.`:'The two versions side by side, comment by comment.'}</small></span>${PI.arrow}</button>`:'';
   side.innerHTML=`<div class="pv-sh"><h3>Comments on ${dsLabel(v).toLowerCase()}</h3>${layerSeg(p,v)}<div class="seg sm" id="pvFilter"><button type="button" data-pfilter="open" class="${PV.filter==='open'?'on':''}">Open<i>${open||''}</i></button><button type="button" data-pfilter="resolved" class="${PV.filter==='resolved'?'on':''}">Resolved<i>${res||''}</i></button><button type="button" data-pfilter="all" class="${PV.filter==='all'?'on':''}">All</button></div></div>
     <div class="pv-list">${myTasks}${banner}${list.length?list.map(card).join(''):`<p class="pv-empty">${allIn(v).length?PV.filter==='open'?'Everything here is resolved.':'Nothing resolved yet.':PV.layer==='client'&&!SHARE?`Nothing on the review link for ${vLabel(v)} yet. What people leave there shows up here.`:`No comments on ${vLabel(v)} yet. Click anywhere on the page to leave the first one. Each comment pins to the exact element you clicked, so it stays put at every width.`}</p>`}</div>`;
@@ -611,7 +611,7 @@ function pvPost(){
 function cmById(v,id){return v.cm.find(c=>c.id===id)}
 // a page goes with its copy and its design, every version of both and the comments on them
 async function deletePage(q){
-  const T=team(),n=versOf(q).length,nc=copyOf(q).length,na=adsOf(q).length,nt=FEAT.tasks?projTasks(T,q).length:0,has=[nc?plural(nc,'copy version'):'',n?plural(n,'design version'):'',na?plural(na,'ad'):''].filter(Boolean);
+  const T=team(),n=versOf(q).length,nc=copyOf(q).length,na=adsOf(q).length,nt=FEAT.flows?projTasks(T,q).length:0,has=[nc?plural(nc,'copy version'):'',n?plural(n,'design version'):'',na?plural(na,'ad'):''].filter(Boolean);
   if(!await confirmDlg(`Delete ${q.name}?`,`${has.length?`Its ${has.length>2?has.slice(0,-1).join(', ')+' and '+has[has.length-1]:has.join(' and ')} go too, with every comment on them.`:'It has no copy, design or ads yet.'}${nt?` Its ${plural(nt,'task')} go too.`:''} This cannot be undone.`,'Delete page')) return;
   T.tasks=tasksOf(T).filter(t=>t.pj!==q.id);
   const ids=[],paths=[];for(const x of versOf(q)){dropUrls(x);ids.push(x.id);if(x.file) paths.push(x.file);for(const a of x.assets){ids.push(a.id);if(a.file) paths.push(a.file)}}
@@ -680,8 +680,8 @@ $('#vProj').addEventListener('click',async e=>{
   if(b=c('[data-ver-share]')){const q=verById(p,b.dataset.verShare);if(q) openShare(p,q);return}
   if(b=c('[data-ver-open]')){if(c('.tk-x')||c('.ver-acts .btn:not([data-ver-open])')) return;openVer(b.dataset.verOpen);return}
   if(c('#pjAddBtn')){PV.pick=!PV.pick;renderProjects();return}
-  if(b=c('[data-pjav]')){if(!p.to.includes(b.dataset.pjav)) p.to.push(b.dataset.pjav);PV.pick=false;touch(p);save();render();return}
-  if(b=c('[data-pjrm]')){p.to=p.to.filter(id=>id!==b.dataset.pjrm);touch(p);save();render();return}
+  if(b=c('[data-pjav]')){const id=b.dataset.pjav,z=findM(id,T);if(!p.to.includes(id)) p.to.push(id);PV.pick=false;const t=pageTaskAdd(T,p,id);touch(p);save();render();if(t&&z) toast(`${z.isMe?'You have':first(z.name)+' has'} a task for this page now`);return}
+  if(b=c('[data-pjrm]')){const id=b.dataset.pjrm;p.to=p.to.filter(x=>x!==id);const kept=pageTaskDrop(T,p,id);touch(p);save();render();if(kept) toast('Their task for this page stays: it has details, files, comments or other people on it');return}
   if(b=c('#pvDev [data-dev]')){PV.dev=b.dataset.dev;PV.draft=null;pvUpdate();pvLayout();return}
   if(b=c('#pvMode [data-mode]')){if(b.disabled) return;const m=b.dataset.mode;if(m===PV.mode) return;PV.draft=null;PV.sel=null;
     if(m==='compare'){openCompare(PV.ver,null);return}if(PV.mode==='compare'){endCompare(m);renderProjects();return}PV.mode=m;pvUpdate();return}

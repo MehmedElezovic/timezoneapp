@@ -91,7 +91,7 @@ function renderSide(){
   const m=me(),u=typeof user==='function'?user():null,now=Date.now(),ib=inbox(),name=u?u.name:m.name;
   $('#profileCard').innerHTML=`<button type="button" class="rail-me" data-open-settings="account" aria-label="${esc(name)}, your account" data-tip="${esc(name)} · ${esc(tzLabel(home()))} ${fmtT(now,home())}">${avatar(m,'',statusNow(m)[0])}</button><span class="sync" id="syncState"></span>
     <button type="button" class="rail-btn" id="bellBtn" aria-label="Inbox${ib.count?`, ${ib.count} waiting`:''}" data-tip="Inbox${ib.count?`, ${ib.count} waiting`:''}">${I.bell}<span class="badge">${ib.count||''}</span></button>`;
-  const T=team(),open=tasksOf(T).filter(t=>!t.done&&!t.cleared&&!tkLocked(t,T)),late=open.filter(t=>taskDue(t).state==='overdue').length,inv=(m.events||[]).filter(x=>x.pend&&x.e>now).length;
+  const T=team(),open=tasksOf(T).filter(t=>!t.done&&!t.cleared&&tkPlain(t)&&!tkLocked(t,T)),late=open.filter(t=>taskDue(t).state==='overdue').length,inv=(m.events||[]).filter(x=>x.pend&&x.e>now).length;
   const navItems=[['projects',I.proj,'Projects',''],['tasks',I.task,'Tasks',late?`<span class="cnt bad">${late}</span>`:open.length?`<span class="cnt quiet">${open.length}</span>`:''],['team',I.team,'Team',''],['calendar',I.cal,'Calendar',inv?`<span class="cnt">${inv}</span>`:''],['settings',I.gear,'Settings','']].filter(([k])=>k==='settings'||viewOn(k));
   $('#nav').innerHTML=navItems.map(([k,ic,l,b])=>`<button type="button" data-nav="${k}" ${UI.view===k?'aria-current="page"':''}>${ic}<span>${l}</span>${b}</button>`).join('');
   $('#tabbar').innerHTML=navItems.filter(([k])=>k!=='settings').map(([k,ic,l,b])=>`<button type="button" data-nav="${k}" ${UI.view===k?'aria-current="page"':''}>${ic}<span>${l}</span>${b}</button>`).join('')+`<button type="button" data-tab-inbox>${I.bell}<span>Inbox</span>${ib.count?`<span class="cnt">${ib.count}</span>`:''}</button><button type="button" data-nav="settings">${I.gear}<span>Settings</span></button>`;
@@ -471,71 +471,67 @@ $('#tmInvite').onclick=()=>openInvite();
   tt.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();tt.blur()}else if(e.key==='Escape'){tt.textContent=team().name;tt.blur()}});
   tt.addEventListener('blur',()=>{const v=tt.textContent.replace(/\s+/g,' ').trim().slice(0,40),T=team();if(v&&v!==T.name){T.name=v;save();toast('Team renamed')}tt.textContent=T.name;renderSide()})}
 
-/* ---------- tasks ---------- */
+/* ---------- tasks: one list, with who each task is for on its row, and filters for what is open, due, high priority or
+   done and for one person. Assigning someone to a page gives them a task for it. Whoever makes a task can hide it from
+   everyone or from some teammates; the people it is for always see it. Steps from a page's template (the flow feature,
+   parked) stay out. ---------- */
+const TKI={lock:'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>'};
+const TKF={open:['Open',t=>!t.done],due:['Due',t=>!t.done&&!!t.day],high:['High priority',t=>!t.done&&t.pri==='high'],done:['Done',t=>!!t.done]};
+// who can see a task: everyone (the default), only whoever made it and the people it is for, or everyone but some people
+const tkVisMode=t=>t.priv?'private':(t.hide||[]).length||UI.tkVisSome===t.id?'some':'all';
+function tkVisLabel(T,t){
+  if(t.priv) return `Only ${tkNames(T,[...new Set([t.by,...t.to].filter(Boolean))])} can see this`;
+  const h=(t.hide||[]).filter(id=>id!==t.by&&!t.to.includes(id));return h.length?`Hidden from ${tkNames(T,h)}`:'';
+}
+// the control for it: a dropdown, and for "everyone except", the people to hide it from
+function tkVisHtml(T,mode,hide,by,to,key){
+  const cand=T.members.filter(z=>z.id!==by&&!to.includes(z.id));
+  return `${ddBtn(`id="${key}Vis"`,mode,[{v:'all',l:'Everyone on the team'},{v:'private',l:'Only me and the people it is for'},{v:'some',l:'Everyone except…'}],{cls:'field',label:'Who can see it'})}
+    ${mode==='some'?`<div class="tk-hide"><small>Hide it from</small><div class="cat-row">${cand.length?cand.map(z=>{const on=hide.includes(z.id);return `<button type="button" class="cat-pick${on?' on':''}" data-${key}-hide="${z.id}" aria-pressed="${on}">${esc(z.isMe?'Me':first(z.name))}</button>`}).join(''):'<span class="pj-none">Everyone else is on the task already</span>'}</div></div>`:''}`;
+}
+// a person assigned to a page gets a task for it, named after the page and due on its deadline; taking them off the page
+// takes the task away again, unless someone added to it (details, files, comments or other people)
+function pageTaskAdd(T,p,id){if(tasksOf(T).some(t=>t.pj===p.id&&!t.fl&&!t.done&&t.to.includes(id))) return null;return addTask(p.name.slice(0,120),[id],p.due||null,null,'',{pj:p.id})}
+function pageTaskDrop(T,p,id){let kept=0;for(const t of tasksOf(T).filter(t=>t.pj===p.id&&!t.fl&&!t.done&&t.to.includes(id))){if(t.note||(t.files||[]).length||(t.cm||[]).length||t.to.length>1){kept++;continue}tkDrop(T,t)}return kept}
 function renderTasks(){
-  const T=team(),m=me(),my=m.id,H=home(),all=tasksOf(T),isHigh=t=>t.pri==='high',f=['open','due','high','proj','done'].includes(UI.tkf)?UI.tkf:'open',mine=UI.tkScope!=='all',pjs=T.projects||[];
+  const T=team(),f=TKF[UI.tkf]?UI.tkf:'open';
   if(UI.tkWho&&!T.members.some(z=>z.id===UI.tkWho)) UI.tkWho=null;
-  if(UI.tkProj&&UI.tkProj!=='none'&&!pjs.some(p=>p.id===UI.tkProj)) UI.tkProj=null;
-  // My tasks is the person filter set to you; every other filter narrows whichever of the two you are on
-  const who=mine?my:UI.tkWho,pf=UI.tkProj,inProj=t=>!pf||(pf==='none'?!tkProject(t,T):t.pj===pf);
-  const base=all.filter(t=>(!who||t.to.includes(who))&&inProj(t)),open=base.filter(t=>!t.done&&!tkLocked(t,T)),later=base.filter(t=>tkLocked(t,T)),done=base.filter(t=>t.done),late=open.filter(t=>taskDue(t).state==='overdue').length;
-  const inv=mine&&!pf?inbox().rq.filter(n=>n.kind==='inv').sort((a,b)=>a.s-b.s):[],upNow=test=>all.filter(t=>!t.done&&!tkLocked(t,T)&&inProj(t)&&test(t)).length;
-  $('#tkSum').textContent=[open.length?`${open.length} open`:'nothing open',late?`${late} overdue`:'',later.length?`${later.length} coming up`:'',inv.length?`${inv.length} ${inv.length===1?'invite':'invites'} to answer`:''].filter(Boolean).join(' · ');
-  const chips=[['open','Open',open.length+inv.length],['due','Due',open.filter(t=>t.day).length],['high','High priority',open.filter(isHigh).length],['proj','Projects',open.length+later.length],['done','Done',done.length]];
-  $('#tkBar').innerHTML=`<div class="seg sm" role="tablist"><button type="button" class="${mine?'on':''}" data-tk-scope="mine">My tasks<i>${upNow(t=>t.to.includes(my))||''}</i></button><button type="button" class="${mine?'':'on'}" data-tk-scope="all">All tasks<i>${upNow(()=>true)||''}</i></button></div>
-    <div class="tk-chips">${chips.map(([k,l,n])=>`<button type="button" class="tk-chip${k===f?' on':''}" data-tkf="${k}">${l}${n?`<i>${n}</i>`:''}</button>`).join('')}</div>
-    <div class="tk-dds">${ddBtn('id="tkfProj"',pf||'',[{v:'',l:'All projects'},...pjs.map(p=>({v:p.id,l:p.name})),{v:'none',l:'Not in a project'}],{cls:`filter${pf?' on':''}`,label:'Filter by project'})}${ddBtn('id="tkfWho"',who||'',[{v:'',l:'Everyone'},...T.members.map(z=>({v:z.id,m:z.id}))],{cls:`filter${!mine&&who?' on':''}`,label:'Filter by person'})}${pf||!mine&&who||f!=='open'?'<button type="button" class="st-link" data-tk-clear>Clear</button>':''}</div>`;
-  const item=(t,inProject)=>{const wait=tkLocked(t,T),d=taskDue(t),ppl=t.to.map(id=>findM(id,T)).filter(Boolean),pj=tkProject(t,T),fc=(t.files||[]).length;
-    return `<div class="tk ${wait?'wait':d.state}${t.done?' done':''}${UI.tkEdit===t.id?' sel':''}" data-tkopen="${t.id}" role="button" tabindex="0"><button type="button" class="tk-ck" data-tkdone="${t.id}" aria-label="${t.done?'Mark not done':wait?'Not its turn yet':'Mark done'}">${t.done?I.check:''}</button>
-      <div class="tk-main"><div class="tk-title">${esc(t.title)}</div><div class="tk-meta"><span class="tk-due">${esc(wait?tkWaitLabel(t,T):d.label)}</span>${pj&&!inProject?`<span class="tk-pj">${esc(pj.name)}</span>`:''}${t.to.length===1&&t.to[0]===my?'':`<span>${t.to.length?`For ${esc(tkNames(T,t.to))}`:'Nobody yet'}</span>`}${(t.cm||[]).length?`<span class="cm-n">${PI.bubble}${t.cm.length}</span>`:''}${fc?`<span class="cm-n">${I.clip}${fc}</span>`:''}</div></div>
-      <button type="button" class="tk-flag${isHigh(t)?' on':''}" data-tkpri="${t.id}" aria-pressed="${isHigh(t)}" aria-label="${isHigh(t)?'High priority, click to remove':'Mark high priority'}" title="${isHigh(t)?'High priority':'Mark high priority'}">${I.flag}</button>
-      <span class="avs sm">${ppl.slice(0,4).map(z=>avatar(z)).join('')}</span>${tkCan(t)?`<button type="button" class="tk-x" data-tkdel="${t.id}" aria-label="Delete">${I.trash}</button>`:'<span></span>'}</div>`};
-  const invItem=n=>{const x=n.ev,when=n.missed?'Passed, no answer':`${whenLabel(x.s)} to ${fmtT(x.e,H)}`;
-    return `<div class="tk mt ${mtState(x)}" data-openev="${x.id}" role="button" tabindex="0"><span class="tk-mk">${I.cal16}</span><div class="tk-main"><div class="tk-title">${esc(x.title||'Meeting')}</div><div class="tk-meta"><span class="tk-due">${esc(when)}</span><span>${esc(cap(tkName(T,x.req)))} invited you</span></div></div>
-      <span class="tk-acts">${n.missed?`<button type="button" class="btn sm ghost" data-dec="${x.id}">Dismiss</button>`:`<button type="button" class="btn sm dark" data-acc="${x.id}">Accept</button><button type="button" class="btn sm ghost" data-dec="${x.id}">Decline</button>`}</span><span></span></div>`};
-  // the lists: soonest first, and within the same stretch of time, high priority on top
-  const grouped=(tasks,invites=[])=>{const pool=tasks.map(t=>{const dl=taskDue(t);return {t,state:dl.state,ms:dl.ms,high:isHigh(t),at:t.at||0}}).concat(invites.map(n=>({inv:n,state:mtState(n.ev),ms:n.ev.s,high:false,at:0})));
-    return TK_GROUPS.map(([k,l])=>{const g=pool.filter(x=>x.state===k).sort((a,b)=>(b.high?1:0)-(a.high?1:0)||a.ms-b.ms||a.at-b.at);return g.length?`<div class="tk-grp">${l} <i>${g.length}</i></div>${g.map(x=>x.inv?invItem(x.inv):item(x.t)).join('')}`:''}).join('')};
-  // steps that are not up yet: there to see, but they only ping you when it is your turn
-  const laterOpen=UI.tkLater!==undefined?UI.tkLater:mine,order=t=>pjs.findIndex(p=>p.id===t.pj),laterHtml=later.length?`<button type="button" class="tk-grp tk-later" data-tk-later aria-expanded="${laterOpen}">Coming up <i>${later.length}</i><small>These come up when the step before is done</small><span class="st-chev${laterOpen?' up':''}">${CHEV}</span></button>${laterOpen?later.slice().sort((a,b)=>order(a)-order(b)||((a.fl&&a.fl.seq)||0)-((b.fl&&b.fl.seq)||0)).map(t=>item(t)).join(''):''}`:'';
-  const note=s=>`<p class="tab-note">${s}</p>`,theirs=who&&!mine?(findM(who,T)&&findM(who,T).isMe?'You have':`${esc(first((findM(who,T)||{}).name||'They'))} has`):mine?'You have':'There is',matches=pf==='none'?' outside projects':pf?' in this project':'';let list;
-  if(f==='open') list=(grouped(open,inv)||note(`${theirs} nothing to do right now${matches}.`))+laterHtml;
-  else if(f==='due') list=grouped(open.filter(t=>t.day))||note(`${theirs} nothing with a due date${matches}.`);
-  else if(f==='high') list=grouped(open.filter(isHigh))||note(`${theirs} nothing marked high priority${matches}. Click the flag on any task to mark it.`);
-  else if(f==='done'){const L=done.slice().sort((x,y)=>y.done-x.done),loose=L.filter(t=>!t.pj).length;
-    list=L.length?`<div class="tk-grp">Done <i>${L.length}</i>${loose?'<button type="button" class="tlink" data-tkclear>Delete those not in a project</button>':''}</div>${L.map(t=>item(t)).join('')}`:note('Nothing finished yet. Tick a task when it is done and it lands here.')}
-  else{
-    const here=base.filter(t=>!t.done),sec=p=>{const mineHere=here.filter(t=>t.pj===p.id);if(!mineHere.length) return '';
-        const every=projTasks(T,p),dn=every.filter(t=>t.done).length,phases=p.flow?p.flow.phases:[],parts=phases.length>1?phases.map(ph=>{const g=phaseTasks(T,p,ph).filter(t=>mineHere.includes(t));return g.length?`<div class="tk-sub">${esc(ph.name)}</div>${g.map(t=>item(t,true)).join('')}`:''}).join(''):mineHere.map(t=>item(t,true)).join('');
-        return `<section class="tk-proj"><button type="button" class="tk-pjh" data-tk-proj="${p.id}"><b>${esc(p.name)}</b><small>${esc(pjNowLabel(T,p))}</small><span class="tk-pjn">${dn} of ${every.length} done</span><span class="ptk-bar"><i style="width:${every.length?Math.round(dn/every.length*100):0}%"></i></span></button>${parts}</section>`};
-    const loose=here.filter(t=>!tkProject(t,T));
-    list=pjs.slice().sort((a,b)=>(b.at||0)-(a.at||0)).map(sec).join('')+(loose.length?`<section class="tk-proj"><div class="tk-pjh static"><b>Not in a project</b></div>${loose.map(t=>item(t,true)).join('')}</section>`:'')||note(`${theirs} no open tasks${matches}.`)}
-  $('#tkList').innerHTML=list;
+  const all=tasksOf(T).filter(t=>tkPlain(t)&&!t.cleared&&(!UI.tkWho||t.to.includes(UI.tkWho))),open=all.filter(t=>!t.done),late=open.filter(t=>taskDue(t).state==='overdue').length;
+  $('#tkSum').textContent=[open.length?`${open.length} open`:'nothing open',late?`${late} overdue`:''].filter(Boolean).join(' · ');
+  $('#tkBar').innerHTML=`<div class="tk-chips">${Object.entries(TKF).map(([k,[l,test]])=>{const n=all.filter(test).length;return `<button type="button" class="tk-chip${k===f?' on':''}" data-tkf="${k}">${l}${n?`<i>${n}</i>`:''}</button>`}).join('')}</div>
+    <div class="tk-dds">${ddBtn('id="tkfWho"',UI.tkWho||'',[{v:'',l:'Everyone'},...T.members.map(z=>({v:z.id,m:z.id}))],{cls:`filter${UI.tkWho?' on':''}`,label:'Filter by person'})}${UI.tkWho||f!=='open'?'<button type="button" class="st-link" data-tk-clear>Clear</button>':''}</div>`;
+  const key=t=>[t.pri==='high'?0:1,taskDue(t).ms,-(t.at||0)];
+  const shown=all.filter(TKF[f][1]).sort(f==='done'?(x,y)=>(y.done||0)-(x.done||0):(x,y)=>{const a=key(x),b=key(y);return a[0]-b[0]||a[1]-b[1]||a[2]-b[2]});
+  const row=t=>{const d=taskDue(t),pj=tkProject(t,T),ppl=t.to.map(id=>findM(id,T)).filter(Boolean),hi=t.pri==='high',vis=tkVisLabel(T,t),fc=(t.files||[]).length;
+    return `<div class="tk row ${d.state}${t.done?' done':''}${UI.tkEdit===t.id?' sel':''}" data-tkopen="${t.id}" role="button" tabindex="0"><button type="button" class="tk-ck" data-tkdone="${t.id}" aria-label="${t.done?'Mark not done':'Mark done'}">${t.done?I.check:''}</button>
+      <div class="tk-main"><div class="tk-title">${vis?`<span class="tk-lock" title="${esc(vis)}" aria-label="${esc(vis)}">${TKI.lock}</span>`:''}${esc(t.title)}</div><div class="tk-meta"><span class="tk-due">${esc(t.done?`Done ${agoLabel(t.done)}`:d.label)}</span>${pj?`<span class="tk-pj" title="${esc(pj.name)}">${t.title===pj.name?'Page task':esc(pj.name)}</span>`:''}${(t.cm||[]).length?`<span class="cm-n">${PI.bubble}${t.cm.length}</span>`:''}${fc?`<span class="cm-n">${I.clip}${fc}</span>`:''}</div></div>
+      <button type="button" class="tk-flag${hi?' on':''}" data-tkpri="${t.id}" aria-pressed="${hi}" aria-label="${hi?'High priority, click to take it off':'Mark high priority'}" title="${hi?'High priority':'Mark high priority'}">${I.flag}</button>
+      <span class="tk-who">${ppl.length?`<span class="avs sm">${ppl.slice(0,3).map(z=>avatar(z)).join('')}</span><span class="tk-names">${esc(ppl.length>2?`${first(ppl[0].isMe?'You':ppl[0].name)} and ${ppl.length-1} more`:ppl.map(z=>z.isMe?'You':first(z.name)).join(', '))}</span>`:'<span class="pj-none">Nobody yet</span>'}</span></div>`};
+  const who=UI.tkWho&&findM(UI.tkWho,T),none={open:'Nothing open',due:'Nothing with a due date',high:'Nothing marked high priority',done:'Nothing finished yet'}[f];
+  $('#tkList').innerHTML=shown.length?`<div class="tk-rows">${shown.map(row).join('')}</div>${f==='done'?`<div class="tk-foot"><button type="button" class="tlink" data-tkclear>Delete these done tasks</button></div>`:''}`
+    :`<p class="tab-note">${none}${who?` for ${esc(who.isMe?'you':first(who.name))}`:''}.${f==='open'&&!UI.tkWho?' Add one with New task, or assign someone to a page and it shows up here as their task.':''}</p>`;
   renderTaskDetail();
 }
-function tkKeepView(){try{localStorage.setItem('noon.tkf',UI.tkf);localStorage.setItem('noon.tkscope',UI.tkScope)}catch(x){}}
+function tkKeepView(){try{localStorage.setItem('noon.tkf',UI.tkf)}catch(x){}}
 $('#tkBar').addEventListener('click',e=>{
   const c=s=>e.target.closest(s);let b;
-  if(b=c('[data-tk-scope]')){UI.tkScope=b.dataset.tkScope;if(UI.tkScope==='all') UI.tkWho=null;tkKeepView();renderTasks();return}
   if(b=c('[data-tkf]')){UI.tkf=b.dataset.tkf;tkKeepView();renderTasks();return}
-  if(c('[data-tk-clear]')){UI.tkf='open';UI.tkProj=null;UI.tkWho=null;if(UI.tkScope==='all'&&false) UI.tkScope='mine';tkKeepView();renderTasks()}
+  if(c('[data-tk-clear]')){UI.tkf='open';UI.tkWho=null;tkKeepView();renderTasks()}
 });
-$('#tkBar').addEventListener('change',e=>{
-  if(e.target.id==='tkfProj'){UI.tkProj=e.target.value||null;renderTasks();return}
-  if(e.target.id==='tkfWho'){const v=e.target.value;if(v===me().id){UI.tkScope='mine';UI.tkWho=null}else{UI.tkScope='all';UI.tkWho=v||null}tkKeepView();renderTasks()}
-});
+$('#tkBar').addEventListener('change',e=>{if(e.target.id==='tkfWho'){UI.tkWho=e.target.value||null;renderTasks()}});
 document.addEventListener('pointerdown',e=>{if(UI.tkPick&&!(e.target.closest&&e.target.closest('#tkdAddBtn,#tkdDd'))){UI.tkPick=false;const d=$('#tkdDd');if(d) d.hidden=true}});
 
 /* ---------- a new task: its own small form ---------- */
-const NT={files:[]};
+const NT={files:[],vis:'all',hide:[]};
 const ntFilesHtml=()=>`${NT.files.map((x,i)=>`<span class="file"><span class="n">${I.file}<span>${esc(x.name)}</span></span><small>${fmtSize(x.size)}</small><button type="button" class="rm" data-nt-rm="${i}" aria-label="Remove ${esc(x.name)}">${I.x}</button></span>`).join('')}<button type="button" class="attach" id="ntAttach">${I.clip}<span>${NT.files.length?'Add more files':'Attach files'}</span></button>`;
 function openNewTask(){
-  const T=team(),pjs=T.projects||[],who=UI.tkScope==='all'&&UI.tkWho?UI.tkWho:me().id,pj=UI.tkProj&&UI.tkProj!=='none'?UI.tkProj:'';NT.files=[];
+  const T=team(),pjs=FEAT.flows?T.projects||[]:[],who=UI.tkWho||me().id,pj=FEAT.flows&&UI.tkProj&&UI.tkProj!=='none'?UI.tkProj:'';NT.files=[];NT.vis='all';NT.hide=[];
   $('#dTask').innerHTML=`<form id="fNewTask" autocomplete="off"><div class="dlg-head"><h2>New task</h2><button type="button" class="xbtn" data-nt-x aria-label="Close">×</button></div>
     <label class="lbl">What needs doing?<input id="ntTitle" maxlength="120" required placeholder="Send the invoice to Acme"></label>
     <div class="grid2"><label class="lbl">For${whoBtn('id="ntWho"',who)}</label><label class="lbl">Due<input type="date" id="ntDay" aria-label="Due date"></label></div>
     ${pjs.length?`<label class="lbl">Project${ddBtn('id="ntPj"',pj,[{v:'',l:'No project'},...pjs.map(p=>({v:p.id,l:p.name}))],{cls:'field',label:'Project'})}</label>`:''}
     <label class="st-check"><input type="checkbox" id="ntHigh" ${UI.tkf==='high'?'checked':''}><span>High priority</span></label>
+    <div class="lbl">Who can see it<div id="ntVisBox">${tkVisHtml(T,NT.vis,NT.hide,me().id,[who],'nt')}</div></div>
     <div class="files" id="ntFiles">${ntFilesHtml()}</div><input type="file" id="ntFileIn" hidden multiple>
     <div class="dlg-acts"><button type="button" class="btn ghost" data-nt-x>Cancel</button><button type="submit" class="btn dark">Add task</button></div></form>`;
   $('#dTask').showModal();$('#ntTitle').focus();
@@ -545,13 +541,17 @@ $('#dTask').addEventListener('click',e=>{const c=s=>e.target.closest(s);let b;
   if(c('[data-nt-x]')){$('#dTask').close();return}
   if(c('#ntAttach')){$('#ntFileIn').click();return}
   if(b=c('[data-nt-rm]')){NT.files.splice(+b.dataset.ntRm,1);$('#ntFiles').innerHTML=ntFilesHtml()}
+  if(b=c('[data-nt-hide]')){const id=b.dataset.ntHide;NT.hide=NT.hide.includes(id)?NT.hide.filter(x=>x!==id):[...NT.hide,id];ntVisRefresh()}
 });
-$('#dTask').addEventListener('change',e=>{if(e.target.id==='ntFileIn'){NT.files.push(...e.target.files);e.target.value='';$('#ntFiles').innerHTML=ntFilesHtml()}});
+const ntVisRefresh=()=>{const w=$('#ntWho');$('#ntVisBox').innerHTML=tkVisHtml(team(),NT.vis,NT.hide,me().id,w&&w.value?[w.value]:[],'nt')};
+$('#dTask').addEventListener('change',e=>{if(e.target.id==='ntFileIn'){NT.files.push(...e.target.files);e.target.value='';$('#ntFiles').innerHTML=ntFilesHtml()}
+  if(e.target.id==='ntVis'){NT.vis=e.target.value;if(NT.vis!=='some') NT.hide=[];ntVisRefresh()}
+  if(e.target.id==='ntWho'&&NT.vis==='some'){NT.hide=NT.hide.filter(x=>x!==e.target.value);ntVisRefresh()}});
 $('#dTask').addEventListener('submit',e=>{
   e.preventDefault();const title=$('#ntTitle').value.trim();if(!title) return;
   const T=team(),w=$('#ntWho').value,to=w?[w]:[],day=$('#ntDay').value||null,high=$('#ntHigh').checked,pj=$('#ntPj')&&$('#ntPj').value?projById($('#ntPj').value):null,files=NT.files.slice();let t;
   if(pj){flowEnsure(pj);t=flowAddTask(T,pj,pjPhaseNow(T,pj)||pj.flow.phases[pj.flow.phases.length-1],title,to,{},true);t.day=day;if(high) t.pri='high';save()}
-  else t=addTask(title,to,day,null,'',high?{pri:'high'}:{});
+  else t=addTask(title,to,day,null,'',{...(high?{pri:'high'}:{}),...(NT.vis==='private'?{priv:true}:{}),...(NT.vis==='some'&&NT.hide.length?{hide:NT.hide.filter(x=>!to.includes(x))}:{})});
   $('#dTask').close();render();toast(`Task added${t.to.length?` for ${tkNames(T,t.to)}`:''}${t.day?', '+taskDue(t).label.replace(/^Due/,'due'):''}`);
   if(files.length) tkUpload(t,files);
 });
@@ -577,8 +577,9 @@ function renderTaskDetail(){
         :t.day?`<p class="tkd-val">${esc(dayLabel(t.day))}${t.time?` · ${fmtT(taskInstant(t),home())}`:''}</p>${t.time&&tz!==home()?`<p class="by" style="margin-top:4px">Set in ${esc(tzLabel(tz))}. Everyone sees it in their own zone.</p>`:''}`
         :can?`<button type="button" class="tkd-add" data-tkd-edit="due">Add a due date</button>`:'<p class="tkd-val empty">No due date</p>'}</div>
     <label class="st-check"><input type="checkbox" id="tkdHigh" ${t.pri==='high'?'checked':''} ${can?'':'disabled'}><span>High priority</span></label>
+    <div class="sec"><h4>Who can see it</h4>${!t.by||t.by===me().id?tkVisHtml(T,tkVisMode(t),t.hide||[],t.by||me().id,t.to,'tkd'):`<p class="tkd-val">${esc(tkVisLabel(T,t)||'Everyone on the team')}</p>`}</div>
     ${vv?`<button type="button" class="btn sm tkd-ver" data-tkd-ver>Open ${esc(vLabel(vv))}</button>`:''}
-    ${!pj&&pjs.length&&can?`<div class="sec"><h4>Add to a project</h4>${ddBtn('id="tkdPj"','',[{v:'',l:'No project'},...pjs.map(p=>({v:p.id,l:p.name}))],{cls:'field',label:'Add to a project'})}</div>`:''}
+    ${FEAT.flows&&!pj&&pjs.length&&can?`<div class="sec"><h4>Add to a project</h4>${ddBtn('id="tkdPj"','',[{v:'',l:'No project'},...pjs.map(p=>({v:p.id,l:p.name}))],{cls:'field',label:'Add to a project'})}</div>`:''}
     <div class="sec"><div class="sec-h"><h4>Details</h4>${can&&ed!=='note'&&t.note?`<button type="button" class="tkd-pen" data-tkd-edit="note" aria-label="Edit the details" title="Edit">${I.pen}</button>`:''}</div>
       ${ed==='note'?`<textarea class="note" id="tkdNote" placeholder="Details, links, what done looks like…">${esc(t.note||'')}</textarea><div class="tkd-acts"><button type="button" class="btn sm ghost" data-tkd-cancel>Cancel</button><button type="button" class="btn sm dark" data-tkd-save>Save</button></div>`
         :t.note?`<p class="tkd-val tkd-note">${esc(t.note)}</p>`:can?`<button type="button" class="tkd-add" data-tkd-edit="note">Add details</button>`:'<p class="tkd-val empty">No details</p>'}</div>
@@ -614,9 +615,10 @@ $('#tkDetail').addEventListener('click',async e=>{
   if(c('[data-tkd-save]')){tkdSave();UI.tkField=null;renderTaskDetail();toast('Saved');return}
   if(c('[data-tkd-cancel]')){UI.tkField=null;renderTaskDetail();return}
   if(c('#tkdAddBtn')){UI.tkPick=!UI.tkPick;renderTaskDetail();return}
-  if(b=c('[data-tkdadd]')){t.to.push(b.dataset.tkdadd);tkJoinProject(t);UI.tkPick=false;save();render();return}
+  if(b=c('[data-tkdadd]')){t.to.push(b.dataset.tkdadd);if(t.hide) t.hide=t.hide.filter(x=>x!==b.dataset.tkdadd);tkJoinProject(t);UI.tkPick=false;save();render();return}
   if(b=c('[data-tkdrm]')){if(!tkCan(t)) return;t.to=t.to.filter(id=>id!==b.dataset.tkdrm);save();render();return}
   if(c('[data-tkd-ver]')){openTaskVersion(t);return}
+  if(b=c('[data-tkd-hide]')){const id=b.dataset.tkdHide,h=t.hide||[];t.hide=h.includes(id)?h.filter(x=>x!==id):[...h,id];UI.tkVisSome=t.id;save();render();return}
   if(c('[data-tkd-proj]')){PV.proj=t.pj;PV.ver=null;UI.tkEdit=null;setView('projects');return}
   if(c('#tkdDone')){if(tkLocked(t)){toast("It isn't this step's turn yet.");return}const undo=snapshot(),freed=tkTick(t);render();toast(tickMsg(t,freed),undo);return}
   if(c('#tkdDel')){const undo=snapshot();tkDrop(team(),t);UI.tkEdit=null;save();render();toast('Task deleted',undo);return}
@@ -627,7 +629,8 @@ $('#tkDetail').addEventListener('click',async e=>{
 $('#tkDetail').addEventListener('change',e=>{if(e.target.id==='tkdTitle') tkdSave();
   const t=UI.tkEdit&&taskById(UI.tkEdit);if(!t||!tkCan(t)) return;
   if(e.target.id==='tkdPj'&&e.target.value){t.pj=e.target.value;const pj=tkProject(t);flowEnsure(pj);t.fl={ph:(pjPhaseNow(team(),pj)||pj.flow.phases[0]).id,seq:Date.now(),free:true};flowChain(team(),pj);tkJoinProject(t);touch(pj);save();render()}
-  if(e.target.id==='tkdHigh'&&(t.pri==='high')!==e.target.checked){tkFlip(t);render()}});
+  if(e.target.id==='tkdHigh'&&(t.pri==='high')!==e.target.checked){tkFlip(t);render()}
+  if(e.target.id==='tkdVis'&&(!t.by||t.by===me().id)){const m=e.target.value;t.priv=m==='private';if(m!=='some'){t.hide=[];UI.tkVisSome=null}else UI.tkVisSome=t.id;save();render();toast(m==='all'?'Everyone on the team can see it':m==='private'?'Only you and the people it is for can see it':'Pick who it is hidden from')}});
 $('#tkDetail').addEventListener('input',e=>{if(e.target.id==='tkdTitle'){e.target.style.height='auto';e.target.style.height=e.target.scrollHeight+'px'}});
 $('#tkDetail').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='tkdTitle'){e.preventDefault();e.target.blur()}if(e.key==='Escape'&&UI.tkField){e.preventDefault();e.stopPropagation();UI.tkField=null;renderTaskDetail()}if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)&&UI.tkField){e.preventDefault();tkdSave();UI.tkField=null;renderTaskDetail()}});
 $('#tkList').addEventListener('click',e=>{
@@ -639,7 +642,7 @@ $('#tkList').addEventListener('click',e=>{
   if(b=c('[data-tkdel]')){const t=taskById(b.dataset.tkdel);if(!tkCan(t)) return;const undo=snapshot();tkDrop(team(),t);if(UI.tkEdit===t.id) UI.tkEdit=null;save();render();toast('Task deleted',undo);return}
   if(b=c('[data-acc]')){answerInvite(b.dataset.acc,true);render();toast('Accepted');return}
   if(b=c('[data-dec]')){answerInvite(b.dataset.dec,false);render();toast('Declined');return}
-  if(c('[data-tkclear]')){const undo=snapshot(),who=UI.tkScope!=='all'?me().id:UI.tkWho;team().tasks=tasksOf(team()).filter(x=>!x.done||x.pj||(who&&!x.to.includes(who)));save();render();toast('Done tasks cleared',undo);return}
+  if(c('[data-tkclear]')){const undo=snapshot(),who=UI.tkWho,gone=x=>x.done&&tkPlain(x)&&(!who||x.to.includes(who));team().tasks=tasksOf(team()).filter(x=>!gone(x));save();render();toast('Done tasks deleted',undo);return}
   if(b=c('[data-tkopen]')){openTask(b.dataset.tkopen);return}
   if(b=c('[data-openev]')){openEvent(b.dataset.openev);return}
 });
