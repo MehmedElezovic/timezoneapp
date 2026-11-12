@@ -1807,3 +1807,13 @@ input,textarea,select,[contenteditable=true],.copyrow input{-webkit-user-select:
   .pj-list .pj-row .pj-cell:not([data-l="Changed"]){display:none}
   .pj-list .pj-row .pj-cell[data-l="Changed"]::before{min-width:0;content:none}
 }
+
+/* ---------- compare: Scroll together, and each design side's own slim scrollbar ---------- */
+.btn.sm.cmp-link.on{background:var(--lav-soft);color:var(--tag-purple)}
+.btn.sm.cmp-link.on:hover{background:color-mix(in srgb,var(--lav-soft) 70%,var(--lav))}
+.btn.sm.cmp-link svg{width:14px;height:14px;opacity:1}
+.pv-rail{position:absolute;width:12px;z-index:5;touch-action:none;cursor:default}
+.pv-rail[hidden]{display:none}
+.pv-rail i{position:absolute;left:3px;right:3px;top:0;border-radius:6px;background:rgba(0,0,0,.3);box-shadow:0 0 0 1px rgba(255,255,255,.6);transition:background .12s,left .12s,right .12s}
+.pv-rail:hover i,.pv-rail.drag i{left:2px;right:2px;background:rgba(0,0,0,.5)}
+@media (max-width:860px){.cp-comparing .cmp-link{display:none}}

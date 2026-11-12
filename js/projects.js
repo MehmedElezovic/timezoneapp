@@ -24,7 +24,7 @@ const PI={
 
 /* ---------- state ---------- */
 const PJ={urls:{},html:{}};
-const PV={folder:null,proj:null,ver:null,dev:'desktop',mode:'comment',layer:'team',filter:'open',sel:null,draft:null,built:null,ro:[],hov:null,reply:null,scale:1,cmp:null,cl:null,cr:null,smenu:null,lead:null,dy:0,align:null,loaded:{A:false,B:false},pick:false,flows:false,flowId:null,tab:null,tabFor:null};
+const PV={folder:null,proj:null,ver:null,dev:'desktop',mode:'comment',layer:'team',filter:'open',sel:null,draft:null,built:null,ro:[],hov:null,reply:null,scale:1,cmp:null,cl:null,cr:null,smenu:null,lead:null,dy:0,align:null,solo:false,loaded:{A:false,B:false},pick:false,flows:false,flowId:null,tab:null,tabFor:null};
 const DEVS={desktop:[1280,'Desktop'],tablet:[820,'Tablet'],phone:[390,'Phone']};
 const MAXF=25*1048576,BUCKET='project-files';
 const projectsOf=T=>(T.projects=T.projects||[]);
@@ -296,15 +296,16 @@ function renderProject(p){
 const SB='allow-same-origin allow-scripts allow-forms allow-popups allow-modals';
 // a frame counts only once its page has loaded: the blank document it starts with has a body too
 function frameOf(side){const f=$(side==='A'?'#pvIfA':'#pvIf'),ok=f&&PV.loaded[side];return {f,doc:ok?f.contentDocument:null,win:ok?f.contentWindow:null}}
-function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.ro=[];PV.built=null;PV.draft=null;PV.sel=null;PV.reply=null;PV.hov=null;PV.more=false;PV.loaded={A:false,B:false};PV.lead=null;PV.dy=0;PV.align=null}
+function pvTeardown(){for(const ro of PV.ro){try{ro.disconnect()}catch(e){}}PV.ro=[];PV.built=null;PV.draft=null;PV.sel=null;PV.reply=null;PV.hov=null;PV.more=false;PV.loaded={A:false,B:false};PV.lead=null;PV.dy=0;PV.align=null;PV.solo=false}
 async function pvBuild(p,v,cmp){
   pvTeardown();const key=pvKey(v);PV.built=key;
   const vers=versOf(p),cm=PV.mode==='compare';
   $('#vProj').innerHTML=`${SHARE?'':`<div class="pj-chrome" id="pjChrome">${pageChrome(p)}</div><div class="pj-body pv-host pj-drop" id="pjDrop">`}<div class="pv"><div class="pv-bar"><div class="pv-bl"><div class="pv-left"><button type="button" class="chev" id="pvBack" aria-label="All design versions" title="All design versions">${PI.back}</button>
       <div class="vpick-wrap"><button type="button" class="vpick" id="pvVerBtn" aria-haspopup="menu" aria-expanded="false" title="Switch version"><span class="pv-ttl" id="pvTtl"></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button><div class="dd vmenu" id="pvVerMenu" role="menu" hidden></div></div><span class="pv-chips" id="pvChips"></span></div>
-      <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div>${SHARE?'<span></span>':'<div class="pv-acts" id="pvActs"></div>'}</div>
+      <div class="seg sm" id="pvDev" aria-label="Width">${Object.entries(DEVS).map(([k,[w,l]])=>`<button type="button" data-dev="${k}" title="${w}px">${PI[k]}<span>${l}</span></button>`).join('')}</div><div class="pv-acts" id="pvActs"></div></div>
       <div class="pv-br"><div class="seg sm" id="pvMode" aria-label="Mode"><button type="button" data-mode="comment">${PI.bubble}<span>Comment</span></button><button type="button" data-mode="browse">${PI.cursor}<span>Browse</span></button><button type="button" data-mode="compare" ${vers.length>1?'':'disabled title="Upload a second version to compare"'}>${PI.cmp}<span>Compare</span></button></div></div></div>
-    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div>${cm?'<div class="pv-align" id="pvAlign" hidden></div>':''}<div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>${SHARE?'':`<div class="pj-over">${PI.up}<b>Drop the files to make design v${curVer(p).n+1}</b></div></div>`}`;
+    <div class="pv-main"><div class="pv-stage${cm?' cmp':''}" id="pvStage">${cmp?`<div class="pv-cap" id="pvCapA"></div><div class="pv-frame" id="pvFrameA"><iframe id="pvIfA" sandbox="${SB}" title="${esc(vLabel(cmp))}"></iframe></div><div class="pv-pins" id="pvPinsA"></div><div class="pv-rail" id="pvRailA" hidden><i></i></div>`:''}${cm&&!cmp?'<div class="pv-cap" id="pvCapE"></div><div class="pv-slot" id="pvSlotE"></div>':''}${cm?'<div class="pv-cap" id="pvCapB"></div>':''}<div class="pv-frame" id="pvFrame"><iframe id="pvIf" sandbox="${SB}" title="${esc(vLabel(v))}"></iframe></div><div class="pv-pins" id="pvPins"></div>${cmp?'<div class="pv-rail" id="pvRailB" hidden><i></i></div>':''}${cm?'<div class="pv-align" id="pvAlign" hidden></div>':''}<div class="pv-hint" id="pvHint" hidden>${PI.bubble}Click anywhere on the page to leave a comment</div><div class="pv-load" id="pvLoad">Loading ${esc(v.name)}…</div></div><aside class="pv-side" id="pvSide"></aside></div></div>${SHARE?'':`<div class="pj-over">${PI.up}<b>Drop the files to make design v${curVer(p).n+1}</b></div></div>`}`;
+  for(const k of ['A','B']){const r=$('#pvRail'+k);if(r) r.addEventListener('pointerdown',e=>cmpRailDown(k,e))}
   pvLayout();pvUpdate();
   const [hb,ha]=await Promise.all([pageHtml(v),cmp?pageHtml(cmp):null]);
   if(PV.built!==key||!$('#pvIf')) return;
@@ -323,8 +324,8 @@ function pvLayout(){
     PV.scale=sc;
     [PV.cl,PV.cr].forEach((id,i)=>{const [l,t]=at(i);
       if(!id){const e=$('#pvSlotE'),c=$('#pvCapE');if(e) e.style.cssText=`left:${l}px;top:${t}px;width:${Math.round(w)}px;height:${Math.max(0,h)}px`;if(c) c.style.cssText=`left:${l}px;top:${t-capH}px;width:${Math.round(w)}px`}
-      else if(id===PV.cmp) place($('#pvFrameA'),$('#pvPinsA'),$('#pvCapA'),l,t,w,h,sc);
-      else place(fr,box,$('#pvCapB'),l,t,w,h,sc)})
+      else if(id===PV.cmp){place($('#pvFrameA'),$('#pvPinsA'),$('#pvCapA'),l,t,w,h,sc);cmpRailAt('A',l,t,w,h)}
+      else{place(fr,box,$('#pvCapB'),l,t,w,h,sc);cmpRailAt('B',l,t,w,h)}})
     if(PV.align) requestAnimationFrame(()=>{const a=PV.align;if(a&&a.A.isConnected&&a.B.isConnected) cmpLine(a.A,a.B,'A')})}
   pvPins();
 }
@@ -339,9 +340,10 @@ function pvHook(side){
     doc.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href]');if(a){if(!/^#/.test(a.getAttribute('href')||'')) e.preventDefault();return}cmpPick(side,e.target)},true);
     // the side under the mouse (or finger, or keyboard) leads and the other follows in the same frame, so the two never pull at each other
     const lead=()=>{PV.lead=side};for(const k of ['pointermove','pointerdown','wheel','touchstart','keydown']) doc.addEventListener(k,lead,{capture:true,passive:true});
-    win.addEventListener('scroll',()=>{pvPinsSoon();if(PV.lead===side) cmpFollow(side)},{passive:true});
+    win.addEventListener('scroll',()=>{pvPinsSoon();cmpRail(side);if(PV.lead===side&&!PV.solo) cmpFollow(side)},{passive:true});
     doc.addEventListener('mousemove',e=>{const t=cmpBlock(e.target,win);if(t===PV.hov) return;pvUnhov();if(t){t.dataset.noonHov='1';PV.hov=t}},true);
     doc.documentElement.addEventListener('mouseleave',pvUnhov);
+    cmpRail(side);
   }else{
     doc.addEventListener('click',pvClick,true);
     doc.addEventListener('mousemove',e=>{if(PV.mode!=='comment') return;const t=e.target;if(t===PV.hov||!t||!t.dataset) return;pvUnhov();if(t!==doc.documentElement&&t!==doc.body){t.dataset.noonHov='1';PV.hov=t}},true);
@@ -351,13 +353,38 @@ function pvHook(side){
   }
   doc.addEventListener('keydown',e=>{if(e.key==='Escape') pvEscape()},true);
   doc.addEventListener('load',pvPins,true);
-  try{const ro=new ResizeObserver(()=>pvPins());ro.observe(doc.documentElement);if(doc.body) ro.observe(doc.body);PV.ro.push(ro)}catch(e){}
+  try{const ro=new ResizeObserver(()=>{pvPins();if(cmp) cmpRail(side)});ro.observe(doc.documentElement);if(doc.body) ro.observe(doc.body);PV.ro.push(ro)}catch(e){}
   pvUpdate();
 }
 function pvUnhov(){if(PV.hov){try{delete PV.hov.dataset.noonHov}catch(e){}PV.hov=null}}
 let pinsRaf=0;function pvPinsSoon(){if(!pinsRaf) pinsRaf=requestAnimationFrame(()=>{pinsRaf=0;pvPins()})}
 // compare: the follower takes the leader's scroll, shifted by however far apart the lined-up parts sit (none until something is lined up)
 function cmpFollow(side){const a=frameOf(side),o=frameOf(side==='A'?'B':'A');if(!a.win||!o.win) return;o.win.scrollTo({left:a.win.scrollX,top:a.win.scrollY+(side==='A'?PV.dy:-PV.dy),behavior:'instant'})}
+// each side has its own slim scrollbar on its right edge (the pages' own are hidden, so they keep their real width). Dragging
+// one moves that side alone, and the two stay apart until Scroll together joins them again, keeping the gap they have then.
+function cmpRailAt(side,l,t,w,h){const r=$('#pvRail'+side);if(!r) return;const th=Math.max(0,Math.round(h)-8);r.dataset.h=th;r.style.cssText=`left:${Math.round(l+w-12)}px;top:${Math.round(t)+4}px;height:${th}px`;cmpRail(side)}
+function cmpRail(side){
+  const r=$('#pvRail'+side);if(!r) return;const {doc,win}=frameOf(side),de=doc&&doc.documentElement,th=+r.dataset.h||0,H=de?de.scrollHeight:0,vh=win?win.innerHeight:0;
+  r.hidden=!(th>40&&H>vh+1);if(r.hidden) return;
+  const k=Math.max(28,th*vh/H),i=r.firstElementChild;i.style.height=Math.round(k)+'px';i.style.transform=`translateY(${Math.round((th-k)*clamp(win.scrollY/(H-vh),0,1))}px)`;
+}
+function cmpRailDown(side,e){
+  const r=e.currentTarget,{doc,win}=frameOf(side);if(!win||!doc||e.button!==0) return;e.preventDefault();
+  const i=r.firstElementChild,rr=r.getBoundingClientRect(),ir=i.getBoundingClientRect(),k=ir.height,off=e.clientY>=ir.top&&e.clientY<=ir.bottom?e.clientY-ir.top:k/2;
+  cmpSolo(true);try{r.setPointerCapture(e.pointerId)}catch(x){}r.classList.add('drag');
+  const go=y=>{const max=doc.documentElement.scrollHeight-win.innerHeight;win.scrollTo({left:win.scrollX,top:clamp((y-rr.top-off)/Math.max(1,rr.height-k),0,1)*max,behavior:'instant'})};go(e.clientY);
+  const mv=ev=>go(ev.clientY),up=()=>{r.classList.remove('drag');r.removeEventListener('pointermove',mv);r.removeEventListener('pointerup',up);r.removeEventListener('pointercancel',up)};
+  r.addEventListener('pointermove',mv);r.addEventListener('pointerup',up);r.addEventListener('pointercancel',up);
+}
+// the button that says whether the two sides scroll together, on both the Design and the Copy compare
+const cmpLinkBtn=(solo,attr)=>`<button type="button" class="btn sm cmp-link${solo?' dark':' on'}" ${attr} aria-pressed="${!solo}" title="${solo?'Each side scrolls on its own. Click to scroll both together again, from where they are now':'Scrolling one side scrolls the other. Drag a side\u2019s scrollbar, or click here, to scroll them one at a time'}">${I.link}<span>${solo?'Scroll together':'Scrolling together'}</span></button>`;
+function cmpLinkRefresh(){const b=$('#pvLink');if(b) b.outerHTML=cmpLinkBtn(PV.solo,'id="pvLink"')}
+function cmpSolo(on){
+  if(!!PV.solo===on) return;PV.solo=on;
+  if(on){if(PV.align){PV.align=null;cmpMark(null,null);cmpAlignChip()}}
+  else{const a=frameOf('A').win,b=frameOf('B').win;if(a&&b) PV.dy=b.scrollY-a.scrollY}
+  cmpLinkRefresh();
+}
 // a click in compare picks the part under it: the nearest picture, or the nearest box with something in it
 const MEDIA=/^(img|picture|video|svg|canvas|iframe)$/i;
 function cmpBlock(t,win){
@@ -395,6 +422,7 @@ function cmpLine(mineEl,theirEl,side){
   ot.win.scrollTo({left:me.win.scrollX,top:ot.win.scrollY+gap(),behavior:'instant'});
   const left=gap();if(Math.abs(left)>1) me.win.scrollTo({left:me.win.scrollX,top:me.win.scrollY-left,behavior:'instant'});
   PV.dy=frameOf('B').win.scrollY-frameOf('A').win.scrollY;
+  if(PV.solo){PV.solo=false;cmpLinkRefresh()}
 }
 function cmpMark(a,b){for(const side of ['A','B']){const {doc}=frameOf(side);if(doc) for(const x of doc.querySelectorAll('[data-noon-focus]')) delete x.dataset.noonFocus}for(const x of [a,b]) if(x) x.dataset.noonFocus='1'}
 const partLabel=el=>{if(MEDIA.test(el.tagName)) return el.getAttribute('alt')||'the image';const h=/^H[1-6]$/.test(el.tagName)?el:el.querySelector('h1,h2,h3,h4,h5,h6'),t=normTxt(h||el)||'this part';return t.length>48?t.slice(0,46).trim()+'…':t};
@@ -408,7 +436,7 @@ function cmpPick(side,t){
   if(!m){PV.align=null;cmpAlignChip();toast(`Could not find that part on ${vLabel(verById(p,other==='A'?PV.cmp:PV.ver))}`);return}
   cmpLine(el,m,side);PV.align={[side]:el,[other]:m,label:partLabel(el)};cmpAlignChip();
 }
-function cmpReset(){PV.align=null;PV.dy=0;cmpMark(null,null);cmpAlignChip();if(frameOf('A').win){PV.lead='A';cmpFollow('A')}}
+function cmpReset(){PV.align=null;PV.dy=0;PV.solo=false;cmpLinkRefresh();cmpMark(null,null);cmpAlignChip();if(frameOf('A').win){PV.lead='A';cmpFollow('A')}}
 function selOf(el){
   const parts=[];
   while(el&&el.nodeType===1&&el.tagName!=='HTML'){
@@ -493,7 +521,7 @@ function cmpFocus(c){
   PV.sel=c.id;PV.reply=null;PV.align=null;cmpAlignChip();
   const A=frameOf('A'),B=frameOf('B'),ea=elOf(c,'A'),eb=elOf(c,'B')||(ea&&cmpMatch(ea,A,B));
   cmpMark(ea,eb);
-  if(ea&&A.win){PV.lead=null;ea.scrollIntoView({block:'center',behavior:'instant'});if(eb) cmpLine(ea,eb,'A');else if(B.win) B.win.scrollTo({left:A.win.scrollX,top:A.win.scrollY+PV.dy,behavior:'instant'})}
+  if(ea&&A.win){PV.lead=null;PV.solo=false;ea.scrollIntoView({block:'center',behavior:'instant'});if(eb) cmpLine(ea,eb,'A');else if(B.win) B.win.scrollTo({left:A.win.scrollX,top:A.win.scrollY+PV.dy,behavior:'instant'})}
   pvUpdate();const card=$(`#pvSide .pc[data-cc="${c.id}"]`);if(card) card.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 // the version menu: every version, newest first. What can be done with the one on screen sits in the bar, as on the Copy tab
@@ -536,7 +564,7 @@ function pvUpdate(){
     :SHARE?`<b>${esc(vLabel(v))} · ${esc(v.name)}</b><small>${esc(p.name)} · ${v===curVer(p)?'current':'older version'} · ${open?`${open} open`:'nothing open'}${res?` · ${res} resolved`:''}</small>`
     :`<b>${dsLabel(v)}${v===curVer(p)?'':' <i class="cp-old">older version</i>'}</b><small>${esc(v.name)} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(team(),v.by))}</small>`;
   {const ch=$('#pvChips');if(ch) ch.innerHTML=cm||SHARE?'':`${p.finalDesign===v.id?`<span class="cp-final">${I.check}Final</span>`:''}${verShared(v)?'<span class="pj-shared" title="The review link for this version is on">Shared</span>':''}`;
-   const ac=$('#pvActs');if(ac) ac.innerHTML=cm?'':`<button type="button" class="btn sm" data-vact="up" title="Upload design v${curVer(p).n+1}">${PI.up}<span>Upload</span></button><div class="fd-more"><button type="button" class="btn sm icon" id="pvMore" aria-label="More for ${esc(dsLabel(v))}" aria-haspopup="menu" aria-expanded="${!!PV.more}">${I.more}</button>${PV.more?pvMoreHtml(p,v):''}</div>`}
+   const ac=$('#pvActs');if(ac) ac.innerHTML=cm?(cmp?cmpLinkBtn(PV.solo,'id="pvLink"'):''):SHARE?'':`<button type="button" class="btn sm" data-vact="up" title="Upload design v${curVer(p).n+1}">${PI.up}<span>Upload</span></button><div class="fd-more"><button type="button" class="btn sm icon" id="pvMore" aria-label="More for ${esc(dsLabel(v))}" aria-haspopup="menu" aria-expanded="${!!PV.more}">${I.more}</button>${PV.more?pvMoreHtml(p,v):''}</div>`}
   $$('#pvDev button').forEach(b=>b.classList.toggle('on',b.dataset.dev===PV.dev));
   $$('#pvMode button').forEach(b=>b.classList.toggle('on',b.dataset.mode===PV.mode));
   const B=frameOf('B');if(B.doc&&B.doc.documentElement){B.doc.documentElement.dataset.noonMode=cm?'compare':PV.mode;if(PV.mode!=='comment') pvUnhov()}
@@ -661,6 +689,7 @@ $('#vProj').addEventListener('click',async e=>{
     if(k==='del'){deletePage(p);return}
     if(k==='link') navigator.clipboard.writeText(projUrl(p)).then(()=>toast(T.cloud?'Link copied. Teammates open it straight here, and Claude can find the page from it.':'Link copied. It opens here on this device; sign in so teammates and Claude can use it.'),()=>toast('Could not copy'));return}
   if(c('#pvAlignX')){cmpReset();return}
+  if(c('#pvLink')){cmpSolo(!PV.solo);return}
   if(b=c('[data-pv-done]')){const t=taskById(b.dataset.pvDone);if(!t) return;const undo=snapshot(),freed=tkTick(t);render();toast(tickMsg(t,freed),undo);return}
   if(b=c('[data-pv-open]')){openTask(b.dataset.pvOpen);return}
   if(c('#pvVerBtn')){PV.vmenu=!PV.vmenu;pvMenu();return}

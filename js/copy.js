@@ -271,7 +271,8 @@ function cpListHtml(p){
     <div class="pj-dz"><span class="ic">${FDI.doc}</span><b>${d?`Your draft of v${next} is waiting`:`Write v${next}, or drop a file to make it`}</b><small>Writing starts from v${cur.n}${acc?`, with ${plural(acc,'accepted change')} already in`:''}. A Markdown, Word, text or HTML file becomes v${next} as it is. Every version keeps its own comments.</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-cp-write>${I.pen}${d?'Continue the draft':`Write v${next}`}</button><button type="button" class="btn" data-cp-up>${PI.up}Upload a file</button></span></div>`;
 }
 /* ---------- compare: two versions of the copy side by side, the earlier one on the left. Red and green belong to the
-   suggestions inside one version; here each version reads as it is, and the two columns scroll together. ---------- */
+   suggestions inside one version; here each version reads as it is, and the two columns scroll together until one is
+   dragged by its scrollbar. ---------- */
 function cpCmpPick(p,k,v,other){
   const open=CP.menu==='cmp'+k;
   return `<div class="vpick-wrap"><button type="button" class="vpick" data-cpcmp="${k}" aria-haspopup="menu" aria-expanded="${open}"><span class="pv-ttl"><b>${k==='a'?'Before':'After'}: v${v.n}</b><small>${esc(cpSrc(v))} · ${esc(agoLabel(v.at||Date.now()))}</small></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
@@ -280,20 +281,38 @@ function cpCmpPick(p,k,v,other){
 function cpCompareHtml(p){
   const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b);
   const col=(k,v,o)=>`<div class="cp-col"><div class="cp-colhead">${cpCmpPick(p,k,v,o)}<span class="cp-words">${plural(cpWords(v),'word')}</span></div><div class="cp-scroll" id="cpScroll${k.toUpperCase()}"><article class="cp-doc" aria-label="Copy v${v.n}">${cleanCopy(v.body)}</article></div></div>`;
-  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button><span class="pv-ttl"><b>Copy v${a.n} and v${b.n} side by side</b><small>Pick any two versions at the top of each side. Scrolling one side scrolls the other.</small></span></div>
+  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button><span class="pv-ttl"><b>Copy v${a.n} and v${b.n} side by side</b><small id="cpCmpHint">${cpCmpHint(cpCmpState().solo)}</small></span><span class="sp"></span>${cmpLinkBtn(cpCmpState().solo,'id="cpCmpLink"')}</div>
       <div class="cp-sbs">${col('a',a,b)}${col('b',b,a)}</div></div></div>`;
 }
-// the two sides keep the same place: scroll one and the other follows, at the same share of its length
+// the two sides keep the same place: scroll one and the other follows, at the same share of its length, plus the gap they had
+// when they were last joined. Dragging one side's scrollbar moves that side alone until Scroll together joins them again.
+const cpSpan=e=>Math.max(0,e.scrollHeight-e.clientHeight);
+const cpCmpKey=()=>'cmp'+CP.cmp.a+CP.cmp.b;
+function cpCmpState(){const k=cpCmpKey(),v=CP.scroll[k];return v&&typeof v==='object'?v:(CP.scroll[k]={a:0,b:0,solo:false,dy:0})}
+const cpCmpHint=solo=>solo?'Each side scrolls on its own. Scroll together moves them as one again, from where they are now.':"Pick any two versions at the top of each side. Scrolling one side scrolls the other; drag a side's scrollbar to move it alone.";
+function cpCmpSolo(on){
+  const s=cpCmpState(),A=$('#cpScrollA'),B=$('#cpScrollB');s.solo=on;
+  if(!on&&A&&B) s.dy=B.scrollTop-(cpSpan(A)>0?A.scrollTop/cpSpan(A):0)*cpSpan(B);
+  const b=$('#cpCmpLink');if(b) b.outerHTML=cmpLinkBtn(on,'id="cpCmpLink"');const h=$('#cpCmpHint');if(h) h.textContent=cpCmpHint(on);
+}
 function cpCompareAfter(p){
-  const A=$('#cpScrollA'),B=$('#cpScrollB'),k='cmp'+CP.cmp.a+CP.cmp.b;if(!A||!B) return;
-  let lead=null,t=0;
-  const follow=(from,to)=>()=>{if(lead&&lead!==from) return;lead=from;clearTimeout(t);t=setTimeout(()=>{lead=null},120);
-    const max=from.scrollHeight-from.clientHeight,r=max>0?from.scrollTop/max:0;to.scrollTop=r*(to.scrollHeight-to.clientHeight);CP.scroll[k]=r};
+  const A=$('#cpScrollA'),B=$('#cpScrollB');if(!A||!B) return;
+  const s=cpCmpState();let lead=null,t=0,grab=null,mute=true;
+  const at=(from,y)=>from===A?(cpSpan(A)>0?y/cpSpan(A):0)*cpSpan(B)+s.dy:(cpSpan(B)>0?(y-s.dy)/cpSpan(B):0)*cpSpan(A);
+  const follow=(from,to)=>()=>{s.a=A.scrollTop;s.b=B.scrollTop;if(mute) return;
+    if(grab===from&&!s.solo) cpCmpSolo(true);
+    if(s.solo||(lead&&lead!==from)) return;lead=from;clearTimeout(t);t=setTimeout(()=>{lead=null},120);to.scrollTop=at(from,from.scrollTop)};
   A.addEventListener('scroll',follow(A,B),{passive:true});B.addEventListener('scroll',follow(B,A),{passive:true});
-  const r=CP.scroll[k]||0;if(r){lead=A;A.scrollTop=r*(A.scrollHeight-A.clientHeight);B.scrollTop=r*(B.scrollHeight-B.clientHeight);setTimeout(()=>{lead=null},60)}
+  // a press on the column itself, not on the words in it, is its scrollbar (or its margin, which does not scroll anything)
+  for(const el of [A,B]){
+    el.addEventListener('pointerdown',e=>{grab=e.target===el&&e.button===0?el:null;if(grab) document.addEventListener('pointerup',()=>{grab=null},{once:true})});
+    el.addEventListener('pointermove',e=>{if(!e.buttons) grab=null},{passive:true});
+    for(const k of ['wheel','touchstart','keydown']) el.addEventListener(k,()=>{grab=null},{passive:true});
+  }
+  A.scrollTop=s.a;B.scrollTop=s.b;requestAnimationFrame(()=>requestAnimationFrame(()=>{mute=false}));
 }
 // compare a version with the one before it (or after it, for the first)
-function cpStartCompare(p,id){const L=copyOf(p),v=cpById(p,id),i=L.indexOf(v);if(L.length<2||!v) return;const o=i>0?L[i-1]:L[i+1];CP.cmp=v.n>o.n?{a:o.id,b:v.id}:{a:v.id,b:o.id};CP.menu=null;CP.sel=null;CP.draft=null;cpPopHide();render()}
+function cpStartCompare(p,id){const L=copyOf(p),v=cpById(p,id),i=L.indexOf(v);if(L.length<2||!v) return;const o=i>0?L[i-1]:L[i+1];CP.cmp=v.n>o.n?{a:o.id,b:v.id}:{a:v.id,b:o.id};delete CP.scroll[cpCmpKey()];CP.menu=null;CP.sel=null;CP.draft=null;cpPopHide();render()}
 function cpOpenVer(id){CP.open=id;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;CP.filter='open';render()}
 async function cpDelete(p,v){
   if(!await confirmDlg(`Delete ${cpLabel(v).toLowerCase()}?`,`${v.cm.length?`Its ${plural(v.cm.length,'comment')} go too. `:''}This cannot be undone.`,'Delete version')) return;
@@ -576,6 +595,7 @@ $('#vProj').addEventListener('click',async e=>{
   if(b=c('[data-cpv-del]')){const x=cpById(p,b.dataset.cpvDel);if(x) cpDelete(p,x);return}
   if(b=c('[data-cpv-cmp]')){cpStartCompare(p,b.dataset.cpvCmp);return}
   if(b=c('[data-cpv-open]')){cpOpenVer(b.dataset.cpvOpen);return}
+  if(c('#cpCmpLink')){cpCmpSolo(!cpCmpState().solo);return}
   if(c('#cpCmpBack')){const id=CP.cmp&&CP.cmp.b;CP.cmp=null;CP.menu=null;cpOpenVer(id);return}
   if(b=c('[data-cpcmp]')){const k='cmp'+b.dataset.cpcmp;CP.menu=CP.menu===k?null:k;render();return}
   if(b=c('[data-cpcmp-pick]')){const k=b.dataset.cpcmpPick,x=cpById(p,b.dataset.v),o=cpById(p,k==='a'?CP.cmp.b:CP.cmp.a);CP.menu=null;if(x&&o) CP.cmp=x.n<o.n?{a:x.id,b:o.id}:{a:o.id,b:x.id};render();return}
