@@ -1,708 +1,239 @@
-/* Noon · copy. A page's copy is a stack of versions like its design: write one here, or upload a Markdown, Word, text
-   or HTML file, and it becomes the next version. A version keeps clean HTML with only the formats Noon allows (headings,
-   bold, italic, underline, highlight, links, lists, quotes and lines between sections), so the Markdown that comes out of
-   it is always valid. Comments sit on words: select some text to comment on it or to suggest other wording; the team
-   accepts or declines a suggestion, and accepted wording goes into the next version. A saved version never changes, so
-   a comment keeps its place by character position. */
+/* Noon redesign mockup · Copy tab.
+   List of versions → reader (select text to comment or suggest an edit; suggestions get Accept/Decline)
+   → side-by-side compare with "See changes" → editor that saves the next version with accepted suggestions in. */
+const CP={mode:'read',chg:false,cmpA:null,active:null,layer:'team',pend:null,draft:'',showRes:false,replyTo:null,rail:'comments',edHtml:null,edFor:null,counts:null};
 
-/* ---------- icons and the libraries loaded on first use ---------- */
-const CPI={
-  mark:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5L11 18H6v-5z"/><path d="M4 21h16"/></svg>',
-  link:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1 1"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1-1"/></svg>',
-  ul:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9.5 6h11M9.5 12h11M9.5 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>',
-  ol:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6h10.5M10 12h10.5M10 18h10.5"/><path d="M4 5l1.5-1v5M3.5 14.5a1.5 1.5 0 0 1 3 .3c0 1-3 2.2-3 3.7h3" stroke-width="1.6"/></svg>',
-  quote:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h5v5c0 3-2 5-4.5 5.5M14 7h5v5c0 3-2 5-4.5 5.5"/></svg>',
-  hr:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3.5 12h17"/><path d="M8 6.5h8M8 17.5h8" opacity=".45"/></svg>',
-  clear:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 5h12M12 5l-3.5 14M14.5 14l5 5M19.5 14l-5 5"/></svg>',
-  md:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M6 15V9l2.5 3L11 9v6M16.5 9v6M14.5 13l2 2 2-2"/></svg>',
-  copy:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 8.5V6a2.5 2.5 0 0 0-2.5-2.5H6A2.5 2.5 0 0 0 3.5 6v7A2.5 2.5 0 0 0 6 15.5h2.5"/></svg>',
-};
-const LIBS={
-  quill:['https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js','https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.core.css'],
-  marked:['https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js'],
-  mammoth:['https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js'],
-  diff:['https://cdn.jsdelivr.net/npm/diff@5.2.0/dist/diff.min.js'],
-};
-const libP={};
-function lib(name){return libP[name]||(libP[name]=new Promise((res,rej)=>{const [js,css]=LIBS[name];
-  if(css){const l=document.createElement('link');l.rel='stylesheet';l.href=css;document.head.appendChild(l)}
-  const s=document.createElement('script');s.src=js;s.onload=()=>res();s.onerror=()=>{delete libP[name];rej(new Error(`${name} did not load`))};document.head.appendChild(s)}))}
+/* ---------- data helpers ---------- */
+function cvers(p){if(CV[p.id])return CV[p.id];
+  return copyVers(p).map(v=>({...v,src:'Uploaded copy.docx',body:`<h1>${esc(p.head||p.name)}</h1><p>${esc(p.sub||'')}</p><p>${v.n>1?'Revised after the team review: a tighter intro, one claim per paragraph, and a source under each number.':'First draft, written from the research doc.'}</p><p><em>Only Remake cost advertorial has full sample copy in this mockup.</em></p>`}))}
+function ccFor(p,n){const o=CC[p.id]||(CC[p.id]={});return o[n]||(o[n]=[])}
+function syncCopy(p){const L=cvers(p).at(-1);p.copy.open=L?ccFor(p,L.n).filter(c=>c.open).length:0}
+const plainOf=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent||''};
+const wc=t=>(t.match(/\S+/g)||[]).length;
+const copyLabel=(c,layer)=>(layer==='client'?'C':'#')+c.n;
+PAGES.forEach(p=>{if(CC[p.id])syncCopy(p)});
 
-/* ---------- state ---------- */
-const CP={page:null,open:null,cmp:null,edit:null,quill:null,q0:'',draft:null,sel:null,filter:'open',layer:'team',reply:null,replyText:'',pop:null,menu:null,link:false,linkAt:null,scroll:{},dt:0,qReady:false};
-const copyOf=p=>(p.copy=p.copy||[]);
-const cpById=(p,id)=>copyOf(p).find(v=>v.id===id)||null;
-const cpCur=p=>{const L=copyOf(p);return L[L.length-1]||null};
-const cpShown=p=>(CP.open&&cpById(p,CP.open))||cpCur(p);
-// what the Copy tab shows: the list of versions, one version open, or a version being written
-function cpMode(p){cpReset(p);return CP.edit?'edit':CP.cmp&&cpById(p,CP.cmp.a)&&cpById(p,CP.cmp.b)?'cmp':CP.open&&cpById(p,CP.open)?'read':'list'}
-const cpLayerOf=c=>c.layer==='client'?'client':'team';
-// open means still waiting on someone: an open comment or suggestion, or accepted wording not in a newer version yet
-const cpOpen=c=>c.status==='open'||(c.status==='accepted'&&!c.done);
-const cpOpenCount=p=>copyOf(p).reduce((n,v)=>n+v.cm.filter(cpOpen).length,0);
-const pageOpen=p=>projOpen(p)+cpOpenCount(p)+adOpenCount(p);
-const cpLabel=v=>'Copy v'+v.n;
-const cpSrc=v=>!v.src||v.src==='written'?'Written in Noon':`From ${v.src}`;
-const clip=(s,n)=>{s=String(s||'');return s.length>n?s.slice(0,n-1).trimEnd()+'…':s};
-const draftKey=p=>'noon.copydraft.'+p.id;
-function draftGet(p){try{const d=JSON.parse(localStorage.getItem(draftKey(p)));return d&&typeof d.html==='string'?d:null}catch(e){return null}}
-function draftSet(p,d){try{localStorage.setItem(draftKey(p),JSON.stringify(d))}catch(e){}}
-function draftDel(p){try{localStorage.removeItem(draftKey(p))}catch(e){}}
-function upgradeCopy(){for(const T of S.teams) for(const p of projectsOf(T)) for(const v of copyOf(p)){v.cm=v.cm||[];for(const c of v.cm) c.re=c.re||[]}}
+/* ---------- main area ---------- */
+function copyMain(p,R,el){hideSelbar();
+  if(R.sub==='edit'){el.innerHTML=copyEditorHtml(p);mountEditor(p);return}
+  if(R.ver&&cvers(p).length){el.innerHTML=copyReaderHtml(p,R);mountReader(p,R);return}
+  el.innerHTML=copyListHtml(p);
+}
+function copySoft(p,R){if(R.sub==='edit')return;drawDocs(p,R);const b=$('#cpBar');if(b)b.innerHTML=cpBarInner(p,R)}
+function refreshCopy(){const R=route(),p=page(R.id);if(!p)return;drawDocs(p,R);renderRail(p,R)}
 
-/* ---------- clean copy: whatever comes in (an editor, a paste from Google Docs or Notion, a Word or Markdown file)
-   leaves as paragraphs, three heading sizes, lists, quotes and lines, with bold, italic, underline, highlight and
-   links inside them. Nothing else survives, scripts and styles included. ---------- */
-const CP_BLOCK=new Set('P DIV H1 H2 H3 H4 H5 H6 UL OL LI BLOCKQUOTE TABLE THEAD TBODY TFOOT TR TD TH CAPTION HR PRE SECTION ARTICLE HEADER FOOTER MAIN ASIDE NAV FIGURE FIGCAPTION DL DT DD ADDRESS CENTER FORM FIELDSET DETAILS SUMMARY'.split(' '));
-const CP_DROP=new Set('SCRIPT STYLE TEMPLATE NOSCRIPT IFRAME OBJECT EMBED SVG MATH HEAD TITLE META LINK BUTTON SELECT INPUT TEXTAREA IMG VIDEO AUDIO CANVAS PICTURE SOURCE'.split(' '));
-const CP_PLAIN_BG=/^(transparent|initial|inherit|unset|none|white|#fff|#ffffff|rgb\(255,255,255\)|rgba\(255,255,255,1\)|rgba\(\d+,\d+,\d+,0(\.0+)?\))$/i;
-function cpMarks(el,m){
-  const t=el.tagName,st=el.style;m={...m};
-  if(t==='B'||t==='STRONG') m.b=true;
-  if(t==='I'||t==='EM'||t==='CITE'||t==='DFN') m.i=true;
-  if(t==='U'||t==='INS') m.u=true;
-  if(t==='MARK') m.h=true;
-  if(t==='A'){const h=(el.getAttribute('href')||'').trim();if(/^(https?:|mailto:)/i.test(h)) m.a=h.slice(0,2000)}
-  if(st){
-    // Google Docs wraps a whole paste in <b style="font-weight:normal">; only real weight counts as bold
-    const fw=st.fontWeight;if(fw){if(fw==='bold'||fw==='bolder'||+fw>=600) m.b=true;else if(fw==='normal'||fw==='lighter'||+fw<600) m.b=false}
-    if(st.fontStyle==='italic'||st.fontStyle==='oblique') m.i=true;else if(st.fontStyle==='normal') m.i=false;
-    if(/underline/.test(st.textDecorationLine||st.textDecoration||'')) m.u=true;
-    const bg=(st.backgroundColor||'').replace(/\s+/g,'');if(bg&&!CP_PLAIN_BG.test(bg)) m.h=true}
-  return m;
-}
-function cleanCopy(html){
-  const src=new DOMParser().parseFromString(String(html||''),'text/html').body,doc=document.implementation.createHTMLDocument(''),root=doc.createElement('div');
-  const txt=s=>s.replace(/[\r\n\t\f]+/g,' ').replace(/\u00a0/g,' ').replace(/ {2,}/g,' ');
-  const wrap=(text,m)=>{let n=doc.createTextNode(text);for(const [k,tag] of [['h','mark'],['u','u'],['i','em'],['b','strong']]) if(m[k]&&!(k==='b'&&m.nb)){const e=doc.createElement(tag);e.append(n);n=e}if(m.a){const e=doc.createElement('a');e.setAttribute('href',m.a);e.append(n);n=e}return n};
-  const hasBlock=el=>{for(const k of el.getElementsByTagName('*')) if(CP_BLOCK.has(k.tagName)) return true;return false};
-  function inline(el,m,into){for(const k of el.childNodes){
-    if(k.nodeType===3){const t=txt(k.data);if(t) into.append(wrap(t,m));continue}
-    if(k.nodeType!==1||CP_DROP.has(k.tagName)) continue;
-    if(k.tagName==='BR'){into.append(doc.createElement('br'));continue}
-    if(CP_BLOCK.has(k.tagName)&&into.lastChild) into.append(doc.createTextNode(' '));
-    inline(k,cpMarks(k,m),into)}}
-  // lists nest by real nesting or by Quill's ql-indent-N, and a bullet item can sit in an <ol data-list> (Quill again)
-  function list(el,m,box){
-    const stack=[];
-    const add=(item,depth,type)=>{
-      while(stack.length&&(stack[stack.length-1].depth>depth||(stack[stack.length-1].depth===depth&&stack[stack.length-1].type!==type))) stack.pop();
-      if(!stack.length||stack[stack.length-1].depth<depth){const L=doc.createElement(type);
-        if(stack.length){const up=stack[stack.length-1].el;let host=up.lastElementChild;if(!host){host=doc.createElement('li');up.append(host)}host.append(L)}else box.append(L);
-        stack.push({depth,type,el:L})}
-      stack[stack.length-1].el.append(item)};
-    const walk=(L,depth,mm)=>{for(const li of L.children){
-      if(li.tagName==='UL'||li.tagName==='OL'){walk(li,depth+1,mm);continue}
-      if(li.tagName!=='LI') continue;
-      const d=Math.min(4,depth+(+((li.className||'').match(/ql-indent-(\d)/)||[])[1]||0)),type=li.dataset.list?(li.dataset.list==='bullet'?'ul':'ol'):(L.tagName==='UL'?'ul':'ol');
-      const item=doc.createElement('li'),m2=cpMarks(li,mm),subs=[];
-      for(const k of li.childNodes){
-        if(k.nodeType===1&&(k.tagName==='UL'||k.tagName==='OL')){subs.push(k);continue}
-        if(k.nodeType===3){const t=txt(k.data);if(t) item.append(wrap(t,m2));continue}
-        if(k.nodeType!==1||CP_DROP.has(k.tagName)) continue;
-        if(k.tagName==='BR'){item.append(doc.createElement('br'));continue}
-        if(CP_BLOCK.has(k.tagName)&&item.textContent.trim()) item.append(doc.createElement('br')); // a second paragraph in an item starts a new line
-        inline(k,cpMarks(k,m2),item)}
-      if(item.textContent.trim()) add(item,d,type);
-      for(const s of subs) walk(s,d+1,m2)}};
-    walk(el,0,m);
-  }
-  function blocks(el,m,box){
-    let cur=null;const para=()=>{if(!cur){cur=doc.createElement('p');box.append(cur)}return cur};
-    for(const k of el.childNodes){
-      if(k.nodeType===3){const t=txt(k.data);if(!t.trim()&&!cur) continue;para().append(wrap(t,m));continue}
-      if(k.nodeType!==1||CP_DROP.has(k.tagName)) continue;
-      const t=k.tagName,mm=cpMarks(k,m);
-      if(t==='BR'){if(cur) cur.append(doc.createElement('br'));continue}
-      if(!CP_BLOCK.has(t)&&!hasBlock(k)){inline(k,mm,para());continue}
-      cur=null;
-      if(t==='HR'){box.append(doc.createElement('hr'));continue}
-      if(/^H[1-6]$/.test(t)){const h=doc.createElement('h'+Math.min(3,+t[1]));inline(k,{...mm,nb:true},h);if(h.textContent.trim()) box.append(h);continue}
-      if(t==='UL'||t==='OL'){list(k,mm,box);continue}
-      if(t==='BLOCKQUOTE'){const q=doc.createElement('blockquote');blocks(k,mm,q);if(q.textContent.trim()) box.append(q);continue}
-      if(t==='TABLE'){for(const tr of k.querySelectorAll('tr')){const cells=[...tr.children].map(c=>txt(c.textContent).trim()).filter(Boolean);if(cells.length){const p=doc.createElement('p');p.textContent=cells.join(' | ');box.append(p)}}continue}
-      if(t==='PRE'){for(const line of k.textContent.split(/\r?\n/)) if(line.trim()){const p=doc.createElement('p');p.textContent=line.replace(/\u00a0/g,' ');box.append(p)}continue}
-      if(hasBlock(k)){blocks(k,mm,box);continue}
-      const p=doc.createElement('p');inline(k,mm,p);if(p.textContent.trim()) box.append(p);
-    }
-  }
-  blocks(src,{},root);
-  // tidy: neighbouring tags of the same kind become one, empty ones go, and blocks lose space at their edges
-  const merge=el=>{for(const k of [...el.children]) merge(k);let k=el.firstChild;
-    while(k){const nx=k.nextSibling;
-      if(nx&&k.nodeType===1&&nx.nodeType===1&&k.tagName===nx.tagName&&/^(STRONG|EM|U|MARK|A|BLOCKQUOTE)$/.test(k.tagName)&&(k.tagName!=='A'||k.getAttribute('href')===nx.getAttribute('href'))){while(nx.firstChild) k.append(nx.firstChild);nx.remove();merge(k);continue}
-      k=nx}
-    el.normalize()};
-  for(const e of [...root.querySelectorAll('strong,em,u,mark,a')]) if(!e.textContent) e.replaceWith(...e.childNodes);
-  merge(root);
-  for(const b of root.querySelectorAll('p,h1,h2,h3,li')){
-    while(b.firstChild&&b.firstChild.nodeName==='BR') b.firstChild.remove();
-    while(b.lastChild&&b.lastChild.nodeName==='BR') b.lastChild.remove();
-    const w=doc.createTreeWalker(b,NodeFilter.SHOW_TEXT),ts=[];let n;while(n=w.nextNode()) ts.push(n);
-    if(ts.length){ts[0].data=ts[0].data.replace(/^\s+/,'');const l=ts[ts.length-1];if(!l.parentElement.closest('ul,ol')||l.parentElement.closest('li')===b) l.data=l.data.replace(/\s+$/,'')}}
-  for(const b of [...root.querySelectorAll('p,h1,h2,h3,li,blockquote')]) if(!b.textContent.trim()&&!b.querySelector('ul,ol')) b.remove();
-  return root.innerHTML;
-}
-// read through an inert document: raw copy straight from the database never runs anything here
-const plainOf=html=>new DOMParser().parseFromString(String(html||''),'text/html').body.textContent||'';
-
-/* ---------- Markdown out: what Claude reads. Bold that starts or ends on punctuation goes in as <strong>, so a quote
-   mark or a full stop can never stop it being bold; underline and highlight have no Markdown, so they stay as tags. ---------- */
-const CP_PUNCT=/[!-\/:-@\[-`{-~\u00a1-\u00bf\u2010-\u2027\u2030-\u205e]/;
-const mdEsc=s=>s.replace(/\u00a0/g,' ').replace(/\\/g,'\\\\').replace(/([*_`\[\]<~])/g,'\\$1');
-// CommonMark: ** opens when the next character is not a space and, if it is punctuation, the one before is a space or
-// punctuation too; it closes the same way round. Spaces just inside the markers go outside them.
-const mdW=c=>!c||/\s/.test(c),mdP=c=>!!c&&CP_PUNCT.test(c);
-function mdWrap(inner,d,tag,prev,next){
-  const m=inner.match(/^(\s*)([\s\S]*?)(\s*)$/),core=m[2];if(!core) return inner;
-  const before=m[1]?' ':prev,after=m[3]?' ':next,a=core[0],z=core[core.length-1];
-  const open=!mdW(a)&&(!mdP(a)||mdW(before)||mdP(before)),close=!mdW(z)&&(!mdP(z)||mdW(after)||mdP(after));
-  return m[1]+(open&&close?d+core+d:`<${tag}>${core}</${tag}>`)+m[3];
-}
-function mdInline(el){
-  let s='';
-  for(const k of el.childNodes){
-    if(k.nodeType===3){s+=mdEsc(k.data);continue}
-    if(k.nodeType!==1||k.tagName==='UL'||k.tagName==='OL') continue;
-    const t=k.tagName;if(t==='BR'){s+='  \n';continue}
-    const inner=mdInline(k),prev=(k.previousSibling&&k.previousSibling.textContent||'').slice(-1),next=(k.nextSibling&&k.nextSibling.textContent||'').charAt(0);
-    if(t==='STRONG') s+=mdWrap(inner,'**','strong',prev,next);
-    else if(t==='EM') s+=mdWrap(inner,'*','em',prev,next);
-    else if(t==='U') s+=inner.trim()?`<u>${inner}</u>`:inner;
-    else if(t==='MARK') s+=inner.trim()?`<mark>${inner}</mark>`:inner;
-    else if(t==='A') s+=`[${inner}](${(k.getAttribute('href')||'').replace(/[()\s]/g,c=>encodeURIComponent(c))})`;
-    else s+=inner;
-  }
-  return s;
-}
-// Markdown in: bold written by hand often breaks Markdown's rules (a space before the closing **, or ** against a quote
-// mark with a letter after it) and shows up as stars. Those pairs become <strong> before the file is read.
-function mdRepair(text){
-  let fence=false;
-  return String(text).split('\n').map(line=>{
-    if(/^\s*```/.test(line)){fence=!fence;return line}if(fence) return line;
-    return line.replace(/\*\*([^\n]*?)\*\*/g,(m,inner,at,all)=>{const core=inner.trim();if(!core) return m;
-      const prev=all[at-1]||'',next=all[at+m.length]||'';
-      if(mdWrap(core,'**','strong',prev,next).startsWith('**')&&inner===core) return m;
-      // a space that slipped inside the stars goes outside, unless a space or punctuation is already there
-      const lead=mdW(prev)?'':inner.match(/^\s*/)[0],trail=mdW(next)||mdP(next)?'':inner.match(/\s*$/)[0];
-      return `${lead}<strong>${core}</strong>${trail}`})}).join('\n');
-}
-const mdParse=t=>marked.parse(mdRepair(t),{gfm:true});
-const mdLineStart=s=>s.replace(/^>/,'\\>').replace(/^(#{1,6})(?=\s)/,'\\$1').replace(/^([-+])(?=\s)/,'\\$1').replace(/^(\d+)([.)])(?=\s)/,'$1\\$2').replace(/^([-_=])(?=\1\1)/,'\\$1');
-function mdList(el,depth){
-  const ol=el.tagName==='OL',pad='   '.repeat(depth);let i=0;
-  return [...el.children].map(li=>{i++;const subs=[...li.children].filter(c=>c.tagName==='UL'||c.tagName==='OL'),lead=ol?`${i}. `:'- ';
-    return pad+lead+mdInline(li).trim().replace(/\n/g,'\n'+pad+' '.repeat(lead.length))+subs.map(s=>'\n'+mdList(s,depth+1)).join('')}).join('\n');
-}
-function htmlToMd(html){
-  const box=document.createElement('div');box.innerHTML=cleanCopy(html);const out=[];
-  const block=el=>{const t=el.tagName;
-    if(/^H[1-3]$/.test(t)) return '#'.repeat(+t[1])+' '+mdInline(el).trim();
-    if(t==='P') return mdLineStart(mdInline(el).trim());
-    if(t==='UL'||t==='OL') return mdList(el,0);
-    if(t==='HR') return '---';
-    if(t==='BLOCKQUOTE') return [...el.children].map(block).filter(Boolean).join('\n\n').split('\n').map(l=>l?'> '+l:'>').join('\n');
-    return mdLineStart(mdInline(el).trim())};
-  for(const el of box.children) out.push(block(el));
-  return out.filter(Boolean).join('\n\n')+'\n';
+function copyListHtml(p){const vs=cvers(p);
+  if(!vs.length)return `<div class="empty" style="flex:1"><h2 class="disp" style="font-size:28px;line-height:32px">No <span class="ul">copy${ulSvg}</span> yet</h2><p>Write the copy right here, or upload a .md, .docx or .txt file.</p><div style="display:flex;gap:8px"><a class="btn btn-ink" href="#page/${p.id}/copy/edit">${ic('type')}Write copy</a><button class="btn btn-line" data-act="upload">${ic('upload')}Upload a file</button></div></div>`;
+  const last=vs.at(-1).n;
+  const card=v=>{const fin=p.copy.final===v.n,open=ccFor(p,v.n).filter(c=>c.open).length;
+    const d=document.createElement('div');d.innerHTML=v.body;const h=d.querySelector('h1')?.textContent||p.name;const ps=[...d.querySelectorAll('p')].filter(x=>!x.querySelector('em')||x.textContent.length>60).slice(0,2).map(x=>`<p>${esc(x.textContent)}</p>`).join('');
+    return `<div class="vcard" data-act="cpOpen" data-n="${v.n}" tabindex="0" role="link" aria-label="Open copy v${v.n}"><div class="thumb"><div class="paper"><b>${esc(h)}</b>${ps}</div></div>
+    <div class="vc-b"><div class="vc-h"><b>Copy</b><span class="v">v${v.n}</span>${fin?'<span class="tag ink">Final</span>':''}${v.n===last?'<span class="tag">Current</span>':''}<span class="sp"></span>${open?`<span class="tag ${needsMe(p)?'hi':''}">${open} open</span>`:''}</div>
+    <div class="vc-m">${ago(v.at)} · ${P[v.by].short} · ${wc(plainOf(v.body))} words</div>
+    <div class="vc-a"><button class="btn btn-line btn-sm" data-act="cpFinal" data-n="${v.n}">${fin?'Unmark final':'Mark final'}</button><button class="btn btn-ghost btn-sm" data-act="share" data-n="${v.n}" aria-haspopup="dialog">${ic('link',14)}Share</button><span class="sp"></span><button class="ib sm" data-act="cpMore" data-n="${v.n}" aria-label="More for copy v${v.n}" aria-haspopup="menu">${ic('more',16)}</button></div></div></div>`};
+  return `<div class="sect"><div class="sect-h"><h2>Copy versions</h2><span class="num">${vs.length}</span><span class="sp"></span>${vs.length>1?`<button class="btn btn-ghost btn-sm" data-act="cpCmpLatest">${ic('compare',14)}Compare v${vs.at(-2).n} and v${last}</button>`:''}</div>
+   <div class="vgrid">${vs.slice().reverse().map(card).join('')}<a class="vcard up" href="#page/${p.id}/copy/edit"><span class="ub">${ic('type',20)}</span><b>Write v${last+1}</b><span style="font-size:13px">Starts from v${last}, accepted suggestions already in</span></a></div></div>`;
 }
 
-/* ---------- positions: a comment is a stretch of characters in the version's text. The inserted wording of a
-   suggestion shows inside the text but never counts. ---------- */
-function textNodes(box){
-  const w=document.createTreeWalker(box,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement&&n.parentElement.closest('.sg-ins')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
-  const out=[];let n;while(n=w.nextNode()) out.push(n);return out;
+/* ---------- reader ---------- */
+function cpPickVersions(p,R){const vs=cvers(p),v=vs.find(x=>x.n===R.ver)||vs.at(-1);let a=null;
+  if(CP.mode==='compare'&&vs.length>1){a=vs.find(x=>x.n===CP.cmpA&&x.n!==v.n)||vs.filter(x=>x.n<v.n).at(-1)||vs.find(x=>x.n!==v.n);CP.cmpA=a.n}
+  return{vs,v,a,last:vs.at(-1).n}}
+function cpBarInner(p,R){const{v,a,last}=cpPickVersions(p,R),fin=p.copy.final===v.n;
+  return `<a class="ib" href="#page/${p.id}/copy" aria-label="All copy versions" title="All versions">${ic('back',18)}</a>
+  <button class="verb" data-act="cpVerMenu" aria-haspopup="menu">Copy <span class="v" style="color:var(--ink)">v${v.n}</span>${ic('down',14)}</button>
+  ${fin?'<span class="tag ink">Final</span>':''}${v.n===last?'<span class="tag">Current</span>':''}
+  <span class="sp"></span>
+  <div class="seg" role="group" aria-label="Mode"><button class="${CP.mode==='read'?'on':''}" data-act="cpMode" data-m="read" aria-pressed="${CP.mode==='read'}" title="Comment">${ic('comment',15)}<span class="ml2">Comment</span></button><button class="${CP.mode==='compare'?'on':''}" data-act="cpMode" data-m="compare" aria-pressed="${CP.mode==='compare'}" title="Compare">${ic('compare',15)}<span class="ml2">Compare</span></button></div>
+  ${a?`<button class="btn btn-sm ${CP.chg?'btn-ink':'btn-line'}" data-act="cpChg" aria-pressed="${CP.chg}">${ic('activity',14)}See changes</button>`:''}
+  <span class="sp"></span>
+  <a class="btn btn-line btn-sm" href="#page/${p.id}/copy/edit" title="Edit as v${last+1}">${ic('type',14)}<span class="ml2">Edit as v${last+1}</span></a>
+  <button class="btn btn-line btn-sm" data-act="cpFinal" data-n="${v.n}">${fin?'Unmark final':'Mark final'}</button>`}
+function copyReaderHtml(p,R){const{v,a,last}=cpPickVersions(p,R);
+  const head=(x,cur)=>`<div class="flabel">${cur?`<span class="v" style="color:var(--ink)">v${x.n}</span>${x.n===last?'<span class="tag">Current</span>':''}`:`<button class="verb sm" data-act="cpPickA" aria-haspopup="menu"><span class="v" style="color:var(--ink)">v${x.n}</span>${ic('down',12)}</button>`}<span>${ago(x.at)} · ${P[x.by].short}</span></div>`;
+  return `<div class="vbar2" id="cpBar">${cpBarInner(p,R)}</div>
+  ${a?`<div class="cstage cmp" id="cpStage">${CP.chg?`<div class="cp-legend" id="cpLegend"><span><del class="rd">removed</del></span><span><ins class="ri">added</ins></span><span class="num"></span><span class="dash">Words only, not formatting</span></div>`:''}<div class="ccol">${head(a,false)}<article class="paper doc" id="docA"></article></div><div class="ccol">${head(v,true)}<article class="paper doc" id="doc"></article></div></div>`
+   :`<div class="cstage" id="cpStage"><article class="paper doc" id="doc" aria-label="Copy v${v.n}"></article></div>`}`}
+function mountReader(p,R){drawDocs(p,R);const doc=$('#doc');if(!doc)return;
+  doc.addEventListener('mouseup',()=>setTimeout(onDocSel,0));doc.addEventListener('keyup',e=>{if(e.shiftKey)onDocSel()});
+  $('#cpStage')?.addEventListener('scroll',hideSelbar,{passive:true})}
+function drawDocs(p,R,layer=CP.layer){const doc=$('#doc');if(!doc)return;const{v,a}=cpPickVersions(p,R);
+  if(a&&$('#docA')){if(CP.chg){diffInto($('#docA'),doc,a.body,v.body);const n=$('#cpLegend .num');if(n)n.textContent=`${CP.counts.rem} words removed · ${CP.counts.add} added`;return}
+    $('#docA').innerHTML=a.body}
+  doc.innerHTML=v.body;anchorDoc(doc,p,v.n,layer)}
+function wrapQuote(root,quote){if(!quote)return null;const tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:n=>n.parentElement.closest('.apn,.sg-ins,.sg-del,.anc')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  let n;while((n=tw.nextNode())){const i=n.data.indexOf(quote);if(i<0)continue;const r=document.createRange();r.setStart(n,i);r.setEnd(n,i+quote.length);const sp=document.createElement('span');r.surroundContents(sp);return sp}return null}
+function anchorDoc(doc,p,n,layer){
+  const L=ccFor(p,n).filter(c=>c.layer===layer&&c.quote&&(c.open||c.status==='accepted'||(CP.showRes&&c.kind==='comment')));
+  for(const c of L){const sp=wrapQuote(doc,c.quote);if(!sp)continue;
+    sp.className='anc'+(c.kind==='suggest'?' sg':'')+(c.status==='accepted'?' acc':'')+(!c.open&&c.kind==='comment'?' res':'')+(CP.active===c.n?' on':'');
+    sp.dataset.n=c.n;sp.dataset.act='cpCm';
+    if(c.kind==='suggest'){sp.innerHTML=c.status==='accepted'?`<ins class="sg-ins">${esc(c.to)}</ins>`:`<del class="sg-del">${esc(c.quote)}</del><ins class="sg-ins">${esc(c.to)}</ins>`}
+    const sup=document.createElement('sup');sup.className='apn'+(CP.active===c.n?' on':'');sup.textContent=copyLabel(c,layer).replace('#','');sup.dataset.n=c.n;sup.dataset.act='cpCm';sp.after(sup)}
+  if(CP.pend&&CP.pend.quote){const sp=wrapQuote(doc,CP.pend.quote);if(sp)sp.className='anc pend'}
 }
-const docText=box=>textNodes(box).map(t=>t.data).join('');
-function textOffset(box,node,off){
-  const r=document.createRange();try{r.setStart(node,off)}catch(e){return 0}r.collapse(true);let n=0;
-  for(const t of textNodes(box)){if(r.comparePoint(t,t.data.length)<=0){n+=t.data.length;continue}if(t===node&&r.comparePoint(t,0)<0) n+=off;break}
-  return n;
-}
-function pointAt(texts,pos,end){let n=0;for(const t of texts){const L=t.data.length;if(pos<n+L||(end&&pos===n+L)) return [t,pos-n];n+=L}const t=texts[texts.length-1];return [t,t?t.data.length:0]}
-// accepted wording into the text, from the last to the first so earlier positions stay put; overlaps are left out
-function applySug(html,list){
-  const box=document.createElement('div');box.innerHTML=cleanCopy(html);const texts=textNodes(box),full=texts.map(t=>t.data).join(''),done=[],skip=[];let last=Infinity;
-  for(const c of [...list].sort((a,b)=>b.s-a.s)){
-    if(c.e>last||full.slice(c.s,c.e)!==c.quote){skip.push(c);continue}
-    const [sn,so]=pointAt(texts,c.s),[en,eo]=pointAt(texts,c.e,true),r=document.createRange();r.setStart(sn,so);r.setEnd(en,eo);r.deleteContents();
-    if(c.rep) r.insertNode(document.createTextNode(c.rep.replace(/\s*\n\s*/g,' ')));last=c.s;done.push(c);
-  }
-  return {html:cleanCopy(box.innerHTML),done,skip};
-}
-// highlights for comments, struck words and new wording for suggestions
-function decorate(box,items){
-  if(!items.length) return;
-  const cuts=new Set();for(const c of items){cuts.add(c.s);cuts.add(c.e)}
-  let pos=0;for(const t of textNodes(box)){const a=pos,L=t.data.length;pos+=L;let node=t,off=a;for(const b of [...cuts].filter(b=>b>a&&b<a+L).sort((x,y)=>x-y)){node=node.splitText(b-off);off=b}}
-  pos=0;const ends={};
-  for(const t of textNodes(box)){const a=pos,b=pos+t.data.length;pos=b;if(a===b) continue;
-    const cov=items.filter(c=>c.s<=a&&b<=c.e);if(!cov.length) continue;let w=t;
-    const cm=cov.filter(c=>c.kind!=='suggest'),sg=cov.filter(c=>c.kind==='suggest');
-    if(cm.length){const sp=document.createElement('span');sp.className='ch'+(cm.some(c=>c.id===CP.sel||c.id==='draft')?' on':'')+(cm.some(c=>c.id==='draft')?' new':'');sp.dataset.c=cm.map(c=>c.id).join(' ');w.replaceWith(sp);sp.append(w);w=sp}
-    if(sg.length){const d=document.createElement('del');d.className='sg'+(sg.every(c=>c.status==='accepted')?' ok':'')+(sg.some(c=>c.id===CP.sel)?' on':'');d.dataset.c=sg.map(c=>c.id).join(' ');w.replaceWith(d);d.append(w);w=d}
-    for(const c of sg) if(c.e===b) ends[c.id]=w}
-  for(const c of items) if(c.kind==='suggest'&&ends[c.id]&&c.rep){const ins=document.createElement('ins');ins.className='sg-ins'+(c.status==='accepted'?' ok':'')+(c.id===CP.sel?' on':'');ins.dataset.c=c.id;ins.textContent=c.rep;ends[c.id].after(ins)}
-}
+/* side-by-side "See changes": block by block, words only */
+function blocksOf(html){const d=document.createElement('div');d.innerHTML=html;const out=[];
+  for(const el of d.children){if(el.tagName==='UL'||el.tagName==='OL')[...el.children].forEach((li,i)=>out.push({tag:'li',ord:el.tagName==='OL'?i+1:0,text:li.textContent}));else out.push({tag:el.tagName.toLowerCase(),text:el.textContent})}return out}
+function wdiff(a,b){const A=a.split(/\s+/).filter(Boolean),B=b.split(/\s+/).filter(Boolean),n=A.length,m=B.length;
+  const dp=Array.from({length:n+1},()=>new Uint16Array(m+1));
+  for(let i=n-1;i>=0;i--)for(let j=m-1;j>=0;j--)dp[i][j]=A[i]===B[j]?dp[i+1][j+1]+1:Math.max(dp[i+1][j],dp[i][j+1]);
+  const L=[],R=[];let i=0,j=0,rem=0,add=0;
+  while(i<n&&j<m){if(A[i]===B[j]){L.push(esc(A[i]));R.push(esc(B[j]));i++;j++}else if(dp[i+1][j]>=dp[i][j+1]){L.push(`<del class="rd">${esc(A[i])}</del>`);rem++;i++}else{R.push(`<ins class="ri">${esc(B[j])}</ins>`);add++;j++}}
+  while(i<n){L.push(`<del class="rd">${esc(A[i++])}</del>`);rem++}while(j<m){R.push(`<ins class="ri">${esc(B[j++])}</ins>`);add++}
+  return[L.join(' ').replace(/<\/del> <del class="rd">/g,' '),R.join(' ').replace(/<\/ins> <ins class="ri">/g,' '),rem,add]}
+const blk=(b,h)=>b.tag==='li'?`<p class="li"><span class="lim">${b.ord?b.ord+'.':'•'}</span>${h}</p>`:`<${b.tag}>${h}</${b.tag}>`;
+function diffInto(elA,elB,ha,hb){const A=blocksOf(ha),B=blocksOf(hb),LA=[],LB=[];let rem=0,add=0;
+  for(let i=0;i<Math.max(A.length,B.length);i++){const a=A[i],b=B[i];
+    if(a&&b){const[x,y,r,d]=wdiff(a.text,b.text);rem+=r;add+=d;LA.push(blk(a,x));LB.push(blk(b,y))}
+    else if(a){LA.push(blk(a,`<del class="rd">${esc(a.text)}</del>`));LB.push(blk(a,'&nbsp;'));rem+=wc(a.text)}
+    else{LA.push(blk(b,'&nbsp;'));LB.push(blk(b,`<ins class="ri">${esc(b.text)}</ins>`));add+=wc(b.text)}}
+  elA.innerHTML=LA.join('');elB.innerHTML=LB.join('');CP.counts={rem,add}}
 
-/* ---------- the copy tab: the version on the left as a document, its comments on the right ---------- */
-function cpReset(p){if(CP.page===p.id) return;CP.page=p.id;CP.open=null;CP.cmp=null;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;if(CP.edit&&CP.edit.page!==p.id){CP.edit=null;CP.quill=null}}
-function copyViewHtml(p){
-  cpReset(p);if(CP.edit) return cpEditHtml(p);
-  const L=copyOf(p);
-  if(!L.length){const d=draftGet(p);return `<div class="pj-dz big"><span class="ic">${FDI.doc}</span><b>No copy for ${esc(p.name)} yet</b><small>Write it here or paste it from Google Docs, Notion or a Markdown file, or upload a Markdown, Word, text or HTML file. Bold, italics, underline, highlights, headings, lists and links all come through, and every save is a version the team can comment on.</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-cp-write>${I.pen}${d?'Continue the draft':'Write the copy'}</button><button type="button" class="btn" data-cp-up>${PI.up}Upload a file</button></span></div>
-    <div class="pj-over">${PI.up}<b>Drop a Markdown, Word, text or HTML file to make copy v1</b></div>`}
-  const mode=cpMode(p);
-  return (mode==='cmp'?cpCompareHtml(p):mode==='read'?cpReadHtml(p,cpShown(p)):cpListHtml(p))+`<div class="pj-over">${PI.up}<b>Drop a file to make copy v${cpCur(p).n+1}</b></div>`;
-}
-// a version's first lines, small, as its picture in the list
-function cpThumbHtml(v){const d=document.createElement('div');d.innerHTML=cleanCopy(v.body);while(d.children.length>7) d.lastElementChild.remove();return `<div class="thumb cp-thumb" aria-hidden="true"><div class="cp-thumb-in">${d.innerHTML}</div></div>`}
-const cpWords=v=>plainOf(v.body).split(/\s+/).filter(Boolean).length;
-const cpTitle=v=>{const d=new DOMParser().parseFromString(String(v.body||''),'text/html').body;const h=d.querySelector('h1,h2,h3')||d.firstElementChild;return clip((h&&h.textContent||'').trim()||'Untitled',70)};
-function cpListHtml(p){
-  const T=team(),cur=cpCur(p),d=draftGet(p),next=cur.n+1,acc=cur.cm.filter(c=>c.kind==='suggest'&&c.status==='accepted'&&!c.done).length;
-  const card=v=>{const o=v.cm.filter(c=>cpLayerOf(c)==='team'&&cpOpen(c)).length,co=v.cm.filter(c=>cpLayerOf(c)==='client'&&cpOpen(c)).length,r=v.cm.filter(c=>!cpOpen(c)).length,isCur=v===cur,sh=!!(v.share&&v.share.on),fin=p.finalCopy===v.id;
-    return `<div class="ver-card cp-card${isCur?' cur':''}" role="button" tabindex="0" data-cpv-open="${v.id}">${cpThumbHtml(v)}
-      <div class="ver-body"><div class="ver-head"><span class="ver-n">v${v.n}</span>${isCur?'<span class="ver-cur">Current</span>':''}${fin?`<span class="cp-final">${I.check}Final</span>`:''}${sh?'<span class="pj-shared" title="The review link for this version is on">Shared</span>':''}<b>${esc(cpTitle(v))}</b></div>
-        <small>${esc(cpSrc(v))} · ${plural(cpWords(v),'word')} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}</small>
-        <span class="pg-cnt">${o?`<i class="o">${o} open</i>`:''}${co?`<i class="cl">${co} on the review link</i>`:''}${isCur&&acc?`<i class="ok">${acc} accepted, going into v${next}</i>`:''}${r?`<i>${r} resolved</i>`:''}${!o&&!r&&!co?'<i>No comments yet</i>':''}</span></div>
-      <div class="ver-acts"><button type="button" class="btn sm dark" data-cpv-open="${v.id}">Open</button>${copyOf(p).length>1?`<button type="button" class="btn sm" data-cpv-cmp="${v.id}" title="See what changed between this version and another">${PI.cmp}Compare with…</button>`:''}<button type="button" class="btn sm${sh?' on':''}" data-cpv-share="${v.id}" title="${sh?'The review link for this version is on':'Send this version out for review'}">${PI.share}${sh?'Shared':'Share'}</button><button type="button" class="btn sm${fin?' on':''}" data-cpv-final="${v.id}" title="${fin?'This is the final copy. Click to take the mark off':'Mark the copy this page gets built from'}">${I.check}${fin?'Final':'Mark final'}</button><button type="button" class="btn sm" data-cpv-dl="${v.id}" title="Download as Markdown">${PI.dl}Download</button><button type="button" class="tk-x" data-cpv-del="${v.id}" aria-label="Delete copy v${v.n}">${I.trash}</button></div></div>`};
-  return `<div class="ver-list">${[...copyOf(p)].reverse().map(card).join('')}</div>
-    <div class="pj-dz"><span class="ic">${FDI.doc}</span><b>${d?`Your draft of v${next} is waiting`:`Write v${next}, or drop a file to make it`}</b><small>Writing starts from v${cur.n}${acc?`, with ${plural(acc,'accepted change')} already in`:''}. A Markdown, Word, text or HTML file becomes v${next} as it is. Every version keeps its own comments.</small><span class="pj-dz-acts"><button type="button" class="btn dark" data-cp-write>${I.pen}${d?'Continue the draft':`Write v${next}`}</button><button type="button" class="btn" data-cp-up>${PI.up}Upload a file</button></span></div>`;
-}
-/* ---------- compare: two versions of the copy side by side, the earlier one on the left. Each version reads as it is,
-   and the two columns scroll together until one is dragged by its scrollbar. See changes marks what changed between
-   them: words that went from the left one in red, struck through, and words that came into the right one in green. ---------- */
-function cpCmpPick(p,k,v,other){
-  const open=CP.menu==='cmp'+k;
-  return `<div class="vpick-wrap"><button type="button" class="vpick" data-cpcmp="${k}" aria-haspopup="menu" aria-expanded="${open}"><span class="pv-ttl"><b>${k==='a'?'Before':'After'}: v${v.n}</b><small>${esc(cpSrc(v))} · ${esc(agoLabel(v.at||Date.now()))}</small></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>
-    ${open?`<div class="dd vmenu cp-vmenu" role="menu">${[...copyOf(p)].reverse().filter(x=>x!==other).map(x=>`<button type="button" class="opt${x===v?' on':''}" role="menuitem" data-cpcmp-pick="${k}" data-v="${x.id}"><span class="vn">v${x.n}</span><span class="n">${esc(cpTitle(x))}<small>${esc(cpSrc(x))} · ${esc(agoLabel(x.at||Date.now()))}</small></span>${x===v?`<span class="dd-ck">${I.check}</span>`:''}</button>`).join('')}</div>`:''}</div>`;
-}
-function cpCompareHtml(p){
-  const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b);
-  const col=(k,v,o)=>`<div class="cp-col"><div class="cp-colhead">${cpCmpPick(p,k,v,o)}<span class="cp-words">${plural(cpWords(v),'word')}</span></div><div class="cp-scroll" id="cpScroll${k.toUpperCase()}"><article class="cp-doc" aria-label="Copy v${v.n}">${cleanCopy(v.body)}</article></div></div>`;
-  return `<div class="cp cp-comparing"><div class="cp-main"><div class="cp-bar"><button type="button" class="chev" id="cpCmpBack" aria-label="Back to copy v${b.n}" title="Back to copy v${b.n}">${PI.back}</button><span class="pv-ttl"><b>Copy v${a.n} and v${b.n} side by side</b><small id="cpCmpHint">${cpCmpSub()}</small></span><span class="sp"></span>${cpChgBtn()}${cmpLinkBtn(cpCmpState().solo,'id="cpCmpLink"')}</div>
-      <div class="cp-sbs">${col('a',a,b)}${col('b',b,a)}</div></div></div>`;
-}
-// the two sides keep the same place: scroll one and the other follows, at the same share of its length, plus the gap they had
-// when they were last joined. Dragging one side's scrollbar moves that side alone until Scroll together joins them again.
-const cpSpan=e=>Math.max(0,e.scrollHeight-e.clientHeight);
-const cpCmpKey=()=>'cmp'+CP.cmp.a+CP.cmp.b;
-function cpCmpState(){const k=cpCmpKey(),v=CP.scroll[k];return v&&typeof v==='object'?v:(CP.scroll[k]={a:0,b:0,solo:false,dy:0})}
-const cpCmpHint=solo=>solo?'Each side scrolls on its own. Scroll together moves them as one again, from where they are now.':"Pick any two versions at the top of each side. Scrolling one side scrolls the other; drag a side's scrollbar to move it alone.";
-function cpCmpSolo(on){
-  const s=cpCmpState(),A=$('#cpScrollA'),B=$('#cpScrollB');s.solo=on;
-  if(!on&&A&&B) s.dy=B.scrollTop-(cpSpan(A)>0?A.scrollTop/cpSpan(A):0)*cpSpan(B);
-  const b=$('#cpCmpLink');if(b) b.outerHTML=cmpLinkBtn(on,'id="cpCmpLink"');const h=$('#cpCmpHint');if(h) h.innerHTML=cpCmpSub();
-}
-function cpCompareAfter(p){
-  const A=$('#cpScrollA'),B=$('#cpScrollB');if(!A||!B) return;
-  const s=cpCmpState();let lead=null,t=0,grab=null,mute=true;
-  const at=(from,y)=>from===A?(cpSpan(A)>0?y/cpSpan(A):0)*cpSpan(B)+s.dy:(cpSpan(B)>0?(y-s.dy)/cpSpan(B):0)*cpSpan(A);
-  const follow=(from,to)=>()=>{s.a=A.scrollTop;s.b=B.scrollTop;if(mute) return;
-    if(grab===from&&!s.solo) cpCmpSolo(true);
-    if(s.solo||(lead&&lead!==from)) return;lead=from;clearTimeout(t);t=setTimeout(()=>{lead=null},120);to.scrollTop=at(from,from.scrollTop)};
-  A.addEventListener('scroll',follow(A,B),{passive:true});B.addEventListener('scroll',follow(B,A),{passive:true});
-  // a press on the column itself, not on the words in it, is its scrollbar (or its margin, which does not scroll anything)
-  for(const el of [A,B]){
-    el.addEventListener('pointerdown',e=>{grab=e.target===el&&e.button===0?el:null;if(grab) document.addEventListener('pointerup',()=>{grab=null},{once:true})});
-    el.addEventListener('pointermove',e=>{if(!e.buttons) grab=null},{passive:true});
-    for(const k of ['wheel','touchstart','keydown']) el.addEventListener(k,()=>{grab=null},{passive:true});
-  }
-  A.scrollTop=s.a;B.scrollTop=s.b;requestAnimationFrame(()=>requestAnimationFrame(()=>{mute=false}));
-  if(CP.chg) cpChgMark(p);
-}
-// See changes: the two columns compared word by word, each in its own text positions. A stretch that went is marked in the
-// left column, one that came in is marked in the right one; changed words with only spaces between them are marked as one
-// stretch, so a rewritten phrase reads as one change. Only the words count: new bold alone is no change.
-function cpBlockText(box){
-  let s='',last=null,pos=0;const map=[];
-  for(const t of textNodes(box)){const blk=t.parentElement.closest('p,h1,h2,h3,h4,li,blockquote');if(last&&blk!==last){s+='\n';map.push(pos)}last=blk;s+=t.data;for(let i=0;i<t.data.length;i++) map.push(pos++)}
-  map.push(pos);return {s,map};
-}
-function cpChanges(aBox,bBox){
-  const A=cpBlockText(aBox),B=cpBlockText(bBox),del=[],ins=[];let ia=0,ib=0;
-  for(const pt of Diff.diffWordsWithSpace(A.s,B.s)){const L=pt.value.length;
-    if(pt.removed){if(pt.value.trim()) del.push([ia,ia+L]);ia+=L}else if(pt.added){if(pt.value.trim()) ins.push([ib,ib+L]);ib+=L}else{ia+=L;ib+=L}}
-  const tidy=(R,T)=>{const out=[];
-    for(let [a,b] of R){while(a<b&&/\s/.test(T.s[a])) a++;while(b>a&&/\s/.test(T.s[b-1])) b--;if(a>=b) continue;
-      const l=out[out.length-1];if(l&&/^[ \t ]*$/.test(T.s.slice(l[1],a))) l[1]=b;else out.push([a,b])}
-    return out};
-  const words=(R,T)=>R.reduce((n,[a,b])=>n+(T.s.slice(a,b).match(/\S+/g)||[]).length,0);
-  const dR=tidy(del,A),iR=tidy(ins,B);
-  return {del:dR.map(([a,b])=>[A.map[a],A.map[b]]),ins:iR.map(([a,b])=>[B.map[a],B.map[b]]),dw:words(dR,A),iw:words(iR,B)};
-}
-// wraps the text inside the stretches in <del> or <ins>: text is cut at every stretch's ends first, then each piece inside one is wrapped
-function cpWrap(box,ranges,tag){
-  if(!ranges.length) return;
-  const cuts=[...new Set(ranges.flat())].sort((x,y)=>x-y);
-  let pos=0;for(const t of textNodes(box)){const a=pos,L=t.data.length;pos+=L;let node=t,off=a;for(const c of cuts) if(c>a&&c<a+L){node=node.splitText(c-off);off=c}}
-  pos=0;let ri=0;
-  for(const t of textNodes(box)){const a=pos,b=pos+t.data.length;pos=b;if(b===a||t.parentElement===box) continue;
-    while(ri<ranges.length&&ranges[ri][1]<=a) ri++;
-    if(ri<ranges.length&&ranges[ri][0]<=a&&b<=ranges[ri][1]){const w=document.createElement(tag);w.className='rd';t.replaceWith(w);w.append(t)}}
-}
-async function cpChgMark(p){
-  const key=cpCmpKey(),A=$('#cpScrollA .cp-doc'),B=$('#cpScrollB .cp-doc');if(!A||!B) return;CP.chgN=null;cpChgUi();
-  try{await lib('diff')}catch(e){CP.chg=false;cpChgUi();toast('See changes could not load. Check your connection, then try again.');return}
-  if(!CP.chg||!A.isConnected||!CP.cmp||cpCmpKey()!==key||A.querySelector('.rd')||B.querySelector('.rd')) return;
-  const c=cpChanges(A,B);cpWrap(A,c.del,'del');cpWrap(B,c.ins,'ins');CP.chgN={dw:c.dw,iw:c.iw};cpChgUi();
-}
-function cpChgToggle(p){
-  CP.chg=!CP.chg;CP.chgN=null;
-  if(CP.chg) cpChgMark(p);
-  else{const a=cpById(p,CP.cmp.a),b=cpById(p,CP.cmp.b),A=$('#cpScrollA .cp-doc'),B=$('#cpScrollB .cp-doc');if(A&&a) A.innerHTML=cleanCopy(a.body);if(B&&b) B.innerHTML=cleanCopy(b.body)}
-  cpChgUi();
-}
-const cpChgBtn=()=>`<button type="button" class="btn sm cp-chg${CP.chg?' on':''}" id="cpChg" aria-label="See changes" aria-pressed="${!!CP.chg}" title="${CP.chg?'Hide the changes':'Mark what changed: removed words in red on the left, added words in green on the right'}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 8h7M7.5 4.5v7M13 17h7"/></svg><span>See changes</span></button>`;
-// the line under the title: how the columns scroll, or with See changes on, the key and how much changed
-function cpCmpSub(){
-  if(!CP.chg) return esc(cpCmpHint(cpCmpState().solo));const n=CP.chgN;
-  return `<span class="cp-key del">Removed</span><span class="cp-key ins">Added</span>${!n?'Comparing the words…':n.dw||n.iw?`${plural(n.iw,'word')} added, ${n.dw} removed`:'The words are the same in both versions'}`;
-}
-function cpChgUi(){const b=$('#cpChg');if(b) b.outerHTML=cpChgBtn();const h=$('#cpCmpHint');if(h) h.innerHTML=cpCmpSub()}
-// compare a version with the one before it (or after it, for the first)
-function cpStartCompare(p,id){const L=copyOf(p),v=cpById(p,id),i=L.indexOf(v);if(L.length<2||!v) return;const o=i>0?L[i-1]:L[i+1];CP.cmp=v.n>o.n?{a:o.id,b:v.id}:{a:v.id,b:o.id};delete CP.scroll[cpCmpKey()];CP.menu=null;CP.sel=null;CP.draft=null;cpPopHide();render()}
-function cpOpenVer(id){CP.open=id;CP.sel=null;CP.draft=null;CP.reply=null;CP.pop=null;CP.menu=null;CP.filter='open';render()}
-async function cpDelete(p,v){
-  if(!await confirmDlg(`Delete ${cpLabel(v).toLowerCase()}?`,`${v.cm.length?`Its ${plural(v.cm.length,'comment')} go too. `:''}This cannot be undone.`,'Delete version')) return;
-  p.copy=copyOf(p).filter(x=>x!==v);if(p.finalCopy===v.id) p.finalCopy=null;if(CP.open===v.id) CP.open=null;CP.sel=null;touch(p);save();render();toast(`${cpLabel(v)} deleted`);
-}
-function cpFinal(p,v){p.finalCopy=p.finalCopy===v.id?null:v.id;touch(p);save();render();toast(p.finalCopy?`${cpLabel(v)} is the final copy`:'No final copy for this page now')}
-function cpDownload(p,v){dlBlob(new Blob([cpMd(p,v)],{type:'text/markdown'}),`${slug(p.name)}-copy-v${v.n}.md`);toast(`Downloading ${cpLabel(v).toLowerCase()} as Markdown`)}
-function cpVerMenuHtml(p,v){
-  return `<div class="dd vmenu cp-vmenu" role="menu">${[...copyOf(p)].reverse().map(x=>{const o=x.cm.filter(cpOpen).length,on=x===v;
-    return `<button type="button" class="opt${on?' on':''}" role="menuitem" data-cpv="${x.id}"><span class="vn">v${x.n}</span><span class="n">${esc(cpSrc(x))}${x===cpCur(p)?' <i>current</i>':''}${p.finalCopy===x.id?' <i class="fin">final</i>':''}<small>${esc(agoLabel(x.at||Date.now()))} by ${esc(whoName(team(),x.by))} · ${o?`${o} open`:'nothing open'}</small></span>${on?`<span class="dd-ck">${I.check}</span>`:''}</button>`}).join('')}</div>`;
-}
-function cpMoreHtml(p,v){
-  const fin=p.finalCopy===v.id,sh=!!(v.share&&v.share.on);
-  return `<div class="dd fd-menu cp-menu" role="menu">
-    <button type="button" class="opt" role="menuitem" data-cp-do="final">${I.check}<span class="n">${fin?`Not final any more`:`Mark ${cpLabel(v).toLowerCase()} as final`}<small>${fin?'The page goes back to having no final copy':'The version the page gets built from'}</small></span></button>
-    <button type="button" class="opt" role="menuitem" data-cp-do="share">${PI.share}<span class="n">Share for review…<small>${sh?'On: people with the link can comment':'Let someone review it with no account'}</small></span></button>
-    <button type="button" class="opt" role="menuitem" data-cp-do="copymd">${CPI.copy}<span class="n">Copy as Markdown<small>To paste into Claude or a document</small></span></button>
-    <button type="button" class="opt" role="menuitem" data-cp-do="dlmd">${CPI.md}<span class="n">Download as Markdown</span></button>
-    <hr class="dd-sep"><button type="button" class="opt danger" role="menuitem" data-cp-do="del">${I.trash}<span class="n">Delete ${cpLabel(v).toLowerCase()}</span></button></div>`;
-}
-function cpReadHtml(p,v){
-  const T=team(),latest=v===cpCur(p),fin=p.finalCopy===v.id,d=!SHARE&&draftGet(p),next=cpCur(p).n+1,sh=!!(v.share&&v.share.on);
-  const bar=SHARE?`<div class="cp-bar"><span class="pv-ttl"><b>${cpLabel(v)}</b><small>Select any words to comment on them or to suggest other wording.</small></span></div>`
-    :`<div class="cp-bar"><button type="button" class="chev" id="cpBack" aria-label="All copy versions" title="All copy versions">${PI.back}</button><div class="vpick-wrap"><button type="button" class="vpick" id="cpVerBtn" aria-haspopup="menu" aria-expanded="${CP.menu==='ver'}"><span class="pv-ttl"><b>${cpLabel(v)}${latest?'':' <i class="cp-old">older version</i>'}</b><small>${esc(cpSrc(v))} · ${esc(agoLabel(v.at||Date.now()))} by ${esc(whoName(T,v.by))}</small></span><svg class="vc" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>${CP.menu==='ver'?cpVerMenuHtml(p,v):''}</div>
-      ${fin?`<span class="cp-final">${I.check}Final</span>`:''}${sh?'<span class="pj-shared" title="The review link for this version is on">Shared</span>':''}<span class="sp"></span>
-      ${copyOf(p).length>1?`<button type="button" class="btn sm" data-cpv-cmp="${v.id}" title="See what changed between this version and another">${PI.cmp}<span>Compare</span></button>`:''}<button type="button" class="btn sm" data-cp-up title="Upload a Markdown, Word, text or HTML file as copy v${next}">${PI.up}<span>Upload</span></button><button type="button" class="btn sm dark" data-cp-write>${I.pen}<span>${d?`Continue v${next}`:`Edit as v${next}`}</span></button>
-      <div class="fd-more"><button type="button" class="btn sm icon" id="cpMore" aria-label="More for ${esc(cpLabel(v))}" aria-haspopup="menu" aria-expanded="${CP.menu==='more'}">${I.more}</button>${CP.menu==='more'?cpMoreHtml(p,v):''}</div></div>`;
-  return `<div class="cp"><div class="cp-main">${bar}
-      <div class="cp-scroll" id="cpScroll"><article class="cp-doc" id="cpDoc" aria-label="${esc(cpLabel(v))}"></article></div>
-      <div class="cp-pop" id="cpPop" hidden></div></div>
-    <aside class="pv-side cp-side" id="cpSide">${cpSideHtml(p,v)}</aside></div>`;
-}
-function cpLayerSeg(p,v){
-  if(SHARE||!copyOf(p).some(x=>(x.share&&x.share.token)||x.cm.some(c=>cpLayerOf(c)==='client'))) return '';
-  const n=l=>v.cm.filter(c=>cpLayerOf(c)===l&&cpOpen(c)).length;
-  return `<div class="seg sm pv-layer" id="cpLayer" aria-label="Which comments"><button type="button" data-cplayer="team" class="${CP.layer==='team'?'on':''}">Team<i>${n('team')||''}</i></button><button type="button" data-cplayer="client" class="${CP.layer==='client'?'on':''}">Review link<i>${n('client')||''}</i></button></div>${CP.layer==='client'?'<p class="pv-layer-note">What people see on the review link. Anything you post or reply here, they see too.</p>':''}`;
-}
-function cpCardHtml(p,v,c){
-  const T=team(),my=me().id,own=ownIt(c,my),sel=c.id===CP.sel,z=whoOf(T,c.byId,c.guest&&c.by),sg=c.kind==='suggest',st=c.status,latest=v===cpCur(p),op=cpOpen(c);
-  const tag=sg?`<span class="cp-tag${st==='accepted'?' ok':st==='declined'?' no':''}">${st==='accepted'?(c.done?`In v${c.done}`:'Accepted'):st==='declined'?'Declined':st==='resolved'?'Resolved':'Suggestion'}</span>`:'';
-  const body=sg?`<p class="pc-sg"><del>${esc(clip(c.quote,240))}</del>${c.rep?`<ins>${esc(c.rep)}</ins>`:'<em>Remove these words</em>'}</p>${c.text?`<p>${mentionHtml(c.text)}</p>`:''}`
-    :`<p class="pc-q">${esc(clip(c.quote,160))}</p><p>${mentionHtml(c.text)}</p>`;
-  const acts=[];
-  if(!SHARE&&sg&&st==='open'&&latest) acts.push(`<button type="button" class="ok" data-cpc-acc="${c.id}">Accept</button>`,`<button type="button" data-cpc-dec="${c.id}">Decline</button>`);
-  if(!SHARE&&sg&&st==='accepted'&&!c.done) acts.push(`<button type="button" data-cpc-undo="${c.id}">Undo accept</button>`);
-  if(!SHARE&&sg&&(st==='declined'||(st==='resolved'))) acts.push(`<button type="button" data-cpc-reopen="${c.id}">Reopen</button>`);
-  if(!SHARE&&sg&&st==='open'&&!latest) acts.push(`<button type="button" data-cpc-res="${c.id}" title="An older version: accept wording on the current one">Resolve</button>`);
-  acts.push(`<button type="button" data-cpc-reply="${c.id}">Reply</button>`);
-  if(!SHARE&&!sg) acts.push(`<button type="button" data-cpc-res="${c.id}">${st==='resolved'?'Reopen':'Resolve'}</button>`);
-  if(own) acts.push(`<button type="button" class="danger" data-cpc-del="${c.id}">Delete</button>`);
-  return `<div class="pc cpc${sel?' sel':''}${op?'':' res'}" data-cpc="${c.id}" role="button" tabindex="0">
-    <div class="pc-top"><span class="pin-n">${!op&&!sg?I.check:c.n}</span>${avatar(z,'xs')}<b>${esc(nameOf(T,c.byId,c.by))}</b>${clientTag(c)}<time>${esc(agoLabel(c.at))}</time>${tag}</div>${body}
-    ${(c.re||[]).length?`<div class="pc-res">${c.re.map(r=>`<div class="pc-re">${avatar(whoOf(T,r.byId,r.guest&&r.by),'xs')}<div><b>${esc(nameOf(T,r.byId,r.by))}</b>${clientTag(r)}<time>${esc(agoLabel(r.at))}</time><p>${mentionHtml(r.text)}</p></div>${ownIt(r,my)?`<button type="button" class="th-x" data-cpc-delre="${r.id}" aria-label="Remove reply">×</button>`:'<span></span>'}</div>`).join('')}</div>`:''}
-    ${sel&&CP.reply?`<div class="th-box"><textarea class="cbox pbox" id="cpReply" rows="1" maxlength="1000" placeholder="Reply, @ to mention someone"></textarea><button type="button" class="th-send" data-cpc-send="${c.id}" aria-label="Send">${I.send}</button></div>`:''}
-    <div class="pc-acts">${acts.join('')}</div></div>`;
-}
-function cpComposerHtml(d){
-  const sg=d.kind==='suggest';
-  return `<div class="pc sel cp-new"><div class="pc-top"><span class="pin-n">${sg?I.pen:I.plus}</span><b>${sg?'Suggest other wording':'New comment'}</b></div>
-    <p class="pc-q">${esc(clip(d.quote,200))}</p>
-    ${sg?`<label class="cp-lbl">Should say<textarea class="cbox pbox" id="cpRep" rows="2" maxlength="5000">${esc(d.rep??d.quote)}</textarea></label><label class="cp-lbl">Why <small>optional</small><textarea class="cbox pbox" id="cpNote" rows="1" maxlength="2000">${esc(d.text||'')}</textarea></label>`
-      :`<textarea class="cbox pbox" id="cpText" rows="2" maxlength="2000" placeholder="Comment, @ to mention someone">${esc(d.text||'')}</textarea>`}
-    <div class="pv-new-acts"><button type="button" class="btn sm ghost" data-cp-cancel>Cancel</button><button type="button" class="btn sm dark" data-cp-post>${sg?'Suggest':'Comment'}</button></div></div>`;
-}
-function cpSideHtml(p,v){
-  const latest=v===cpCur(p),all=v.cm.filter(c=>SHARE||cpLayerOf(c)===CP.layer),open=all.filter(cpOpen).length,res=all.length-open;
-  const list=all.filter(c=>CP.filter==='all'||(CP.filter==='open')===cpOpen(c)).sort((a,b)=>a.s-b.s||a.n-b.n);
-  const acc=latest&&!SHARE?v.cm.filter(c=>c.kind==='suggest'&&c.status==='accepted'&&!c.done).length:0;
-  const banner=acc?`<button type="button" class="pv-banner" data-cp-write>${I.pen}<span><b>${plural(acc,'accepted change')}</b><small>They go into v${v.n+1} when you edit it.</small></span>${PI.arrow}</button>`:'';
-  const empty=all.length?CP.filter==='open'?'Nothing open here.':'Nothing resolved yet.':CP.layer==='client'&&!SHARE?`Nothing on the review link for ${cpLabel(v).toLowerCase()} yet. What people leave there shows up here.`:'No comments yet. Select any words in the copy to comment on them, or to suggest other wording that can be accepted into the next version.';
-  return `<div class="pv-sh"><h3>Comments on ${esc(cpLabel(v).toLowerCase())}</h3>${cpLayerSeg(p,v)}<div class="seg sm" id="cpFilter"><button type="button" data-cpfilter="open" class="${CP.filter==='open'?'on':''}">Open<i>${open||''}</i></button><button type="button" data-cpfilter="resolved" class="${CP.filter==='resolved'?'on':''}">Resolved<i>${res||''}</i></button><button type="button" data-cpfilter="all" class="${CP.filter==='all'?'on':''}">All</button></div></div>
-    <div class="pv-list" id="cpList">${CP.draft?cpComposerHtml(CP.draft):''}${banner}${list.length?list.map(c=>cpCardHtml(p,v,c)).join(''):CP.draft?'':`<p class="pv-empty">${empty}</p>`}</div>`;
-}
-// after the page view is drawn: the document with its marks, or the editor
-function cpAfter(p){
-  if(CP.edit){cpMount(p);return}
-  if(cpMode(p)==='cmp'){cpCompareAfter(p);return}
-  const v=cpShown(p),box=$('#cpDoc');if(!v||!box) return;
-  box.innerHTML=cleanCopy(v.body);
-  const items=v.cm.filter(c=>(SHARE||cpLayerOf(c)===CP.layer)&&(cpOpen(c)||c.id===CP.sel)).map(c=>({id:c.id,s:c.s,e:c.e,kind:c.kind,rep:c.rep,status:c.status}));
-  if(CP.draft) items.push({id:'draft',s:CP.draft.s,e:CP.draft.e,kind:'comment'});
-  decorate(box,items);
-  const sc=$('#cpScroll'),k=v.id;if(sc){sc.scrollTop=CP.scroll[k]||0;sc.addEventListener('scroll',()=>{CP.scroll[k]=sc.scrollTop;cpPopHide()},{passive:true})}
-  const ta=$('#cpText')||$('#cpRep');if(CP.draft&&ta&&!CP.draft.focused){CP.draft.focused=true;ta.focus();if(ta.id==='cpRep') ta.select()}
-  if(CP.reply&&CP.sel){const r=$('#cpReply');if(r){r.focus();if(CP.replyText) r.value=CP.replyText}}
-}
-// comments changed: redraw the list and the marks, not the page
-function cpRefresh(p){
-  if(SHARE){render();return}
-  if(UI.view!=='projects'||PV.proj!==p.id||PV.tab!=='copy'||CP.edit||!$('#cpSide')){render();return}
-  const v=cpShown(p),keep=$('#cpList'),top=keep?keep.scrollTop:0;$('#cpSide').innerHTML=cpSideHtml(p,v);$('#cpList').scrollTop=top;cpAfter(p);
-}
-function cpFocusMark(id){const el=$(`#cpDoc [data-c~="${id}"]`);if(el) el.scrollIntoView({block:'center',behavior:'smooth'})}
+/* selection → Comment / Suggest edit */
+function hideSelbar(){$('#selbar')?.remove()}
+function onDocSel(){const sel=getSelection(),doc=$('#doc');if(!doc||CP.chg||!sel.rangeCount||sel.isCollapsed){hideSelbar();return}
+  const r=sel.getRangeAt(0);if(!doc.contains(r.commonAncestorContainer)){hideSelbar();return}
+  const text=sel.toString().replace(/\s+/g,' ').trim();if(text.length<2){hideSelbar();return}
+  CP.selText=text;const b=r.getBoundingClientRect();hideSelbar();
+  const bar=document.createElement('div');bar.id='selbar';bar.className='selbar';bar.setAttribute('role','toolbar');
+  bar.innerHTML=`<button data-act="cpSelComment">${ic('comment',14)}Comment</button>`+(route().name==='review'?'':`<span class="vd"></span><button data-act="cpSelSuggest">${ic('type',14)}Suggest edit</button>`);
+  bar.addEventListener('mousedown',e=>e.preventDefault());$('#layer').appendChild(bar);
+  const w=bar.offsetWidth;bar.style.left=Math.max(8,Math.min(innerWidth-w-8,b.left+b.width/2-w/2))+'px';bar.style.top=Math.max(8,b.top-46)+'px'}
 
-/* ---------- selecting words: a small bar offers Comment and Suggest ---------- */
-function cpPopHide(){if(!CP.pop) return;CP.pop=null;const el=$('#cpPop');if(el) el.hidden=true}
-function cpSelCheck(){
-  const box=$('#cpDoc'),el=$('#cpPop');if(!box||!el||CP.edit) return;
-  const s=getSelection();if(!s.rangeCount||s.isCollapsed){cpPopHide();return}
-  const r=s.getRangeAt(0);if(!box.contains(r.commonAncestorContainer)){cpPopHide();return}
-  const a=textOffset(box,r.startContainer,r.startOffset),b=textOffset(box,r.endContainer,r.endOffset),full=docText(box);let s0=a,e0=b;
-  while(s0<e0&&/\s/.test(full[s0])) s0++;while(e0>s0&&/\s/.test(full[e0-1])) e0--;if(e0<=s0){cpPopHide();return}
-  CP.pop={s:s0,e:e0,quote:full.slice(s0,e0)};
-  const rr=r.getBoundingClientRect(),mr=el.parentElement.getBoundingClientRect();el.hidden=false;
-  el.innerHTML=`<button type="button" data-cp-pop="comment">${PI.bubble}Comment</button><button type="button" data-cp-pop="suggest">${I.pen}Suggest</button>`;
-  const w=el.offsetWidth,h=el.offsetHeight,x=clamp(rr.left+rr.width/2-mr.left-w/2,8,mr.width-w-8),y=rr.top-mr.top-h-8<56?rr.bottom-mr.top+8:rr.top-mr.top-h-8;
-  el.style.left=x+'px';el.style.top=y+'px';
+/* ---------- rail ---------- */
+function copyRail(p,R,el){
+  if(R.sub==='edit'){el.innerHTML=`<div class="rail-scroll">${editorAside(p)}${detailsRail(p)}</div>`;return}
+  if(CP.rail==='details'){el.innerHTML=`<div class="rail-top"><button class="btn btn-ghost btn-sm" data-act="cpRail" data-r="comments" style="margin-left:-6px">${ic('back',14)}Comments</button></div><div class="rail-scroll">${detailsRail(p)}</div>`;return}
+  const{v}=cpPickVersions(p,R),all=ccFor(p,v.n),L=all.filter(c=>c.layer===CP.layer),open=L.filter(c=>c.open),closed=L.filter(c=>!c.open);
+  const nT=all.filter(c=>c.layer==='team'&&c.open).length,nC=all.filter(c=>c.layer==='client'&&c.open).length;
+  el.innerHTML=`<div class="rail-top"><div class="seg" style="flex:1;display:flex"><button style="flex:1" class="${CP.layer==='team'?'on':''}" data-act="cpLayer" data-l="team" aria-pressed="${CP.layer==='team'}">Team <span class="num">${nT}</span></button><button style="flex:1" class="${CP.layer==='client'?'on':''}" data-act="cpLayer" data-l="client" aria-pressed="${CP.layer==='client'}">Review link <span class="num">${nC}</span></button></div><button class="ib" data-act="cpRail" data-r="details" title="Page details" aria-label="Page details">${ic('panel',18)}</button></div>
+  <div class="rail-scroll">
+   ${CP.layer==='client'?'<div class="note">Only people on the review link see these comments, and they see your replies here.</div>':''}
+   ${CP.mode==='compare'&&CP.chg?'<div class="note">Comments sit on the current version. Turn off See changes to see them in the text.</div>':''}
+   ${open.length?`<div class="cmts">${open.map(c=>cpCard(c,v)).join('')}</div>`:`<div class="empty" style="padding:40px 8px"><h3 class="disp" style="font-size:22px;line-height:28px">All <span class="mk">clear</span></h3><p>Select text in the copy to comment or suggest an edit.</p></div>`}
+   ${closed.length?`<button class="resb" data-act="cpShowRes" aria-expanded="${CP.showRes}">${CP.showRes?'Hide':'Show'} resolved and decided <span class="num">${closed.length}</span></button>${CP.showRes?`<div class="cmts" style="margin-top:8px">${closed.map(c=>cpCard(c,v)).join('')}</div>`:''}`:''}
+  </div>${cpCompose()}`;
+  const t=$('#cpText',el);if(t){t.oninput=()=>CP.draft=t.value;t.onkeydown=e=>{if(e.key==='Enter'&&(e.metaKey||e.ctrlKey)){e.preventDefault();ACT.cpPost()}}}
+  const ri=$('#cpRepIn',el);if(ri){ri.focus();ri.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();ACT.cpSendReply()}}}
 }
-let cpSelT=0;document.addEventListener('selectionchange',()=>{if(!$('#cpDoc')) return;clearTimeout(cpSelT);cpSelT=setTimeout(cpSelCheck,140)});
-function cpStartDraft(kind){
-  const p=projById(PV.proj),q=CP.pop;if(!p||!q) return;
-  if(q.quote.length>2000){toast('Select up to 2000 characters at a time');return}
-  CP.draft={kind,s:q.s,e:q.e,quote:q.quote,...(kind==='suggest'?{rep:q.quote}:{}),text:''};CP.pop=null;CP.sel=null;CP.reply=null;
-  if(CP.filter==='resolved') CP.filter='open';getSelection().removeAllRanges();cpRefresh(p);
-}
-function cpPost(){
-  const p=projById(PV.proj),v=p&&cpShown(p),d=CP.draft;if(!v||!d) return;
-  if(SHARE&&!guestMe().name){askName(()=>cpPost());return}
-  const text=(($('#cpText')||$('#cpNote'))||{value:d.text||''}).value.trim(),rep=d.kind==='suggest'?(($('#cpRep')||{value:d.rep}).value||'').replace(/\s*\n\s*/g,' ').trim():null;
-  if(d.kind==='comment'&&!text){const t=$('#cpText');if(t) t.focus();return}
-  if(d.kind==='suggest'&&rep===d.quote){toast('Change the wording first, or leave a comment instead');const t=$('#cpRep');if(t) t.focus();return}
-  const layer=SHARE?'client':CP.layer;
-  const c={id:uid(),n:v.cm.filter(x=>cpLayerOf(x)===layer).reduce((m,x)=>Math.max(m,x.n||0),0)+1,...(layer==='client'?{layer:'client'}:{}),kind:d.kind,s:d.s,e:d.e,quote:d.quote,text,...(d.kind==='suggest'?{rep}:{}),status:'open',by:'You',byId:me().id,at:Date.now(),re:[]};
-  v.cm.push(c);CP.draft=null;CP.sel=c.id;touch(p);save();cpRefresh(p);
-}
-const cpCm=(v,id)=>v.cm.find(c=>c.id===id);
+function cpCard(c,v){const who=c.by==='guest'?c.guest:P[c.by].short,last=cvers(page(route().id)).at(-1).n;
+  const state=c.open?'':c.status==='accepted'?`<span class="tag ink">${ic('check',12)}Accepted</span>`:c.status==='declined'?'<span class="tag">Declined</span>':`<span style="color:var(--green)" title="Resolved">${ic('check',15)}</span>`;
+  return `<div class="cm ${CP.active===c.n?'on':''} ${c.open?'':'res'}" data-act="cpCm" data-n="${c.n}" tabindex="0">
+   <div class="cm-top"><span class="pn">${copyLabel(c,CP.layer).replace('#','')}</span>${c.by==='guest'?`<span class="av guest">${c.guest.split(' ').map(w=>w[0]).slice(-2).join('')}</span>`:av(c.by)}<b>${esc(who)}</b><span class="t">${c.at}</span><span class="sp"></span>${c.toMe&&c.open?'<span class="tag hi">For you</span>':''}${c.kind==='suggest'&&c.open?'<span class="tag">Suggestion</span>':''}${state}</div>
+   ${c.kind==='suggest'?`<div class="sgx"><del class="sg-del">${esc(c.quote)}</del><span class="arr">${ic('open',13)}</span><ins class="sg-ins">${esc(c.to)}</ins></div>`:c.quote?`<blockquote class="q">${esc(c.quote)}</blockquote>`:''}
+   ${c.text?`<p>${esc(c.text)}</p>`:''}
+   ${c.status==='accepted'&&!c.done?`<div class="dash" style="font-size:12.5px">Goes into v${last+1} when someone edits the copy.</div>`:''}
+   ${c.rep.map(r=>`<div class="rep">${r.by==='guest'?`<span class="av guest">G</span>`:av(r.by)}<div><div class="who">${r.by==='guest'?'Guest':P[r.by].short} · ${r.at}</div>${esc(r.text)}</div></div>`).join('')}
+   ${CP.replyTo===c.n?`<div class="rinput"><input id="cpRepIn" placeholder="Reply…" aria-label="Reply"><button class="btn btn-ink btn-sm" data-act="cpSendReply">Send</button></div>`:''}
+   <div class="cm-act"><button class="btn btn-ghost btn-sm" data-act="cpReply" data-n="${c.n}">${ic('reply',14)}Reply</button><span class="sp"></span>
+   ${c.open?(c.kind==='suggest'?`<button class="btn btn-ghost btn-sm" data-act="cpDecline" data-n="${c.n}">Decline</button><button class="btn btn-line btn-sm" data-act="cpAccept" data-n="${c.n}">${ic('check',14)}Accept</button>`:`<button class="btn btn-line btn-sm" data-act="cpResolve" data-n="${c.n}">${ic('check',14)}Resolve</button>`):`<button class="btn btn-ghost btn-sm" data-act="cpReopen" data-n="${c.n}">Reopen</button>`}</div></div>`}
+function cpCompose(){const pd=CP.pend;
+  return `<div class="compose">
+   ${pd?`<div class="pend"><span class="pn">+</span>${pd.kind==='suggest'?'Suggest an edit':'Comment on this text'}<span class="sp"></span><button class="ib sm" data-act="cpUnpend" aria-label="Cancel">${ic('x',14)}</button></div><blockquote class="q">${esc(pd.quote)}</blockquote>
+     ${pd.kind==='suggest'?`<label class="fld"><span>Replace with</span><input id="cpTo" value="${esc(pd.to??pd.quote)}"></label>`:''}`:CP.mode==='read'?'<div class="pend">Select text in the copy to comment on it or suggest an edit.</div>':''}
+   <textarea id="cpText" placeholder="${pd&&pd.kind==='suggest'?'Why? (optional)':CP.layer==='client'?'Write on the review link…':'Write a comment…'}" aria-label="Comment">${esc(CP.draft||'')}</textarea>
+   <div class="row"><span class="pend"><kbd>Ctrl</kbd><kbd>↵</kbd></span><span class="sp"></span><button class="btn btn-ink btn-sm" data-act="cpPost">${pd&&pd.kind==='suggest'?'Suggest':'Post'}</button></div></div>`}
 
-/* ---------- writing a version: Quill, with the toolbar Noon draws, the paste cleaned first, a draft kept as you type ---------- */
-const CP_TOOLS=[['header',1,'<b class="cp-h">H1</b>','Big heading'],['header',2,'<b class="cp-h">H2</b>','Heading'],['header',3,'<b class="cp-h">H3</b>','Small heading'],0,
-  ['bold',true,'<b>B</b>','Bold (Ctrl+B)'],['italic',true,'<i>I</i>','Italic (Ctrl+I)'],['underline',true,'<u>U</u>','Underline (Ctrl+U)'],['mark',true,CPI.mark,'Highlight'],0,
-  ['link',true,CPI.link,'Link'],['list','bullet',CPI.ul,'Bulleted list'],['list','ordered',CPI.ol,'Numbered list'],['blockquote',true,CPI.quote,'Quote'],['hr',true,CPI.hr,'Line between sections'],0,['clean',true,CPI.clear,'Clear formatting']];
-function cpToolsHtml(){
-  if(CP.link) return `<div class="cp-linkrow"><input id="cpLinkIn" type="url" placeholder="Paste a link, https://…" aria-label="Link"><button type="button" class="btn sm dark" data-cp-link="ok">Apply</button><button type="button" class="btn sm" data-cp-link="rm">Remove link</button><button type="button" class="btn sm ghost" data-cp-link="x">Cancel</button></div>`;
-  return CP_TOOLS.map(t=>t?`<button type="button" class="cp-tool" data-fmt="${t[0]}" data-val="${t[1]}" title="${t[3]}" aria-label="${t[3]}" aria-pressed="false">${t[2]}</button>`:'<span class="cp-sep"></span>').join('');
-}
-function cpEditHtml(p){
-  const e=CP.edit,from=e.from&&cpById(p,e.from),open=from?from.cm.filter(c=>cpOpen(c)&&c.status!=='accepted'):[];
-  const note=e.restored?'Picked up your draft from this device':from?`Starting from v${from.n}${e.acc.length?`, with ${plural(e.acc.length,'accepted change')} in`:''}`:'A first draft';
-  return `<div class="cp cp-editing"><div class="cp-main">
-      <div class="cp-bar"><span class="pv-ttl"><b>Copy v${e.n}</b><small><span>${esc(note)}</span> · <span id="cpSaved">kept on this device as you type</span></small></span><span class="sp"></span><button type="button" class="btn sm ghost" data-cp-cancel-edit>Cancel</button><button type="button" class="btn sm dark" data-cp-save>Save as v${e.n}</button></div>
-      <div class="cp-tools" id="cpTools" role="toolbar" aria-label="Formatting">${cpToolsHtml()}</div>
-      <div class="cp-scroll"><div class="cp-doc cp-q" id="cpQuill"></div></div></div>
-    <aside class="pv-side cp-side"><div class="pv-sh"><h3>${open.length?`Still open on v${from.n}`:'Formatting that comes through'}</h3></div>
-      <div class="pv-list">${open.length?open.map(c=>`<div class="pc"><div class="pc-top"><span class="pin-n">${c.n}</span><b>${esc(nameOf(team(),c.byId,c.by))}</b>${c.kind==='suggest'?'<span class="cp-tag">Suggestion</span>':''}</div>${c.kind==='suggest'?`<p class="pc-sg"><del>${esc(clip(c.quote,160))}</del>${c.rep?`<ins>${esc(c.rep)}</ins>`:''}</p>`:`<p class="pc-q">${esc(clip(c.quote,120))}</p><p>${mentionHtml(c.text)}</p>`}</div>`).join(''):''}
-        <div class="cp-tips"><p>Paste from Google Docs or Notion and bold, italics, underline, highlights, headings, lists and links stay as they are. Paste Markdown and it turns into the same formatting.</p><p>Every save is a new version. Claude gets it as clean Markdown, so formatting never breaks on the way.</p></div></div></aside></div>`;
-}
-function quillSetup(){
-  if(CP.qReady) return;const Inline=Quill.import('blots/inline'),BlockEmbed=Quill.import('blots/block/embed');
-  class MarkBlot extends Inline{}MarkBlot.blotName='mark';MarkBlot.tagName='MARK';
-  class HrBlot extends BlockEmbed{}HrBlot.blotName='hr';HrBlot.tagName='HR';
-  Quill.register(MarkBlot,true);Quill.register(HrBlot,true);CP.qReady=true;
-}
-const cpHtml=()=>CP.quill?cleanCopy(CP.quill.getSemanticHTML()):'';
-const looksMd=t=>/(^|\n)#{1,6} \S|\*\*[^*\n]+\*\*|(^|\n)[-*+] \S|(^|\n)\d+[.)] \S|\[[^\]\n]+\]\([^)\s]+\)|(^|\n)> \S/.test(t);
-async function cpMount(p){
-  const box=$('#cpQuill');if(!box||box.dataset.on) return;box.dataset.on='1';box.innerHTML='<p class="cp-wait">Opening the editor…</p>';
-  try{await Promise.all([lib('quill'),lib('marked')])}catch(e){box.innerHTML='<p class="cp-wait">The editor could not load. Check your connection, then open it again.</p>';delete box.dataset.on;return}
-  if(!box.isConnected||!CP.edit||CP.edit.page!==p.id) return;
-  quillSetup();box.innerHTML='';
-  const q=new Quill(box,{formats:['header','bold','italic','underline','mark','link','list','blockquote','indent','hr'],modules:{toolbar:false,history:{userOnly:true,delay:800}},placeholder:'Write the copy, or paste it from Google Docs, Notion or a Markdown file…'});
-  // coming back to a version being written (another tab, then Copy again) picks up what was typed, kept as the draft
-  const d=draftGet(p);if(d&&d.html&&!CP.edit.restored){CP.edit.html=d.html;CP.edit.restored=true}
-  CP.quill=q;q.setContents(q.clipboard.convert({html:CP.edit.html||'',text:''}),'silent');q.history.clear();CP.q0=cpHtml();
-  box.addEventListener('paste',cpPaste,true);
-  q.on('editor-change',cpToolsState);
-  q.on('text-change',()=>{clearTimeout(CP.dt);CP.dt=setTimeout(()=>cpDraftSave(p),500)});
-  q.focus();q.setSelection(0,0,'silent');cpToolsState();
-}
-function cpToolsState(){
-  const q=CP.quill;if(!q||CP.link) return;const r=q.getSelection();const f=r?q.getFormat(r):{};
-  for(const b of $$('#cpTools [data-fmt]')){const k=b.dataset.fmt,v=b.dataset.val,on=k==='header'?f.header===+v:k==='list'?f.list===v:k==='hr'||k==='clean'?false:!!f[k];b.setAttribute('aria-pressed',on);b.classList.toggle('on',on)}
-}
-function cpDraftSave(p){
-  if(!CP.quill||!CP.edit) return;const html=cpHtml();
-  if(html===CP.q0&&!CP.edit.restored){draftDel(p);return}
-  draftSet(p,{base:CP.edit.from,acc:CP.edit.acc,html,at:Date.now()});const s=$('#cpSaved');if(s) s.textContent=`kept on this device at ${fmtT(Date.now(),home())}`;
-}
-function cpPaste(e){
-  const dt=e.clipboardData;if(!dt||!CP.quill) return;
-  const html=dt.getData('text/html'),text=dt.getData('text/plain');let clean=null;
-  if(html) clean=cleanCopy(html);else if(text&&looksMd(text)&&window.marked) clean=cleanCopy(mdParse(text));
-  if(clean==null) return; // plain text: Quill pastes it as it is
-  e.preventDefault();e.stopPropagation();
-  const q=CP.quill,Delta=Quill.import('delta'),r=q.getSelection(true);if(r.length) q.deleteText(r.index,r.length,'user');
-  // headings, lists or several paragraphs start on a line of their own instead of taking over the line they land in
-  let at=r.index;if(/<(h[1-3]|ul|ol|blockquote|hr)[\s>]/.test(clean)||(clean.match(/<p>/g)||[]).length>1){const [,off]=q.getLine(at);if(off>0){q.insertText(at,'\n','user');at++}}
-  const d=q.clipboard.convert({html:clean,text:''});q.updateContents(new Delta().retain(at).concat(d),'user');q.setSelection(at+d.length(),0,'silent');
-}
-function cpTool(fmt,val){
-  const q=CP.quill;if(!q) return;const r=q.getSelection(true),f=q.getFormat(r);
-  if(fmt==='hr'){q.insertEmbed(r.index,'hr',true,'user');q.setSelection(r.index+1,0,'user');return}
-  if(fmt==='clean'){if(r.length) q.removeFormat(r.index,r.length,'user');else q.format('header',false,'user');return}
-  if(fmt==='link'){CP.linkAt=r;CP.link=true;$('#cpTools').innerHTML=cpToolsHtml();const i=$('#cpLinkIn');i.value=f.link||'';i.focus();return}
-  const v=fmt==='header'?+val:fmt==='list'?val:true;q.format(fmt,f[fmt]===v?false:v,'user');cpToolsState();
-}
-function cpLinkDone(kind){
-  const q=CP.quill,r=CP.linkAt;CP.link=false;$('#cpTools').innerHTML=cpToolsHtml();if(!q||!r) return;q.setSelection(r.index,r.length,'silent');
-  if(kind==='rm'){q.formatText(r.index,Math.max(r.length,1),'link',false,'user');return}
-  if(kind!=='ok') return;let u=(($('#cpLinkIn')||{}).value||CP.linkVal||'').trim();CP.linkVal='';
-  if(!u) return;if(!/^(https?:|mailto:)/i.test(u)) u='https://'+u;
-  if(r.length) q.formatText(r.index,r.length,'link',u,'user');else{q.insertText(r.index,u,'link',u,'user');q.setSelection(r.index+u.length,0,'silent')}
-  cpToolsState();
-}
-function cpStartEdit(p){
-  const cur=cpCur(p),d=draftGet(p);
-  if(d){CP.edit={page:p.id,from:cur?cur.id:null,n:(cur?cur.n:0)+1,html:d.html,acc:Array.isArray(d.acc)?d.acc:[],restored:true};if(d.base&&cur&&d.base!==cur.id) setTimeout(()=>toast(`Your draft started from an earlier version; v${cur.n} came in since`),400)}
-  else{let html='',acc=[];
-    if(cur){const a=cur.cm.filter(c=>c.kind==='suggest'&&c.status==='accepted'&&!c.done),r=applySug(cur.body,a);html=r.html;acc=r.done.map(c=>c.id);if(r.skip.length) setTimeout(()=>toast(`${plural(r.skip.length,'accepted change')} overlapped another one and ${r.skip.length===1?'was':'were'} left out`),400)}
-    CP.edit={page:p.id,from:cur?cur.id:null,n:(cur?cur.n:0)+1,html,acc}}
-  CP.sel=null;CP.draft=null;CP.pop=null;CP.menu=null;CP.link=false;render();
-}
-async function cpCancelEdit(p){
-  // a draft picked up from this device counts as unsaved work too
-  const changed=CP.edit.restored||(CP.quill&&cpHtml()!==CP.q0);
-  if(changed&&!await confirmDlg('Throw away this draft?','What you wrote since the last saved version goes. The versions already saved stay as they are.','Throw away')) return;
-  clearTimeout(CP.dt);draftDel(p);CP.edit=null;CP.quill=null;render();
-}
-function cpSaveEdit(p){
-  if(!CP.quill){toast('The editor is still opening');return}
-  const html=cpHtml();if(!plainOf(html).trim()){toast('Write something first');return}
-  const L=copyOf(p),n=L.reduce((m,v)=>Math.max(m,v.n),0)+1,from=cpById(p,CP.edit.from);
-  L.push({id:uid(),n,body:html,src:'written',at:Date.now(),by:me().id,cm:[]});
-  if(from) for(const c of from.cm) if(CP.edit.acc.includes(c.id)&&c.status==='accepted'&&!c.done) c.done=n;
-  clearTimeout(CP.dt);draftDel(p);CP.edit=null;CP.quill=null;CP.open=L[L.length-1].id;CP.filter='open';touch(p);save();render();toast(`Copy v${n} saved`);
-}
+/* ---------- editor ---------- */
+function applySug(p){const last=cvers(p).at(-1);if(!last)return{html:`<h1>${esc(p.name)}</h1><p><br></p>`,n:0,list:[]};
+  let h=last.body;const list=ccFor(p,last.n).filter(c=>c.kind==='suggest'&&c.status==='accepted'&&!c.done);
+  list.forEach(c=>{if(h.includes(c.quote))h=h.replace(c.quote,esc(c.to))});return{html:h,n:list.length,list}}
+function editorAside(p){const{list}=applySug(p);const last=cvers(p).at(-1);
+  return `<div class="ed-aside"><div class="slbl" style="margin-top:4px">In this draft<span class="sp"></span><span class="num" id="edWc">${wc(plainOf(CP.edHtml||''))} words</span></div>${list.length?list.map(c=>`<div class="sgx" style="margin-bottom:8px"><del class="sg-del">${esc(c.quote)}</del><span class="arr">${ic('open',13)}</span><ins class="sg-ins">${esc(c.to)}</ins></div>`).join('')+`<p class="hint">Accepted on v${last.n}, already applied.</p>`:`<p class="hint">${last?`Starts from v${last.n}. No accepted suggestions to apply.`:'A blank page. Start with the headline.'}</p>`}</div>`}
+function copyEditorHtml(p){const last=cvers(p).at(-1),n=(last?.n||0)+1;
+  const B=(cmd,icn,label,extra='')=>`<button data-act="cpCmd" data-cmd="${cmd}" title="${label}" aria-label="${label}" ${extra}>${icn}</button>`;
+  const T=t=>`<span class="tb-t">${t}</span>`;
+  return `<div class="vbar2" id="cpBar"><button class="ib" data-act="cpDiscard" aria-label="Discard draft" title="Discard draft">${ic('back',18)}</button>
+   <span class="verb" style="cursor:default">Copy <span class="v" style="color:var(--ink)">v${n}</span></span><span class="tag hi draft-tag">Draft</span>
+   <span class="sp"></span>
+   <div class="etb" role="toolbar" aria-label="Formatting">${B('h1',T('H1'),'Heading 1')}${B('h2',T('H2'),'Heading 2')}${B('p',T('¶'),'Paragraph')}<span class="vd"></span>${B('bold','<b class="tb-t">B</b>','Bold')}${B('italic','<i class="tb-t" style="font-family:Georgia,serif">I</i>','Italic')}${B('underline','<u class="tb-t">U</u>','Underline')}${B('hl','<span class="tb-t tb-hl">H</span>','Highlight')}<span class="vd"></span>${B('ul',ic('filter',16),'Bulleted list')}${B('ol',T('1.'),'Numbered list')}${B('quote',T('“'),'Quote')}${B('link',ic('link',16),'Link')}${B('clear',T('Tx'),'Clear formatting')}</div>
+   <span class="sp"></span>
+   <button class="btn btn-ghost btn-sm" data-act="cpDiscard">Discard</button><button class="btn btn-ink btn-sm" data-act="cpSave">Save as v${n}</button></div>
+   <div class="cstage" id="cpStage"><article class="paper doc edit" id="ed" contenteditable="true" spellcheck="true" aria-label="Copy editor"></article></div>`}
+function mountEditor(p){const ed=$('#ed');if(CP.edFor!==p.id||CP.edHtml==null){CP.edHtml=applySug(p).html;CP.edFor=p.id}
+  ed.innerHTML=CP.edHtml;const up=()=>{CP.edHtml=ed.innerHTML;const w=$('#edWc');if(w)w.textContent=wc(ed.textContent)+' words'};up();ed.addEventListener('input',up);
+  $('.etb').addEventListener('mousedown',e=>e.preventDefault());
+  ed.addEventListener('paste',e=>{const t=e.clipboardData?.getData('text/plain');if(t!=null){e.preventDefault();document.execCommand('insertText',false,t)}});
+  if(!cvers(p).length){const h=ed.querySelector('h1');if(h){const r=document.createRange();r.selectNodeContents(h);const s=getSelection();s.removeAllRanges();s.addRange(r)}ed.focus()}}
+function cleanCopy(html){const d=document.createElement('div');d.innerHTML=html;
+  d.querySelectorAll('span[style*="background"]').forEach(s=>{const m=document.createElement('mark');m.innerHTML=s.innerHTML;s.replaceWith(m)});
+  d.querySelectorAll('div').forEach(x=>{const q=document.createElement('p');q.innerHTML=x.innerHTML;x.replaceWith(q)});
+  d.querySelectorAll('[style]').forEach(x=>x.removeAttribute('style'));d.querySelectorAll('b').forEach(b=>{const s=document.createElement('strong');s.innerHTML=b.innerHTML;b.replaceWith(s)});
+  return d.innerHTML.replace(/<p><br><\/p>/g,'')}
+function saveEditor(){const R=route(),p=page(R.id),ed=$('#ed');if(!p||!ed)return;const body=cleanCopy(ed.innerHTML);
+  if(!plainOf(body).trim()){toast('Write something first');return}
+  const before=JSON.stringify({cv:CV[p.id]||null,cc:CC[p.id]||null,copy:p.copy,at:p.at,by:p.by});
+  const vs=cvers(p).slice(),last=vs.at(-1),n=(last?.n||0)+1;
+  if(last)ccFor(p,last.n).forEach(c=>{if(c.kind==='suggest'&&c.status==='accepted'&&!c.done)c.done=n});
+  vs.push({n,at:0,by:'me',src:'Edited in Noon',body});CV[p.id]=vs;p.copy.n=n;p.at=0;p.by='me';CP.edHtml=null;CP.edFor=null;syncCopy(p);
+  go(`#page/${p.id}/copy/v${n}`);
+  toast(`Saved copy v${n}`,()=>{const o=JSON.parse(before);if(o.cv)CV[p.id]=o.cv;else delete CV[p.id];if(o.cc)CC[p.id]=o.cc;p.copy=o.copy;p.at=o.at;p.by=o.by;go(`#page/${p.id}/copy`)})}
 
-/* ---------- uploading: Markdown, Word, text or HTML becomes the next version ---------- */
-const CP_EXT=/\.(md|markdown|txt|docx|html?)$/i;
-async function fileToHtml(f){
-  const ext=(f.name.split('.').pop()||'').toLowerCase();
-  if(f.size>5*1048576) throw new Error(`${f.name} is over 5 MB`);
-  if(ext==='docx'){await lib('mammoth');const r=await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()},{styleMap:['u => u','highlight => mark'],ignoreEmptyParagraphs:true});return r.value}
-  const text=await f.text();
-  if(ext==='md'||ext==='markdown'||(ext==='txt'&&looksMd(text))){await lib('marked');return mdParse(text)}
-  if(ext==='txt') return text.split(/\r?\n\s*\r?\n/).map(b=>`<p>${esc(b).replace(/\r?\n/g,'<br>')}</p>`).join('');
-  if(ext==='html'||ext==='htm') return text;
-  throw new Error(`${f.name}: upload Markdown, Word (.docx), text or HTML`);
-}
-async function cpUpload(p,files){
-  files=[...files].sort((a,b)=>a.name.localeCompare(b.name));if(!files.length) return;
-  if(CP.edit){toast('Save or cancel the version you are writing first');return}
-  const bad=files.filter(f=>!CP_EXT.test(f.name));if(bad.length&&bad.length===files.length){toast(/\.doc$/i.test(bad[0].name)?'Save it as .docx in Word first, then upload that':'Upload a Markdown, Word (.docx), text or HTML file');return}
-  toast('Reading the file…');const made=[];
-  for(const f of files.filter(f=>CP_EXT.test(f.name))){
-    try{const html=cleanCopy(await fileToHtml(f));if(!plainOf(html).trim()){toast(`Nothing readable in ${f.name}`);continue}
-      const L=copyOf(p),n=L.reduce((m,v)=>Math.max(m,v.n),0)+1;L.push({id:uid(),n,body:html,src:f.name.slice(0,200),at:Date.now(),by:me().id,cm:[]});made.push(n)}
-    catch(e){toast(e.message||String(e))}}
-  if(!made.length) return;CP.open=made.length===1?cpCur(p).id:null;CP.filter='open';touch(p);save();render();
-  toast(made.length===1?`Copy v${made[0]} added from the file`:`Copy v${made.join(', v')} added`);
-}
-$('#cpFiles').addEventListener('change',e=>{const p=PV.proj&&projById(PV.proj),l=[...e.target.files];e.target.value='';if(p) cpUpload(p,l)});
-function cpDrop(dt){const p=PV.proj&&projById(PV.proj);if(p) cpUpload(p,[...dt.files])}
+/* ---------- upload (.md / .txt / .html read for real; .docx converts in the real app) ---------- */
+function mdToHtml(md){const lines=md.replace(/\r/g,'').split('\n'),out=[];let list=null;const inl=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
+  const close=()=>{if(list){out.push(`</${list}>`);list=null}};
+  for(const l of lines){let m;if(!l.trim()){close();continue}
+    if((m=l.match(/^(#{1,3})\s+(.*)/))){close();const lv=Math.min(m[1].length,3);out.push(`<h${lv}>${inl(m[2])}</h${lv}>`)}
+    else if((m=l.match(/^\s*[-*]\s+(.*)/))){if(list!=='ul'){close();out.push('<ul>');list='ul'}out.push(`<li>${inl(m[1])}</li>`)}
+    else if((m=l.match(/^\s*\d+[.)]\s+(.*)/))){if(list!=='ol'){close();out.push('<ol>');list='ol'}out.push(`<li>${inl(m[1])}</li>`)}
+    else if((m=l.match(/^>\s?(.*)/))){close();out.push(`<blockquote>${inl(m[1])}</blockquote>`)}
+    else{close();out.push(`<p>${inl(l)}</p>`)}}close();return out.join('')}
+function copyUpload(p){const inp=document.createElement('input');inp.type='file';inp.accept='.md,.markdown,.txt,.html,.htm,.docx';
+  inp.onchange=async()=>{const f=inp.files[0];if(!f)return;let body;
+    if(/\.docx$/i.test(f.name)){const last=cvers(p).at(-1);body=last?last.body:`<h1>${esc(p.name)}</h1>`;toast('Word files turn into formatted copy in the real app. Here the last version is reused.')}
+    else{const t=await f.text();if(/\.html?$/i.test(f.name)){const d=new DOMParser().parseFromString(t,'text/html');body=cleanCopy(d.body.innerHTML)}else body=mdToHtml(t)}
+    const vs=cvers(p).slice(),n=(vs.at(-1)?.n||0)+1;vs.push({n,at:0,by:'me',src:'Uploaded '+f.name,body});CV[p.id]=vs;p.copy.n=n;p.at=0;p.by='me';syncCopy(p);
+    go(`#page/${p.id}/copy/v${n}`);if(!/\.docx$/i.test(f.name))toast(`${f.name} added as copy v${n}`)};
+  inp.click()}
 
-/* ---------- getting it out ---------- */
-function cpMd(p,v){return htmlToMd(v.body)}
-function cpEscape(){
-  if(CP.menu){CP.menu=null;render();return true}
-  if(CP.link){cpLinkDone('x');return true}
-  if(CP.pop){cpPopHide();getSelection().removeAllRanges();return true}
-  if(CP.draft){CP.draft=null;const p=projById(PV.proj);if(p) cpRefresh(p);return true}
-  if(CP.reply){CP.reply=null;const p=projById(PV.proj);if(p) cpRefresh(p);return true}
-  if(CP.sel&&PV.tab==='copy'){CP.sel=null;const p=projById(PV.proj);if(p) cpRefresh(p);return true}
-  if(CP.cmp&&!SHARE){const id=CP.cmp.b;CP.cmp=null;cpOpenVer(id);return true}
-  if(CP.open&&!SHARE&&!CP.edit){CP.open=null;render();return true}
-  return false;
-}
-
-/* ---------- clicks ---------- */
-$('#vProj').addEventListener('mousedown',e=>{if(e.target.closest('#cpTools .cp-tool,#cpPop')) e.preventDefault()});
-// leaving the editor for another tab or page keeps what was typed this second, not only what the last pause saved
-$('#vProj').addEventListener('click',e=>{if(CP.quill&&CP.edit&&e.target.closest('[data-pj-tab],#pjBack,[data-crumb],#pjMove')){clearTimeout(CP.dt);const p=projById(CP.edit.page);if(p) cpDraftSave(p)}},true);
-$('#vProj').addEventListener('click',async e=>{
-  const c=s=>e.target.closest(s);let b;const p=PV.proj&&projById(PV.proj);if(!p||(SHARE?SH.kind!=='copy':PV.tab!=='copy')) return;
-  const v=cpShown(p);
-  if(c('[data-cp-up]')){$('#cpFiles').click();return}
-  if(c('#cpBack')){CP.open=null;CP.sel=null;CP.draft=null;CP.reply=null;CP.menu=null;cpPopHide();render();return}
-  if(b=c('[data-cpv-share]')){const x=cpById(p,b.dataset.cpvShare);if(x) openShare(p,x,'copy');return}
-  if(b=c('[data-cpv-final]')){const x=cpById(p,b.dataset.cpvFinal);if(x) cpFinal(p,x);return}
-  if(b=c('[data-cpv-dl]')){const x=cpById(p,b.dataset.cpvDl);if(x) cpDownload(p,x);return}
-  if(b=c('[data-cpv-del]')){const x=cpById(p,b.dataset.cpvDel);if(x) cpDelete(p,x);return}
-  if(b=c('[data-cpv-cmp]')){cpStartCompare(p,b.dataset.cpvCmp);return}
-  if(b=c('[data-cpv-open]')){cpOpenVer(b.dataset.cpvOpen);return}
-  if(c('#cpCmpLink')){cpCmpSolo(!cpCmpState().solo);return}
-  if(c('#cpChg')){cpChgToggle(p);return}
-  if(c('#cpCmpBack')){const id=CP.cmp&&CP.cmp.b;CP.cmp=null;CP.menu=null;cpOpenVer(id);return}
-  if(b=c('[data-cpcmp]')){const k='cmp'+b.dataset.cpcmp;CP.menu=CP.menu===k?null:k;render();return}
-  if(b=c('[data-cpcmp-pick]')){const k=b.dataset.cpcmpPick,x=cpById(p,b.dataset.v),o=cpById(p,k==='a'?CP.cmp.b:CP.cmp.a);CP.menu=null;if(x&&o) CP.cmp=x.n<o.n?{a:x.id,b:o.id}:{a:o.id,b:x.id};render();return}
-  if(c('[data-cp-write]')){if(SHARE) return;cpStartEdit(p);return}
-  if(c('[data-cp-save]')){cpSaveEdit(p);return}
-  if(c('[data-cp-cancel-edit]')){cpCancelEdit(p);return}
-  if(b=c('#cpTools [data-fmt]')){cpTool(b.dataset.fmt,b.dataset.val);return}
-  if(b=c('[data-cp-link]')){CP.linkVal=(($('#cpLinkIn')||{}).value||'');cpLinkDone(b.dataset.cpLink);return}
-  if(c('#cpVerBtn')){CP.menu=CP.menu==='ver'?null:'ver';render();return}
-  if(b=c('[data-cpv]')){CP.menu=null;const x=cpById(p,b.dataset.cpv);if(x) cpOpenVer(x.id);return}
-  if(c('#cpMore')){CP.menu=CP.menu==='more'?null:'more';render();return}
-  if(b=c('[data-cp-do]')){if(!v) return;const k=b.dataset.cpDo;CP.menu=null;
-    if(k==='final'){cpFinal(p,v);return}
-    if(k==='share'){render();openShare(p,v,'copy');return}
-    if(k==='copymd'){render();navigator.clipboard.writeText(cpMd(p,v)).then(()=>toast(`${cpLabel(v)} copied as Markdown`),()=>toast('Could not copy'));return}
-    if(k==='dlmd'){render();cpDownload(p,v);return}
-    if(k==='del'){render();cpDelete(p,v);return}}
-  if(b=c('[data-cp-pop]')){cpStartDraft(b.dataset.cpPop);return}
-  if(c('[data-cp-cancel]')){CP.draft=null;cpRefresh(p);return}
-  if(c('[data-cp-post]')){cpPost();return}
-  if(b=c('[data-cplayer]')){CP.layer=b.dataset.cplayer;CP.sel=null;CP.draft=null;CP.reply=null;cpRefresh(p);return}
-  if(b=c('[data-cpfilter]')){CP.filter=b.dataset.cpfilter;CP.sel=null;cpRefresh(p);return}
-  if(!v) return;
-  const set=(id,st,msg)=>{const x=cpCm(v,id);if(!x) return;x.status=st;touch(p);save();cpRefresh(p);if(msg) toast(msg)};
-  if(b=c('[data-cpc-acc]')){set(b.dataset.cpcAcc,'accepted',`Accepted. It goes into v${cpCur(p).n+1} when you edit it.`);return}
-  if(b=c('[data-cpc-dec]')){set(b.dataset.cpcDec,'declined','Declined');return}
-  if(b=c('[data-cpc-undo]')){set(b.dataset.cpcUndo,'open');return}
-  if(b=c('[data-cpc-reopen]')){set(b.dataset.cpcReopen,'open','Reopened');return}
-  if(b=c('[data-cpc-res]')){const x=cpCm(v,b.dataset.cpcRes);if(!x) return;const st=x.status==='resolved'?'open':'resolved';if(st==='resolved'&&CP.sel===x.id) CP.sel=null;set(x.id,st,st==='resolved'?'Resolved':'Reopened');return}
-  if(b=c('[data-cpc-reply]')){CP.sel=b.dataset.cpcReply;CP.reply=true;CP.replyText='';CP.draft=null;cpRefresh(p);return}
-  if(b=c('[data-cpc-send]')){const x=cpCm(v,b.dataset.cpcSend),ta=$('#cpReply');if(!x||!ta) return;const text=ta.value.trim();if(!text){ta.focus();return}
-    if(SHARE&&!guestMe().name){askName(()=>b.click());return}
-    x.re.push({id:uid(),by:'You',byId:me().id,text,at:Date.now()});CP.reply=null;CP.replyText='';touch(p);save();cpRefresh(p);return}
-  if(b=c('[data-cpc-delre]')){const id=b.dataset.cpcDelre;for(const x of v.cm) x.re=(x.re||[]).filter(r=>r.id!==id);touch(p);save();cpRefresh(p);toast('Reply removed');return}
-  if(b=c('[data-cpc-del]')){const x=cpCm(v,b.dataset.cpcDel);if(!x) return;v.cm=v.cm.filter(q=>q!==x);if(CP.sel===x.id) CP.sel=null;touch(p);save();cpRefresh(p);toast(x.kind==='suggest'?'Suggestion deleted':'Comment deleted');return}
-  if(b=c('[data-cpc]')){if(c('textarea')||c('button')) return;const id=b.dataset.cpc;CP.sel=CP.sel===id?null:id;CP.reply=null;cpRefresh(p);if(CP.sel) cpFocusMark(id);return}
-  if(b=c('#cpDoc [data-c]')){if(getSelection&&!getSelection().isCollapsed) return;const id=b.dataset.c.split(' ')[0];if(id==='draft') return;CP.sel=id;CP.reply=null;if(CP.filter!=='all'&&!cpOpen(cpCm(v,id)||{})) CP.filter='all';cpRefresh(p);const card=$(`#cpSide [data-cpc="${id}"]`);if(card) card.scrollIntoView({block:'nearest',behavior:'smooth'});return}
+/* ---------- actions ---------- */
+const cpFind=n=>{const R=route(),p=page(R.id),{v}=cpPickVersions(p,R);return{p,R,v,c:ccFor(p,v.n).find(x=>x.layer===CP.layer&&x.n===+n)}};
+function cpSetDecision(a,e,fn,msg){e.stopPropagation();const{p,R,c}=cpFind(a.dataset.n);const before={open:c.open,status:c.status};fn(c);if(CP.active===c.n)CP.active=null;syncCopy(p);refreshCopy();
+  toast(msg(c),()=>{c.open=before.open;c.status=before.status;syncCopy(p)})}
+Object.assign(ACT,{
+  cpOpen:a=>go(`#page/${route().id}/copy/v${a.dataset.n}`),
+  cpFinal:(a,e)=>{e.stopPropagation();const p=page(route().id),n=+a.dataset.n,u=snap();p.copy.final=p.copy.final===n?0:n;p.at=0;p.by='me';render(true);toast(p.copy.final?`Copy v${n} marked final`:`Copy v${n} is no longer final`,u)},
+  cpMore:(a,e)=>{e.stopPropagation();const p=page(route().id),n=+a.dataset.n,vs=cvers(p);openMenu(a,()=>[{label:'Download as Markdown',pre:ic('download',15),pick:()=>toast(`Downloading copy-v${n}.md`)},{label:'Download as Word',pre:ic('download',15),pick:()=>toast(`Downloading copy-v${n}.docx`)},...(vs.length>1?[{label:'Compare with…',pre:ic('compare',15),pick:()=>{CP.mode='compare';CP.cmpA=vs.find(v=>v.n!==n).n;go(`#page/${p.id}/copy/v${Math.max(n,CP.cmpA)}`)}}]:[]),{sep:1},{label:'Delete version',danger:true,pre:ic('trash',15),pick:()=>toast('Deleting versions is off in the mockup')}])},
+  cpCmpLatest:()=>{const p=page(route().id),vs=cvers(p);CP.mode='compare';CP.cmpA=vs.at(-2).n;go(`#page/${p.id}/copy/v${vs.at(-1).n}`)},
+  cpVerMenu:a=>{const R=route(),p=page(R.id),vs=cvers(p);openMenu(a,()=>[...vs.slice().reverse().map(v=>({check:true,on:v.n===R.ver,label:`Copy <span class="v" style="color:inherit">v${v.n}</span>`,meta:`${ago(v.at)} · ${P[v.by].short}`,pick:()=>go(`#page/${p.id}/copy/v${v.n}`)})),{sep:1},{label:`Write v${vs.at(-1).n+1}`,pre:ic('type',15),pick:()=>go(`#page/${p.id}/copy/edit`)},{label:'Upload a file',pre:ic('upload',15),pick:()=>copyUpload(p)}])},
+  cpPickA:a=>{const R=route(),p=page(R.id),vs=cvers(p);openMenu(a,()=>vs.filter(v=>v.n!==R.ver).reverse().map(v=>({check:true,on:v.n===CP.cmpA,label:`Copy <span class="v" style="color:inherit">v${v.n}</span>`,meta:`${ago(v.at)} · ${P[v.by].short}`,pick:()=>{CP.cmpA=v.n;setTimeout(()=>renderPbMain(p,R))}})))},
+  cpMode:a=>{const R=route(),p=page(R.id);if(a.dataset.m==='compare'&&cvers(p).length<2){toast('Compare needs two versions');return}CP.mode=a.dataset.m;CP.pend=null;if(CP.mode==='read')CP.chg=false;renderPbMain(p,R);renderRail(p,R)},
+  cpChg:()=>{const R=route(),p=page(R.id);CP.chg=!CP.chg;renderPbMain(p,R);renderRail(p,R)},
+  cpLayer:a=>{CP.layer=a.dataset.l;CP.active=null;CP.pend=null;refreshCopy()},
+  cpRail:a=>{CP.rail=a.dataset.r;const R=route();renderRail(page(R.id),R)},
+  cpCm:(a,e)=>{if(e.target.closest('input,textarea,button:not([data-act=cpCm])'))return;const n=+a.dataset.n;const fromDoc=!!a.closest('#doc');CP.active=CP.active===n&&!fromDoc?null:n;CP.rail='comments';refreshCopy();
+    if(CP.active!=null){if(fromDoc)$('.cm.on')?.scrollIntoView({block:'nearest',behavior:'smooth'});else{const an=$(`#doc .anc[data-n="${n}"]`),st=$('#cpStage');if(an&&st){const r=an.getBoundingClientRect(),s=st.getBoundingClientRect();if(r.top<s.top+40||r.bottom>s.bottom-40)st.scrollTop+=r.top-s.top-140}}}},
+  cpReply:(a,e)=>{e.stopPropagation();CP.replyTo=CP.replyTo===+a.dataset.n?null:+a.dataset.n;const R=route();renderRail(page(R.id),R)},
+  cpSendReply:(a,e)=>{e?.stopPropagation();const t=($('#cpRepIn')?.value||'').trim();if(!t)return;const{p,R,c}=cpFind(CP.replyTo);c.rep.push({by:'me',at:'Just now',text:t});CP.replyTo=null;renderRail(p,R)},
+  cpResolve:(a,e)=>cpSetDecision(a,e,c=>{c.open=false},c=>`Resolved ${copyLabel(c,CP.layer)}`),
+  cpReopen:(a,e)=>cpSetDecision(a,e,c=>{c.open=true;c.status=undefined},c=>`Reopened ${copyLabel(c,CP.layer)}`),
+  cpAccept:(a,e)=>cpSetDecision(a,e,c=>{c.open=false;c.status='accepted'},()=>`Accepted. It goes into the next version.`),
+  cpDecline:(a,e)=>cpSetDecision(a,e,c=>{c.open=false;c.status='declined'},()=>'Suggestion declined'),
+  cpShowRes:()=>{CP.showRes=!CP.showRes;refreshCopy()},
+  cpUnpend:()=>{CP.pend=null;refreshCopy()},
+  cpSelComment:()=>{CP.pend={kind:'comment',quote:CP.selText};CP.rail='comments';hideSelbar();getSelection().removeAllRanges();refreshCopy();$('#cpText')?.focus()},
+  cpSelSuggest:()=>{CP.pend={kind:'suggest',quote:CP.selText};CP.rail='comments';hideSelbar();getSelection().removeAllRanges();refreshCopy();const i=$('#cpTo');if(i){i.focus();i.select()}},
+  cpPost:()=>{const R=route(),p=page(R.id),{v}=cpPickVersions(p,R),t=($('#cpText')?.value||'').trim(),pd=CP.pend;
+    const to=pd&&pd.kind==='suggest'?($('#cpTo')?.value||'').trim():null;
+    if(pd&&pd.kind==='suggest'){if(!to||to===pd.quote){$('#cpTo')?.focus();toast('Change the text to suggest an edit');return}}else if(!t){$('#cpText')?.focus();return}
+    const list=ccFor(p,v.n),n=Math.max(0,...list.filter(c=>c.layer===CP.layer).map(c=>c.n))+1;
+    const c={n,layer:CP.layer,kind:pd?pd.kind:'comment',by:'me',at:'Just now',quote:pd?pd.quote:'',to:to||undefined,open:true,text:t,rep:[]};
+    list.push(c);CP.pend=null;CP.draft='';CP.active=n;syncCopy(p);p.at=0;p.by='me';refreshCopy();
+    toast(`${c.kind==='suggest'?'Suggestion':'Comment'} ${copyLabel(c,CP.layer)} posted`,()=>{list.splice(list.indexOf(c),1);syncCopy(p)})},
+  cpCmd:a=>{const ed=$('#ed');if(!ed)return;ed.focus();const c=a.dataset.cmd;
+    const map={h1:['formatBlock','H1'],h2:['formatBlock','H2'],p:['formatBlock','P'],quote:['formatBlock','BLOCKQUOTE'],bold:['bold'],italic:['italic'],underline:['underline'],ul:['insertUnorderedList'],ol:['insertOrderedList'],clear:['removeFormat']};
+    if(c==='hl'){document.execCommand('styleWithCSS',false,true);document.execCommand('hiliteColor',false,'#c6f23e');document.execCommand('styleWithCSS',false,false)}
+    else if(c==='link'){const sel=getSelection();if(!sel.rangeCount||sel.isCollapsed){toast('Select the words to link first');return}const range=sel.getRangeAt(0).cloneRange();
+      openMenu(a,null,{html:()=>`<div class="pop"><h3>${ic('link',16)}Add a link</h3><div class="linkbox"><input id="lnk" placeholder="https://" style="font-family:var(--sans);font-size:13px;color:var(--ink)"><button class="btn btn-ink btn-sm" style="height:34px" id="lnkOk">Add</button></div></div>`});
+      const i=$('#lnk');i.focus();const ok=()=>{const u=i.value.trim();closeMenu();if(!u)return;const s=getSelection();s.removeAllRanges();s.addRange(range);document.execCommand('createLink',false,/^https?:/.test(u)?u:'https://'+u)};$('#lnkOk').onclick=ok;i.onkeydown=e=>{if(e.key==='Enter')ok()};return}
+    else{const[cmd,arg]=map[c];document.execCommand(cmd,false,arg)}
+    CP.edHtml=ed.innerHTML},
+  cpSave:saveEditor,
+  cpDiscard:()=>{const p=page(route().id);const dirty=CP.edHtml!=null&&CP.edHtml!==applySug(p).html;CP.edHtml=null;CP.edFor=null;go(`#page/${p.id}/copy`);if(dirty)toast('Draft discarded')},
 });
-$('#vProj').addEventListener('input',e=>{const t=e.target;if(!CP.draft&&t.id!=='cpReply') return;if(t.id==='cpText'||t.id==='cpNote') CP.draft.text=t.value;if(t.id==='cpRep') CP.draft.rep=t.value;if(t.id==='cpReply') CP.replyText=t.value});
-$('#vProj').addEventListener('keydown',e=>{
-  const t=e.target;
-  if(t.id==='cpLinkIn'&&e.key==='Enter'){e.preventDefault();CP.linkVal=t.value;cpLinkDone('ok');return}
-  if(t.id==='cpLinkIn'&&e.key==='Escape'){e.preventDefault();e.stopPropagation();cpLinkDone('x');return}
-  if(e.key==='Enter'&&!e.shiftKey&&(t.id==='cpText'||t.id==='cpNote')){e.preventDefault();cpPost();return}
-  if(e.key==='Enter'&&!e.shiftKey&&t.id==='cpReply'){e.preventDefault();const s=t.parentElement.querySelector('[data-cpc-send]');if(s) s.click();return}
-},true);
-document.addEventListener('pointerdown',e=>{if(CP.menu&&!(e.target.closest&&e.target.closest('.vpick-wrap,.fd-more'))){CP.menu=null;for(const m of $$('#vProj .cp-vmenu,#vProj .cp-menu')) m.remove();for(const b of $$('#cpVerBtn,#cpMore,[data-cpcmp]')) b.setAttribute('aria-expanded','false')}});
-document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'&&CP.edit&&$('#cpQuill')){e.preventDefault();const p=projById(CP.edit.page);if(p) cpSaveEdit(p)}});
-addEventListener('beforeunload',()=>{if(CP.edit&&CP.quill){const p=projById(CP.edit.page);if(p) cpDraftSave(p)}});
-
-/* ---------- a review link to a copy version: the guest sees the document and the link's comments ---------- */
-function renderCopyGuest(){
-  const p=projectsOf(team())[0],v=p&&cpCur(p);if(!v) return;cpReset(p);
-  $('#vProj').innerHTML=`<header class="top"><div class="ttl-wrap"><h1>${esc(p.name)}</h1><span class="sub">The copy, for review</span></div><div class="topnav"></div></header><div class="pj-body cp-host">${cpReadHtml(p,v)}</div>`;
-  cpAfter(p);
-}
-
-upgradeCopy();
+KEYS.push((e,typing)=>{const R=route();if(R.name!=='page'||R.tab!=='copy'||MENU||PAL||$('#dlg'))return;
+  if(R.sub==='edit'&&(e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='s'){e.preventDefault();saveEditor();return true}
+  if(e.key==='Escape'){if($('#selbar')){hideSelbar();return true}if(CP.pend){CP.pend=null;refreshCopy();return true}if(CP.active!=null&&!typing){CP.active=null;refreshCopy();return true}}});
+ONHASH.push(R=>{hideSelbar();if(!(R.name==='page'&&R.tab==='copy')){CP.pend=null;CP.active=null;CP.replyTo=null}
+  if(!(R.name==='page'&&R.tab==='copy'&&R.ver)){CP.mode='read';CP.chg=false;CP.cmpA=null}});
