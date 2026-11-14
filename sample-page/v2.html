@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Remake cost advertorial · Dandy</title>
+<style>:root{--ink:#0f2a3d;--accent:#1f7a8c;--soft:#e8f3f5;--head:Georgia, 'Times New Roman', serif;--h1:44px;--r:6px}
+*{box-sizing:border-box}body{margin:0;font:17px/1.6 -apple-system,'Segoe UI',Arial,sans-serif;color:var(--ink);background:#fff}
+.wrap{max-width:1080px;margin:0 auto;padding:0 28px}
+#top{border-bottom:1px solid #e7e7e7;background:#fff}#top .wrap{display:flex;justify-content:space-between;align-items:center;height:60px}
+#top b{font:700 18px var(--head);color:var(--ink)}#top span{font-size:13px;color:#777}
+#hero{padding:64px 0 48px;background:var(--soft)}
+.hero{display:grid;grid-template-columns:1.2fr .8fr;gap:48px;align-items:center}
+.kicker{text-transform:uppercase;letter-spacing:.12em;font-size:12px;font-weight:700;color:var(--accent);margin:0 0 12px}
+#hero-title{font:700 var(--h1) /1.12 var(--head);margin:0 0 18px;letter-spacing:-.01em}
+#hero-sub{font-size:19px;color:#444;margin:0 0 28px;max-width:560px}
+.btn{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;font-weight:700;padding:16px 28px;border-radius:var(--r);font-size:17px}
+.visual{aspect-ratio:4/5;border-radius:24px;background:linear-gradient(160deg,var(--accent),var(--ink));display:grid;place-items:end start;padding:28px;color:#fff}
+.visual .card{background:rgba(255,255,255,.14);backdrop-filter:blur(6px);padding:16px 18px;border-radius:14px}
+.visual span{display:block;font-size:12px;opacity:.8;text-transform:uppercase;letter-spacing:.1em}.visual b{font:700 22px var(--head)}
+#proof{padding:26px 0;border-bottom:1px solid #eee}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;text-align:center}
+.stats b{display:block;font:700 30px var(--head);color:var(--accent)}.stats small{color:#666;font-size:14px}
+main.wrap{max-width:760px;padding-top:40px;padding-bottom:20px}
+main section{margin:0 0 36px}main h2{font:700 28px/1.25 var(--head);margin:0 0 12px}
+main ul{padding-left:22px}main li{margin:6px 0}
+#quote{margin:28px 0;padding:24px 28px;background:var(--soft);border-radius:16px;font:italic 20px/1.5 var(--head)}
+.note{font-size:13px;color:#888}
+mark{background:#fff1a8;padding:0 3px}
+#offer{padding:56px 0 64px}
+.offer-box{max-width:760px;margin:0 auto;text-align:center;padding:40px 32px;border-radius:24px;background:var(--ink);color:#fff}
+.offer-box h2{font:700 30px var(--head);margin:0 0 10px}.offer-box p{margin:0 0 24px;color:rgba(255,255,255,.8)}
+.offer-box s{opacity:.6;margin-right:8px}
+#foot{padding:28px 0;font-size:13px;color:#888;border-top:1px solid #eee}
+/* editorial: one calm column, serif headings */
+body.editorial #hero{background:#fff;padding-top:48px}body.editorial .hero{grid-template-columns:1fr;max-width:760px;margin:0 auto}
+body.editorial .visual{aspect-ratio:16/8}body.editorial .byline{font-size:14px;color:#777;margin:-6px 0 22px}
+/* scrappy: plain white page, system font, red-and-black headline */
+body.scrappy{--head:-apple-system,'Segoe UI',Arial,sans-serif}body.scrappy #hero{background:#fff}
+body.scrappy #hero-title{color:#c4161c}body.scrappy .hero{grid-template-columns:1fr;max-width:720px;margin:0 auto}
+body.scrappy .visual{aspect-ratio:16/9;border-radius:6px;background:linear-gradient(135deg,#d9d2c3,#a89f8c)}
+body.scrappy .offer-box{background:#f3fbef;color:var(--ink);border:2px solid var(--accent)}body.scrappy .offer-box p{color:#333}
+body.scrappy .btn{background:#2f9e44}
+/* the first scrappy version was still the polished look the team asked to drop */
+body.scrappy.v1{--head:Georgia,serif}body.scrappy.v1 #hero{background:var(--soft)}body.scrappy.v1 #hero-title{color:var(--ink)}
+body.scrappy.v1 .btn{background:var(--ink)}
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;list-style:none;padding:0;counter-reset:s}
+.steps li{background:var(--soft);border-radius:14px;padding:18px;font-size:15px;counter-increment:s}
+.steps li::before{content:counter(s);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;margin-bottom:10px}
+@media (max-width:760px){.hero{grid-template-columns:1fr}.stats{grid-template-columns:1fr}.steps{grid-template-columns:1fr 1fr}#hero{padding:40px 0 32px}}
+</style></head>
+<body class="editorial v2">
+<header id="top"><div class="wrap"><b>Dandy</b><span>Sponsored</span></div></header>
+<section id="hero"><div class="wrap hero"><div><p class="kicker">Advertorial</p><h1 id="hero-title">One in five crowns comes back. Here is why.</h1><p class="byline">By the Dandy editorial team · 6 min read</p><p id="hero-sub">Most practices blame the impression. After looking at over 4,000 remakes across 62 practices, we found the real cause is usually <em>somewhere else</em>, and it costs the average practice <strong>$3,200 a month</strong> in chair time.</p><a id="cta-main" class="btn" href="#offer">Get my free remake report</a></div><div class="visual" aria-hidden="true"><div class="card"><span>Dandy</span><b>Your remake report, free</b></div></div></div></section>
+<section id="proof"><div class="wrap stats"><div><b>4,000+</b><small>remakes studied</small></div><div><b>62</b><small>practices</small></div><div><b>$3,200</b><small>lost each month</small></div></div></section>
+<main class="wrap"><section id="s1"><h2>The hidden cost nobody tracks</h2><p>A remake is not one lost appointment. It is a second prep check, a second seat, and a patient who starts wondering whether they picked the right dentist.</p><ul><li>Two extra visits for every remake</li><li>38 minutes of chair time each visit</li><li>One in nine patients who never book their next cleaning</li></ul></section><section id="s2"><h2>What the best practices do differently</h2><p>They stopped treating fit as luck. They send scans instead of impressions, they get a design preview before anything is milled, and they work with a lab that owns the remake instead of arguing about it.</p><blockquote id=quote>"We went from four remakes a month to one. I didn't change how I prep. I changed who I send it to." – Dr. Alicia Moreno, Moreno Family Dental</blockquote></section><section id="s3"><h2>See your own numbers</h2><p>Dandy built a free remake calculator. Put in your monthly crown volume and see what remakes cost you this year.</p><p class="note">Chair time from Dandy's 2025 survey of 62 practices.</p></section></main>
+<section id="offer"><div class="wrap"><div class="offer-box"><h2>Your remake report, free</h2><p>Join the practices and people who already made the switch.</p><a id="cta-offer" class="btn" href="https://example.com/ridgeway/calculator">Get my free remake report</a></div></div></section>
+<footer id="foot"><div class="wrap">© 2026 Dandy. Sample page for review in Noon.</div></footer>
+</body></html>
